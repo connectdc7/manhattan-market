@@ -9,6 +9,15 @@
 -- Nothing here is Manhattan Market's real inventory yet. When you get real
 -- products, hours, and stock counts from your friend, this table is what
 -- gets updated (by hand for now, later synced automatically from Clover).
+--
+-- Heads up on the employee dashboard (/dashboard): it was built unlisted
+-- with no login, to keep the demo quick to set up. To make that work, the
+-- policies below let anyone holding the public "anon" key — which ships in
+-- the site's own JavaScript, so effectively anyone — read rewards signups
+-- and orders, and edit product stock, not just view products. That's an
+-- acceptable tradeoff for placeholder demo data, but before this goes live
+-- with real customer phone numbers/emails, put a real login (e.g. Supabase
+-- Auth) in front of /dashboard and tighten these policies to require it.
 
 create extension if not exists "pgcrypto";
 
@@ -32,6 +41,16 @@ create policy "Public can read products"
   on products for select
   to anon
   using (true);
+
+-- Lets the employee dashboard (/dashboard) edit stock counts directly from
+-- the browser, since that page has no login yet. See the note at the top
+-- of this file about what that tradeoff means.
+drop policy if exists "Public can update products" on products;
+create policy "Public can update products"
+  on products for update
+  to anon
+  using (true)
+  with check (true);
 
 -- Atomic stock decrement, called from checkout. Doing the subtraction in
 -- the database (instead of read-then-write from the browser) avoids the
@@ -78,11 +97,43 @@ create table if not exists rewards_signups (
 
 alter table rewards_signups enable row level security;
 
--- Anyone can sign up (insert), but nobody can read the list back through
--- the public API — you'll view signups from the Supabase table editor
--- instead, not through the website.
 drop policy if exists "Public can join rewards" on rewards_signups;
 create policy "Public can join rewards"
   on rewards_signups for insert
   to anon
   with check (true);
+
+-- Lets the employee dashboard list signups without a login. See the note
+-- at the top of this file about what that tradeoff means.
+drop policy if exists "Public can read rewards signups" on rewards_signups;
+create policy "Public can read rewards signups"
+  on rewards_signups for select
+  to anon
+  using (true);
+
+-- ---------------------------------------------------------------------------
+-- orders
+-- ---------------------------------------------------------------------------
+create table if not exists orders (
+  id uuid primary key default gen_random_uuid(),
+  created_at timestamptz not null default now(),
+  fulfillment text not null check (fulfillment in ('pickup', 'delivery')),
+  items jsonb not null,
+  subtotal numeric(10, 2) not null
+);
+
+alter table orders enable row level security;
+
+drop policy if exists "Public can create orders" on orders;
+create policy "Public can create orders"
+  on orders for insert
+  to anon
+  with check (true);
+
+-- Lets the employee dashboard list recent orders without a login. See the
+-- note at the top of this file about what that tradeoff means.
+drop policy if exists "Public can read orders" on orders;
+create policy "Public can read orders"
+  on orders for select
+  to anon
+  using (true);

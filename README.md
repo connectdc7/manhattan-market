@@ -18,6 +18,11 @@ Real, once Supabase is connected (see setup below):
   mechanism that will eventually keep the website and the Clover terminal in
   sync.
 - **Rewards signups** are saved to a real table you can look at in Supabase.
+- **An employee dashboard** at `/dashboard` — not linked from the site nav,
+  reachable only if you know the URL — shows current inventory (editable),
+  recent orders, and rewards signups, all reading from the same Supabase
+  tables as the storefront. See the security note below before showing
+  anyone this URL or using it with real customer data.
 
 Still mocked, on purpose, because the real credentials aren't available yet:
 - **Payments** (`app/checkout/page.tsx`) — "Place Order" simulates a 1.4s
@@ -30,6 +35,21 @@ Every page that has a stubbed piece says so in small print, so nothing is
 presented as more finished than it is. If Supabase isn't connected at all,
 the site still works — it just falls back to a local sample menu instead of
 a live database.
+
+## About the employee dashboard's security
+
+`/dashboard` has no login — that was a deliberate choice to keep this demo
+quick to set up. To make it work without one, `supabase/seed.sql` opens up
+read access to orders and rewards signups, and write access to product
+stock, to anyone holding the public "anon" key — which ships inside the
+site's own JavaScript, so in practice that means anyone who finds the page.
+
+That's a fine tradeoff while everything in these tables is placeholder demo
+data. It stops being fine the moment real customer phone numbers or emails
+are in the rewards table. Before that happens, put a real login in front of
+`/dashboard` (Supabase Auth is a natural fit, and mirrors the auth you
+already built for True Doc Pros) and tighten the RLS policies in
+`supabase/seed.sql` to require it.
 
 ## Setting up Supabase (no coding required)
 
@@ -49,9 +69,11 @@ a live database.
 5. Redeploy (Vercel > Deployments > ⋯ > Redeploy) so the new environment
    variables take effect.
 
-That's it — no code changes needed. The home page, order page, and rewards
-form will automatically start using Supabase once those two variables are
-set.
+That's it — no code changes needed. The home page, order page, rewards
+form, and `/dashboard` will automatically start using Supabase once those
+two variables are set. If step 2 (`supabase/seed.sql`) gets updated later —
+it's written to be safe to re-run any time you pull a newer version of this
+project — just paste the new version in and run it again.
 
 ## Running it locally
 
@@ -81,5 +103,5 @@ Same flow as True Doc Pros:
 3. Wire the delivery toggle to the Uber Direct API.
 4. Replace placeholder copy — address, hours, photos in `/gallery` — with
    the real thing.
-5. Build a simple admin view (or just use the Supabase table editor) for
-   your friend to check rewards signups.
+5. Put a real login in front of `/dashboard` before anyone but you uses it
+   (see the security note above).

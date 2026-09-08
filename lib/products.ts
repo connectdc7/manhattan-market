@@ -68,3 +68,17 @@ export async function decrementStock(lines: { id: string; qty: number }[]) {
     )
   );
 }
+
+// Manual stock edit from the employee dashboard — e.g. correcting a count
+// after a delivery, or after something breaks/spoils. In the real build
+// this kind of adjustment would happen on the Clover terminal instead and
+// flow to the site via webhook; this direct write is a stand-in for that.
+export async function updateProductStock(id: string, stock: number): Promise<boolean> {
+  if (!supabase) return false;
+  const { error } = await supabase.from("products").update({ stock }).eq("id", id);
+  if (error) {
+    console.error("updateProductStock:", error.message);
+    return false;
+  }
+  return true;
+}

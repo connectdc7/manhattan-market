@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useCart } from "@/lib/cart-context";
 import { decrementStock } from "@/lib/products";
+import { createOrder } from "@/lib/orders";
 import { isSupabaseConfigured } from "@/lib/supabase";
 
 type Stage = "review" | "processing" | "done";
@@ -16,11 +17,16 @@ export default function CheckoutPage() {
   const placeOrder = () => {
     setStage("processing");
     const orderedLines = lines.map((l) => ({ id: l.id, qty: l.qty }));
+    const orderItems = lines.map((l) => ({ id: l.id, name: l.name, price: l.price, qty: l.qty }));
+    const orderFulfillment = fulfillment;
+    const orderSubtotal = subtotal;
     setTimeout(async () => {
       // Payment is mocked (Stripe goes here later), but the stock decrement
-      // is real when Supabase is configured — so the menu reflects the
-      // order immediately, the same way it would once Clover is wired in.
+      // and order record are real when Supabase is configured — so the
+      // menu and the employee dashboard reflect the order immediately, the
+      // same way they would once Clover is wired in.
       await decrementStock(orderedLines);
+      await createOrder({ fulfillment: orderFulfillment, items: orderItems, subtotal: orderSubtotal });
       setStage("done");
       clear();
     }, 1400);
