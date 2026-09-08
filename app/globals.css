@@ -1,0 +1,48 @@
+@import "tailwindcss";
+
+:root {
+  --paper: #ffffff;
+  --panel: #f2f3ec;
+  --ink: #1d231f;
+  --ink-soft: #52584f;
+  --line: #d6d8c9;
+  --green: #21594a;
+  --green-deep: #163d33;
+  --green-tint: #e3ebe4;
+  --gold: #f0bd3e;
+  --gold-ink: #4a3300;
+}
+
+@theme inline {
+  --color-paper: var(--paper);
+  --color-panel: var(--panel);
+  --color-ink: var(--ink);
+  --color-ink-soft: var(--ink-soft);
+  --color-line: var(--line);
+  --color-green: var(--green);
+  --color-green-deep: var(--green-deep);
+  --color-green-tint: var(--green-tint);
+  --color-gold: var(--gold);
+  --color-gold-ink: var(--gold-ink);
+  --font-display: 'Fraunces', Georgia, 'Times New Roman', serif;
+  --font-body: 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace;
+}
+
+body {
+  background: var(--paper);
+  color: var(--ink);
+}
+
+h1, h2, h3, h4 {
+  font-family: var(--font-display);
+  text-wrap: balance;
+}
+
+.eyebrow {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  font-weight: 600;
+}
