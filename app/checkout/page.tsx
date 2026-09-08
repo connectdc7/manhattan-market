@@ -3,7 +3,8 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useCart } from "@/lib/cart-context";
-import { products } from "@/lib/products";
+import { decrementStock } from "@/lib/products";
+import { isSupabaseConfigured } from "@/lib/supabase";
 
 type Stage = "review" | "processing" | "done";
 
@@ -14,7 +15,12 @@ export default function CheckoutPage() {
 
   const placeOrder = () => {
     setStage("processing");
-    setTimeout(() => {
+    const orderedLines = lines.map((l) => ({ id: l.id, qty: l.qty }));
+    setTimeout(async () => {
+      // Payment is mocked (Stripe goes here later), but the stock decrement
+      // is real when Supabase is configured — so the menu reflects the
+      // order immediately, the same way it would once Clover is wired in.
+      await decrementStock(orderedLines);
       setStage("done");
       clear();
     }, 1400);
@@ -43,9 +49,9 @@ export default function CheckoutPage() {
         </div>
         <h1 className="mt-5 font-display text-2xl font-bold text-ink">Order placed</h1>
         <p className="mt-2 font-body text-sm text-ink-soft">
-          In the live site, Manhattan Market gets notified instantly, stock updates on
-          the Clover terminal automatically, and — for delivery orders — a courier is
-          requested through Uber Direct right away.
+          {isSupabaseConfigured
+            ? "Stock for what you ordered just updated — check the menu and you'll see it. Once Clover is wired in, that same update will happen automatically whenever a customer orders online."
+            : "In the live site, stock updates automatically the moment an order comes in, and — for delivery orders — a courier is requested through Uber Direct right away."}
         </p>
         <p className="mt-4 font-mono text-[0.68rem] uppercase tracking-wide text-ink-soft">
           Preview build — no payment was actually processed
@@ -66,20 +72,16 @@ export default function CheckoutPage() {
       <h1 className="mt-2 font-display text-3xl font-bold text-ink">Review your order</h1>
 
       <div className="mt-8 divide-y divide-line rounded-lg border border-line">
-        {lines.map((line) => {
-          const product = products.find((p) => p.id === line.id);
-          if (!product) return null;
-          return (
-            <div key={line.id} className="flex items-center justify-between px-5 py-3">
-              <span className="font-body text-sm text-ink">
-                {product.name} <span className="text-ink-soft">× {line.qty}</span>
-              </span>
-              <span className="font-mono text-sm font-semibold text-ink">
-                ${(product.price * line.qty).toFixed(2)}
-              </span>
-            </div>
-          );
-        })}
+        {lines.map((line) => (
+          <div key={line.id} className="flex items-center justify-between px-5 py-3">
+            <span className="font-body text-sm text-ink">
+              {line.name} <span className="text-ink-soft">× {line.qty}</span>
+            </span>
+            <span className="font-mono text-sm font-semibold text-ink">
+              ${(line.price * line.qty).toFixed(2)}
+            </span>
+          </div>
+        ))}
         <div className="flex items-center justify-between px-5 py-3">
           <span className="font-body text-sm font-semibold text-ink">Subtotal</span>
           <span className="font-mono text-sm font-semibold text-ink">${subtotal.toFixed(2)}</span>
@@ -120,6 +122,7 @@ export default function CheckoutPage() {
       </button>
       <p className="mt-2 text-center font-mono text-[0.62rem] uppercase tracking-wide text-ink-soft">
         Preview build — Stripe Checkout will replace this step
+        {isSupabaseConfigured ? " · stock will update live in Supabase" : ""}
       </p>
     </div>
   );

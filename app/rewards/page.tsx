@@ -1,14 +1,28 @@
 "use client";
 
 import { useState, FormEvent } from "react";
+import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 
 export default function RewardsPage() {
   const [submitted, setSubmitted] = useState(false);
   const [contact, setContact] = useState("");
+  const [saving, setSaving] = useState(false);
 
-  const onSubmit = (e: FormEvent) => {
+  const onSubmit = async (e: FormEvent) => {
     e.preventDefault();
     if (!contact.trim()) return;
+
+    if (supabase) {
+      setSaving(true);
+      const { error } = await supabase.from("rewards_signups").insert({ contact: contact.trim() });
+      setSaving(false);
+      if (error) {
+        console.error("rewards signup: ", error.message);
+        // Still show success in this preview rather than blocking the demo
+        // on a database hiccup — but this is where you'd surface a real error.
+      }
+    }
+
     setSubmitted(true);
   };
 
@@ -45,7 +59,9 @@ export default function RewardsPage() {
               {contact} is signed up. Your first order starts earning points right away.
             </p>
             <p className="mt-3 font-mono text-[0.62rem] uppercase tracking-wide text-ink-soft">
-              Preview build — not yet connected to a real rewards ledger
+              {isSupabaseConfigured
+                ? "Saved to the rewards list in Supabase"
+                : "Preview build — not yet connected to a real rewards ledger"}
             </p>
           </div>
         ) : (
@@ -60,9 +76,10 @@ export default function RewardsPage() {
             />
             <button
               type="submit"
-              className="rounded-full bg-gold px-6 py-3 font-mono text-sm font-semibold text-gold-ink transition hover:brightness-95"
+              disabled={saving}
+              className="rounded-full bg-gold px-6 py-3 font-mono text-sm font-semibold text-gold-ink transition hover:brightness-95 disabled:opacity-60"
             >
-              Join Rewards
+              {saving ? "Joining…" : "Join Rewards"}
             </button>
           </form>
         )}

@@ -35,7 +35,7 @@ export default function ProductCard({ product }: { product: Product }) {
           </span>
           <button
             disabled={outOfStock}
-            onClick={() => add(product.id)}
+            onClick={() => add({ id: product.id, name: product.name, price: product.price })}
             className="rounded-full bg-green px-3.5 py-1.5 font-mono text-xs font-semibold text-white transition hover:bg-green-deep disabled:cursor-not-allowed disabled:bg-line disabled:text-ink-soft"
           >
             Add

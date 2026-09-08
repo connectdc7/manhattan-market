@@ -1,9 +1,14 @@
-// Sample catalog for the preview build.
+// Product data access.
 //
-// In the real build this file is replaced by a query against Supabase,
-// which itself is kept in sync with Clover's inventory via webhooks (see
-// the plan doc). The `stock` field here stands in for what will eventually
-// be a live count mirrored from the Clover terminal.
+// getProducts() reads from Supabase (table: products) when it's configured,
+// and falls back to the local sample catalog below when it isn't — so the
+// site works before and after Supabase is wired up.
+//
+// In the real build, the `products` table itself is kept in sync with
+// Clover's inventory via webhooks (see the plan doc). For this preview, the
+// table is seeded once from supabase/seed.sql with the same numbers below,
+// standing in for a live count mirrored from the Clover terminal.
+import { supabase } from "./supabase";
 
 export type Product = {
   id: string;
@@ -15,7 +20,7 @@ export type Product = {
   swatch: string; // placeholder tile color, stands in for a real product photo
 };
 
-export const products: Product[] = [
+export const fallbackProducts: Product[] = [
   { id: "hot-coffee", name: "Fresh Brewed Coffee", category: "Hot Food", price: 2.25, stock: 24, blurb: "Hot, ready, and refilled all day.", swatch: "#6b4226" },
   { id: "bacon-egg-sandwich", name: "Bacon, Egg & Cheese", category: "Hot Food", price: 5.5, stock: 9, blurb: "Made fresh at the counter every morning.", swatch: "#c98b3a" },
   { id: "chicken-empanada", name: "Chicken Empanada", category: "Hot Food", price: 3.25, stock: 14, blurb: "Two in a bag, always warm.", swatch: "#d97b3f" },
@@ -31,3 +36,35 @@ export const products: Product[] = [
 ];
 
 export const categories = ["Hot Food", "Snacks", "Drinks", "Grocery"] as const;
+
+export async function getProducts(): Promise<Product[]> {
+  if (!supabase) return fallbackProducts;
+
+  const { data, error } = await supabase
+    .from("products")
+    .select("id, name, category, price, stock, blurb, swatch")
+    .order("name");
+
+  if (error || !data || data.length === 0) {
+    if (error) console.error("getProducts: falling back to sample data —", error.message);
+    return fallbackProducts;
+  }
+
+  return data.map((row) => ({ ...row, price: Number(row.price) })) as Product[];
+}
+
+// Best-effort stock decrement after a (mocked) order is placed. Calls a
+// Postgres function (see supabase/seed.sql) that does the subtraction
+// atomically in the database, rather than a read-then-write from the
+// browser — the same race-condition concern that applies to the real
+// Clover sync. Silently no-ops if Supabase isn't configured, since this is
+// a nice-to-have for the demo, not something that should block checkout.
+export async function decrementStock(lines: { id: string; qty: number }[]) {
+  const client = supabase;
+  if (!client) return;
+  await Promise.allSettled(
+    lines.map((line) =>
+      client.rpc("decrement_stock", { p_product_id: line.id, p_qty: line.qty })
+    )
+  );
+}

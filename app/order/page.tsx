@@ -1,11 +1,26 @@
 "use client";
 
-import { useState } from "react";
-import { categories, products } from "@/lib/products";
+import { useEffect, useState } from "react";
+import { categories, getProducts, Product } from "@/lib/products";
 import ProductCard from "@/components/ProductCard";
 
 export default function OrderPage() {
   const [active, setActive] = useState<(typeof categories)[number] | "All">("All");
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    getProducts().then((data) => {
+      if (!cancelled) {
+        setProducts(data);
+        setLoading(false);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const shown = active === "All" ? products : products.filter((p) => p.category === active);
 
@@ -36,11 +51,17 @@ export default function OrderPage() {
         ))}
       </div>
 
-      <div className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-        {shown.map((product) => (
-          <ProductCard key={product.id} product={product} />
-        ))}
-      </div>
+      {loading ? (
+        <p className="mt-10 font-mono text-xs uppercase tracking-wide text-ink-soft">
+          Loading menu…
+        </p>
+      ) : (
+        <div className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          {shown.map((product) => (
+            <ProductCard key={product.id} product={product} />
+          ))}
+        </div>
+      )}
     </div>
   );
 }

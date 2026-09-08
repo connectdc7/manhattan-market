@@ -1,13 +1,15 @@
 "use client";
 
 import { createContext, useContext, useEffect, useMemo, useState, ReactNode } from "react";
-import { products } from "./products";
 
-type CartLine = { id: string; qty: number };
+// Cart lines snapshot the name/price at add-time, so the cart doesn't care
+// whether products came from the local sample data or Supabase.
+type CartLine = { id: string; name: string; price: number; qty: number };
+type AddInput = { id: string; name: string; price: number };
 
 type CartContextValue = {
   lines: CartLine[];
-  add: (id: string) => void;
+  add: (product: AddInput) => void;
   remove: (id: string) => void;
   setQty: (id: string, qty: number) => void;
   clear: () => void;
@@ -41,13 +43,13 @@ export function CartProvider({ children }: { children: ReactNode }) {
     }
   }, [lines]);
 
-  const add = (id: string) => {
+  const add = (product: AddInput) => {
     setLines((prev) => {
-      const existing = prev.find((l) => l.id === id);
+      const existing = prev.find((l) => l.id === product.id);
       if (existing) {
-        return prev.map((l) => (l.id === id ? { ...l, qty: l.qty + 1 } : l));
+        return prev.map((l) => (l.id === product.id ? { ...l, qty: l.qty + 1 } : l));
       }
-      return [...prev, { id, qty: 1 }];
+      return [...prev, { ...product, qty: 1 }];
     });
     setDrawerOpen(true);
   };
@@ -65,10 +67,8 @@ export function CartProvider({ children }: { children: ReactNode }) {
     let count = 0;
     let subtotal = 0;
     for (const line of lines) {
-      const product = products.find((p) => p.id === line.id);
-      if (!product) continue;
       count += line.qty;
-      subtotal += product.price * line.qty;
+      subtotal += line.price * line.qty;
     }
     return { count, subtotal };
   }, [lines]);

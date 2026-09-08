@@ -1,9 +1,15 @@
 import Link from "next/link";
-import { products } from "@/lib/products";
+import { getProducts } from "@/lib/products";
+import { isSupabaseConfigured } from "@/lib/supabase";
 
-const lowStockCount = products.filter((p) => p.stock > 0 && p.stock <= 3).length;
+// Stock counts need to be read fresh on every request once Supabase is
+// wired up, not baked in once at build time.
+export const dynamic = "force-dynamic";
 
-export default function Home() {
+export default async function Home() {
+  const products = await getProducts();
+  const lowStockCount = products.filter((p) => p.stock > 0 && p.stock <= 3).length;
+
   return (
     <div>
       {/* Hero */}
@@ -83,7 +89,9 @@ export default function Home() {
             ))}
           </div>
           <p className="mt-4 font-mono text-[0.68rem] uppercase tracking-wide text-ink-soft">
-            Preview build — these counts will sync live from the Clover terminal
+            {isSupabaseConfigured
+              ? "Live from Supabase — place an order and watch these numbers move"
+              : "Preview build — these counts will sync live from the Clover terminal"}
           </p>
         </div>
       </section>

@@ -2,7 +2,6 @@
 
 import { useRouter } from "next/navigation";
 import { useCart } from "@/lib/cart-context";
-import { products } from "@/lib/products";
 
 export default function CartDrawer() {
   const { lines, drawerOpen, closeDrawer, setQty, remove, subtotal, count } = useCart();
@@ -33,44 +32,40 @@ export default function CartDrawer() {
             <p className="font-body text-sm text-ink-soft">Nothing in your cart yet.</p>
           ) : (
             <div className="flex flex-col gap-4">
-              {lines.map((line) => {
-                const product = products.find((p) => p.id === line.id);
-                if (!product) return null;
-                return (
-                  <div key={line.id} className="flex items-start justify-between gap-3">
-                    <div>
-                      <p className="font-body text-sm font-medium text-ink">{product.name}</p>
-                      <p className="font-mono text-xs text-ink-soft">${product.price.toFixed(2)} each</p>
-                      <div className="mt-1.5 flex items-center gap-2">
-                        <button
-                          onClick={() => setQty(line.id, line.qty - 1)}
-                          className="h-6 w-6 rounded border border-line font-mono text-xs text-ink hover:border-green"
-                        >
-                          −
-                        </button>
-                        <span className="w-4 text-center font-mono text-xs">{line.qty}</span>
-                        <button
-                          onClick={() => setQty(line.id, line.qty + 1)}
-                          className="h-6 w-6 rounded border border-line font-mono text-xs text-ink hover:border-green"
-                        >
-                          +
-                        </button>
-                      </div>
-                    </div>
-                    <div className="flex flex-col items-end gap-2">
-                      <span className="font-mono text-sm font-semibold text-ink">
-                        ${(product.price * line.qty).toFixed(2)}
-                      </span>
+              {lines.map((line) => (
+                <div key={line.id} className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="font-body text-sm font-medium text-ink">{line.name}</p>
+                    <p className="font-mono text-xs text-ink-soft">${line.price.toFixed(2)} each</p>
+                    <div className="mt-1.5 flex items-center gap-2">
                       <button
-                        onClick={() => remove(line.id)}
-                        className="font-mono text-[0.65rem] uppercase tracking-wide text-ink-soft hover:text-[#a8461a]"
+                        onClick={() => setQty(line.id, line.qty - 1)}
+                        className="h-6 w-6 rounded border border-line font-mono text-xs text-ink hover:border-green"
                       >
-                        Remove
+                        −
+                      </button>
+                      <span className="w-4 text-center font-mono text-xs">{line.qty}</span>
+                      <button
+                        onClick={() => setQty(line.id, line.qty + 1)}
+                        className="h-6 w-6 rounded border border-line font-mono text-xs text-ink hover:border-green"
+                      >
+                        +
                       </button>
                     </div>
                   </div>
-                );
-              })}
+                  <div className="flex flex-col items-end gap-2">
+                    <span className="font-mono text-sm font-semibold text-ink">
+                      ${(line.price * line.qty).toFixed(2)}
+                    </span>
+                    <button
+                      onClick={() => remove(line.id)}
+                      className="font-mono text-[0.65rem] uppercase tracking-wide text-ink-soft hover:text-[#a8461a]"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                </div>
+              ))}
             </div>
           )}
         </div>
