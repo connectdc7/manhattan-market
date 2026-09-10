@@ -170,6 +170,7 @@ export default function DashboardPage() {
                 onStockSaved={handleStockSaved}
                 onProductSaved={handleProductSaved}
                 onProductRemoved={handleProductRemoved}
+                onRefresh={loadAll}
               />
             )}
             {tab === "rewards" && <RewardsPanel signups={signups} />}

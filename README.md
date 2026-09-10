@@ -14,9 +14,7 @@ Real, once Supabase is connected (see setup below):
 - **Products & stock** are read live from a Supabase table, not hardcoded in
   the app. Add real inventory later by editing that table.
 - **Stock decrements for real** when an order is placed — atomically, in the
-  database — so the menu reflects it immediately. This is the same
-  mechanism that will eventually keep the website and the Clover terminal in
-  sync.
+  database — so the menu reflects it immediately.
 - **Rewards signups** are saved to a real table you can look at in Supabase.
 - **An employee dashboard** at `/dashboard` — not linked from the site nav,
   reachable only if you know the URL — updates live with no manual refresh
@@ -34,6 +32,9 @@ Real, once Supabase is connected (see setup below):
     Completed as staff click through it, instead of just sitting in a
     static list
   - rewards signups, searchable
+  - a **Clover Sync** panel on the Inventory tab — see "Connecting Clover"
+    below. It's built and ready, but does nothing until you connect a real
+    Clover account.
 
   See the security note below before showing anyone this URL or using it
   with real customer data.
@@ -71,6 +72,14 @@ tighten the RLS/storage policies in `supabase/seed.sql` to require it. The
 same file also opens up update access on orders (so staff can change an
 order's status) — same tradeoff, same fix later.
 
+The two Clover tables (`clover_connections`, `clover_webhook_state`) are the
+one deliberate exception — they're locked down, not opened up. No policy
+grants the anon key any access to them at all, so the dashboard's own
+JavaScript can't read the Clover access token even though it can read
+everything else in this database. Only the server-side `/api/clover/*`
+routes, using a separate Supabase key that never reaches the browser, can
+touch them. See "Connecting Clover" below.
+
 ## Setting up Supabase (no coding required)
 
 1. Go to supabase.com, sign up / log in, and create a new project (any name,
@@ -100,6 +109,56 @@ photo-upload feature needs it too — it's what creates the `product-photos`
 storage bucket. Re-running it is harmless even if you already have data in
 there.)
 
+## Connecting Clover (when you're ready)
+
+The dashboard's Inventory tab has a Clover Sync panel already built —
+"Connect Clover," "Sync Now," a webhook receiver for live updates, all of
+it — but it's inert until you set a few things up. None of this needs to
+happen before Friday; the panel just shows "not set up yet" until it does.
+
+This is real work with Clover's own developer tools, not a Manhattan
+Market thing, so it involves more than pasting keys into Vercel:
+
+1. Get your friend's Clover login (or your own, if you set one up to
+   test with first — Clover gives every developer a free **sandbox**
+   account with fake test data, which is a safer way to try this before
+   touching the real store's inventory).
+2. Go to [docs.clover.com/dev](https://docs.clover.com/dev) and sign up for
+   a free Clover Developer account.
+3. In the Developer Dashboard, create a new App (any name). Under its
+   settings you'll find an **App ID** and an **App Secret** — these are
+   what this project calls `CLOVER_APP_ID` and `CLOVER_APP_SECRET`. In that
+   same settings screen, add your deployed site's callback address as an
+   allowed redirect URL — `https://<your-vercel-domain>/api/clover/callback`
+   — Clover refuses to redirect back anywhere that isn't listed there.
+4. In your Vercel project's environment variables, add:
+   - `CLOVER_APP_ID` and `CLOVER_APP_SECRET` — from step 3.
+   - `CLOVER_ENV` — `sandbox` while testing, `production` once you're
+     pointing at the real store.
+   - `SUPABASE_SERVICE_ROLE_KEY` — from Supabase, **Project Settings > API**
+     (the `service_role` key, a different one from the `anon` key you
+     already added — this one must never be marked "public" anywhere).
+   - Redeploy so they take effect.
+5. Open `/dashboard`, go to Inventory — the Clover panel now says "Ready to
+   connect." Click **Connect Clover**, log in as the merchant (your
+   sandbox test merchant, or the real store), and approve the connection.
+6. Click **Sync Now** once to pull in the existing Clover catalog. From
+   then on, the panel shows a webhook URL — paste that into the Clover
+   app's settings (under Webhooks) to get live updates instead of needing
+   to click Sync every time something changes on the Clover side. Clover
+   will send a one-time verification code as part of that setup, which
+   also shows up in the panel for you to copy back into Clover's screen.
+
+A few things worth knowing about what this integration does and doesn't do
+yet: it's one-way (Clover → this site's product list — stock, price, name,
+category), not the other direction, so changes made from `/dashboard`
+itself won't push back to Clover. Clover doesn't have an equivalent to this
+site's product description or photo, so those stay managed here regardless
+of Clover sync. And the connection's access token doesn't currently
+auto-refresh before it expires (Clover's tokens are long-lived, so this is
+unlikely to bite you soon, but if the panel ever shows disconnected
+unexpectedly, click Connect Clover again).
+
 ## Running it locally
 
 ```bash
@@ -108,7 +167,8 @@ npm run dev
 ```
 
 Then open http://localhost:3000. To test against Supabase locally too, copy
-`.env.local.example` to `.env.local` and fill in the same two values.
+`.env.local.example` to `.env.local` and fill in the same two values (and
+the Clover ones, if you're testing that too).
 
 ## Deploying
 
@@ -122,8 +182,8 @@ Same flow as True Doc Pros:
 
 ## Next steps to go from demo to launch
 
-1. Replace the seeded sample products in Supabase with the real menu, and
-   eventually sync that table automatically from Clover via webhooks.
+1. Replace the seeded sample products in Supabase with the real menu — by
+   hand for now, or by connecting Clover (see above) and clicking Sync.
 2. Add Stripe Checkout to `app/checkout/page.tsx`.
 3. Wire the delivery toggle to the Uber Direct API.
 4. Replace placeholder copy — address, hours, photos in `/gallery` — with

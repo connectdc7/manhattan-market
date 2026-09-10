@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { categories, updateProductStock, Product } from "@/lib/products";
 import ProductFormModal from "./ProductFormModal";
+import CloverPanel from "./CloverPanel";
 
 function StockStepper({
   product,
@@ -76,11 +77,13 @@ export default function InventoryPanel({
   onStockSaved,
   onProductSaved,
   onProductRemoved,
+  onRefresh,
 }: {
   products: Product[];
   onStockSaved: (id: string, stock: number) => void;
   onProductSaved: (product: Product) => void;
   onProductRemoved: (id: string) => void;
+  onRefresh: () => void;
 }) {
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState<(typeof categories)[number] | "All">("All");
@@ -105,6 +108,8 @@ export default function InventoryPanel({
 
   return (
     <div>
+      <CloverPanel onSynced={onRefresh} />
+
       <div className="flex flex-wrap items-center gap-2">
         <input
           type="text"

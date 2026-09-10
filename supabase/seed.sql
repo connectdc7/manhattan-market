@@ -41,6 +41,18 @@ create table if not exists products (
 -- file stays safe to re-run on a table that predates this column.
 alter table products add column if not exists image_url text not null default '';
 
+-- Links a row to the Clover item it was synced from (see the Clover
+-- section near the bottom of this file). Null for anything added by hand
+-- from the dashboard instead of pulled from Clover. The partial unique
+-- index (rather than a plain unique constraint) is what lets multiple
+-- hand-added rows all have a null clover_item_id at once.
+alter table products add column if not exists clover_item_id text;
+
+drop index if exists products_clover_item_id_idx;
+create unique index products_clover_item_id_idx
+  on products (clover_item_id)
+  where clover_item_id is not null;
+
 alter table products enable row level security;
 
 drop policy if exists "Public can read products" on products;
@@ -183,6 +195,41 @@ create policy "Public can update orders"
   to anon
   using (true)
   with check (true);
+
+-- ---------------------------------------------------------------------------
+-- Clover — the plumbing for syncing inventory from a real Clover account,
+-- built ahead of actually having one. Inert until CLOVER_APP_ID and
+-- CLOVER_APP_SECRET are set (see README's Clover section); nothing here
+-- does anything on its own.
+--
+-- Unlike every other table in this file, these two are NOT readable or
+-- writable by the anon key — no policies are granted to `anon` at all.
+-- With Row Level Security on and zero policies, every anon/browser request
+-- is denied by default; only the server-side API routes under
+-- app/api/clover/**, using the Supabase *service role* key
+-- (SUPABASE_SERVICE_ROLE_KEY, never shipped to the browser), can read or
+-- write them. That's deliberate — clover_connections holds a real access
+-- token to your friend's Clover account, which must never reach a page's
+-- JavaScript the way the anon-accessible tables in this file do.
+-- ---------------------------------------------------------------------------
+create table if not exists clover_connections (
+  merchant_id text primary key,
+  access_token text not null,
+  refresh_token text,
+  access_token_expiration bigint,
+  refresh_token_expiration bigint,
+  connected_at timestamptz not null default now()
+);
+
+alter table clover_connections enable row level security;
+
+create table if not exists clover_webhook_state (
+  id text primary key default 'singleton',
+  last_verification_code text,
+  last_event_at timestamptz
+);
+
+alter table clover_webhook_state enable row level security;
 
 -- ---------------------------------------------------------------------------
 -- product-photos (storage) — lets staff upload a real product photo from
