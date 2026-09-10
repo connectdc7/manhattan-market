@@ -38,6 +38,14 @@ export default function Header() {
         </nav>
 
         <div className="flex items-center gap-3">
+          <a
+            href="/dashboard"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="hidden rounded-full border border-line bg-paper px-4 py-2 font-mono text-xs font-semibold text-ink-soft transition hover:border-green hover:text-green md:inline-block"
+          >
+            Dashboard ↗
+          </a>
           <button
             onClick={openDrawer}
             className="relative rounded-full border border-line bg-paper px-4 py-2 font-mono text-xs font-semibold text-ink transition hover:border-green hover:text-green"
@@ -73,6 +81,15 @@ export default function Header() {
               {item.label}
             </Link>
           ))}
+          <a
+            href="/dashboard"
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={() => setMenuOpen(false)}
+            className="rounded-md px-2 py-2 font-mono text-xs font-semibold uppercase tracking-wide text-ink-soft hover:bg-panel"
+          >
+            Dashboard ↗
+          </a>
         </nav>
       )}
     </header>
