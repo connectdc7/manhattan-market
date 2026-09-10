@@ -10,12 +10,17 @@ export default function ProductCard({ product }: { product: Product }) {
 
   return (
     <div className="flex flex-col overflow-hidden rounded-lg border border-line bg-paper transition hover:shadow-sm">
-      <div
-        className="flex h-32 items-center justify-center font-mono text-[0.65rem] uppercase tracking-widest text-white/70"
-        style={{ backgroundColor: product.swatch }}
-      >
-        sample photo
-      </div>
+      {product.image_url ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={product.image_url} alt={product.name} className="h-32 w-full object-cover" />
+      ) : (
+        <div
+          className="flex h-32 items-center justify-center font-mono text-[0.65rem] uppercase tracking-widest text-white/70"
+          style={{ backgroundColor: product.swatch }}
+        >
+          sample photo
+        </div>
+      )}
       <div className="flex flex-1 flex-col gap-2 p-4">
         <div className="flex items-start justify-between gap-2">
           <h3 className="font-body text-[0.95rem] font-semibold leading-snug text-ink">{product.name}</h3>

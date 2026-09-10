@@ -22,8 +22,14 @@ Real, once Supabase is connected (see setup below):
   reachable only if you know the URL — updates live with no manual refresh
   (new orders and stock changes just appear), and has:
   - a stat row (today's sales, orders, low-stock count, new signups)
-  - inventory with search, category filters, sort-by-low-stock, and quick
-    +/− stock buttons
+  - a **"View Storefront"** button that opens the live site in a new tab,
+    so staff can jump back and forth without losing their place
+  - inventory with search, category filters, sort-by-low-stock, quick
+    +/− stock buttons, and full product management — **Add Product** to
+    put a brand-new item on the menu, and **Edit** on any row to change its
+    name, category, price, description, or photo (staff pick a photo from
+    their phone or computer; it uploads straight to Supabase Storage), or
+    remove a product entirely
   - an order workflow — each order moves New → Preparing → Ready →
     Completed as staff click through it, instead of just sitting in a
     static list
@@ -48,18 +54,22 @@ a live database.
 
 `/dashboard` has no login — that was a deliberate choice to keep this demo
 quick to set up. To make it work without one, `supabase/seed.sql` opens up
-read access to orders and rewards signups, and write access to product
-stock, to anyone holding the public "anon" key — which ships inside the
-site's own JavaScript, so in practice that means anyone who finds the page.
+read access to orders and rewards signups, and write access to products
+(stock, name, price, description, photos — add, edit, and delete), to
+anyone holding the public "anon" key — which ships inside the site's own
+JavaScript, so in practice that means anyone who finds the page. The
+`product-photos` storage bucket used for photo uploads is public for the
+same reason: anyone can view (and, with the anon key, upload) a photo
+there.
 
 That's a fine tradeoff while everything in these tables is placeholder demo
 data. It stops being fine the moment real customer phone numbers or emails
-are in the rewards table. Before that happens, put a real login in front of
-`/dashboard` (Supabase Auth is a natural fit, and mirrors the auth you
-already built for True Doc Pros) and tighten the RLS policies in
-`supabase/seed.sql` to require it. The same file now also opens up update
-access on orders (so staff can change an order's status) — same tradeoff,
-same fix later.
+are in the rewards table, or someone could deface the menu. Before that
+happens, put a real login in front of `/dashboard` (Supabase Auth is a
+natural fit, and mirrors the auth you already built for True Doc Pros) and
+tighten the RLS/storage policies in `supabase/seed.sql` to require it. The
+same file also opens up update access on orders (so staff can change an
+order's status) — same tradeoff, same fix later.
 
 ## Setting up Supabase (no coding required)
 
@@ -84,9 +94,11 @@ form, and `/dashboard` will automatically start using Supabase once those
 two variables are set. If step 2 (`supabase/seed.sql`) gets updated later —
 it's written to be safe to re-run any time you pull a newer version of this
 project — just paste the new version in and run it again. (The dashboard's
-live-update feature specifically needs the newest version of this file run
-at least once — it's what turns on Supabase's Realtime for the three
-tables. Re-running it is harmless even if you already have data in there.)
+live-update feature needs the newest version of this file run at least
+once — it's what turns on Supabase's Realtime for the three tables. The
+photo-upload feature needs it too — it's what creates the `product-photos`
+storage bucket. Re-running it is harmless even if you already have data in
+there.)
 
 ## Running it locally
 

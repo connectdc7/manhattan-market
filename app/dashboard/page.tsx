@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { getProducts, Product } from "@/lib/products";
 import { getOrders, updateOrderStatus, Order, OrderStatus } from "@/lib/orders";
 import { getRewardsSignups, RewardsSignup } from "@/lib/rewards";
@@ -64,6 +64,18 @@ export default function DashboardPage() {
     setProducts((prev) => prev.map((p) => (p.id === id ? { ...p, stock } : p)));
   };
 
+  const handleProductSaved = (product: Product) => {
+    setProducts((prev) => {
+      const exists = prev.some((p) => p.id === product.id);
+      const next = exists ? prev.map((p) => (p.id === product.id ? product : p)) : [...prev, product];
+      return next.sort((a, b) => a.name.localeCompare(b.name));
+    });
+  };
+
+  const handleProductRemoved = (id: string) => {
+    setProducts((prev) => prev.filter((p) => p.id !== id));
+  };
+
   const handleStatusChange = async (id: string, status: OrderStatus) => {
     setOrders((prev) => prev.map((o) => (o.id === id ? { ...o, status } : o)));
     await updateOrderStatus(id, status);
@@ -82,12 +94,22 @@ export default function DashboardPage() {
           <p className="eyebrow text-green">Staff Only</p>
           <h1 className="mt-2 font-display text-3xl font-bold text-ink sm:text-4xl">Employee Dashboard</h1>
         </div>
-        {isSupabaseConfigured && !loading && (
-          <span className="flex items-center gap-1.5 rounded-full border border-line px-3 py-1 font-mono text-[0.65rem] font-semibold uppercase tracking-wide text-ink-soft">
-            <span className={`h-1.5 w-1.5 rounded-full ${live ? "bg-green" : "bg-line"}`} />
-            {live ? "Live" : "Connected"}
-          </span>
-        )}
+        <div className="flex items-center gap-2">
+          {isSupabaseConfigured && !loading && (
+            <span className="flex items-center gap-1.5 rounded-full border border-line px-3 py-1 font-mono text-[0.65rem] font-semibold uppercase tracking-wide text-ink-soft">
+              <span className={`h-1.5 w-1.5 rounded-full ${live ? "bg-green" : "bg-line"}`} />
+              {live ? "Live" : "Connected"}
+            </span>
+          )}
+          <a
+            href="/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="rounded-full border border-line px-3.5 py-1.5 font-mono text-xs font-semibold text-ink-soft transition hover:border-green hover:text-green"
+          >
+            View Storefront ↗
+          </a>
+        </div>
       </div>
       <p className="mt-2 max-w-2xl font-body text-sm text-ink-soft">
         Not linked anywhere in the site nav — this page is reachable only if you have the
@@ -142,7 +164,14 @@ export default function DashboardPage() {
 
           <div className="mt-6">
             {tab === "orders" && <OrdersPanel orders={orders} onStatusChange={handleStatusChange} />}
-            {tab === "inventory" && <InventoryPanel products={products} onStockSaved={handleStockSaved} />}
+            {tab === "inventory" && (
+              <InventoryPanel
+                products={products}
+                onStockSaved={handleStockSaved}
+                onProductSaved={handleProductSaved}
+                onProductRemoved={handleProductRemoved}
+              />
+            )}
             {tab === "rewards" && <RewardsPanel signups={signups} />}
           </div>
         </>

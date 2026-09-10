@@ -14,10 +14,11 @@
 -- with no login, to keep the demo quick to set up. To make that work, the
 -- policies below let anyone holding the public "anon" key — which ships in
 -- the site's own JavaScript, so effectively anyone — read rewards signups
--- and orders, and edit product stock, not just view products. That's an
--- acceptable tradeoff for placeholder demo data, but before this goes live
--- with real customer phone numbers/emails, put a real login (e.g. Supabase
--- Auth) in front of /dashboard and tighten these policies to require it.
+-- and orders, and add, edit, delete, or photograph products, not just view
+-- them. That's an acceptable tradeoff for placeholder demo data, but before
+-- this goes live with real customer phone numbers/emails, put a real login
+-- (e.g. Supabase Auth) in front of /dashboard and tighten these policies to
+-- require it.
 
 create extension if not exists "pgcrypto";
 
@@ -34,6 +35,12 @@ create table if not exists products (
   swatch text not null default '#21594a'
 );
 
+-- Real product photo, uploaded from the dashboard (see the storage bucket
+-- below). Empty string until staff add one, and the site falls back to the
+-- `swatch` color tile until then. Added as a separate statement so this
+-- file stays safe to re-run on a table that predates this column.
+alter table products add column if not exists image_url text not null default '';
+
 alter table products enable row level security;
 
 drop policy if exists "Public can read products" on products;
@@ -42,15 +49,31 @@ create policy "Public can read products"
   to anon
   using (true);
 
--- Lets the employee dashboard (/dashboard) edit stock counts directly from
--- the browser, since that page has no login yet. See the note at the top
--- of this file about what that tradeoff means.
+-- Lets the employee dashboard (/dashboard) edit stock counts, product
+-- details, and photos directly from the browser, since that page has no
+-- login yet. See the note at the top of this file about what that
+-- tradeoff means.
 drop policy if exists "Public can update products" on products;
 create policy "Public can update products"
   on products for update
   to anon
   using (true)
   with check (true);
+
+-- Lets staff add a brand-new item to the menu from the dashboard.
+drop policy if exists "Public can add products" on products;
+create policy "Public can add products"
+  on products for insert
+  to anon
+  with check (true);
+
+-- Lets staff remove a product they added by mistake, or one Manhattan
+-- Market no longer carries.
+drop policy if exists "Public can delete products" on products;
+create policy "Public can delete products"
+  on products for delete
+  to anon
+  using (true);
 
 -- Atomic stock decrement, called from checkout. Doing the subtraction in
 -- the database (instead of read-then-write from the browser) avoids the
@@ -160,6 +183,38 @@ create policy "Public can update orders"
   to anon
   using (true)
   with check (true);
+
+-- ---------------------------------------------------------------------------
+-- product-photos (storage) — lets staff upload a real product photo from
+-- the dashboard (a phone camera roll or a saved file), instead of typing
+-- in an image URL. The bucket is public so photos display on the site
+-- without a login; the policies below only affect who can upload/replace
+-- them, not who can view them.
+-- ---------------------------------------------------------------------------
+insert into storage.buckets (id, name, public)
+values ('product-photos', 'product-photos', true)
+on conflict (id) do nothing;
+
+drop policy if exists "Public can read product photos" on storage.objects;
+create policy "Public can read product photos"
+  on storage.objects for select
+  to anon
+  using (bucket_id = 'product-photos');
+
+-- Lets the dashboard upload/replace a product's photo without a login.
+-- Same tradeoff noted at the top of this file.
+drop policy if exists "Public can upload product photos" on storage.objects;
+create policy "Public can upload product photos"
+  on storage.objects for insert
+  to anon
+  with check (bucket_id = 'product-photos');
+
+drop policy if exists "Public can update product photos" on storage.objects;
+create policy "Public can update product photos"
+  on storage.objects for update
+  to anon
+  using (bucket_id = 'product-photos')
+  with check (bucket_id = 'product-photos');
 
 -- ---------------------------------------------------------------------------
 -- Realtime — lets the dashboard update the moment an order comes in or

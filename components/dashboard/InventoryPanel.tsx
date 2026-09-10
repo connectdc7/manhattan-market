@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { categories, updateProductStock, Product } from "@/lib/products";
+import ProductFormModal from "./ProductFormModal";
 
 function StockStepper({
   product,
@@ -68,16 +69,23 @@ function StockStepper({
 
 type SortMode = "low-stock" | "name";
 
+type ModalState = { mode: "create" } | { mode: "edit"; product: Product } | null;
+
 export default function InventoryPanel({
   products,
   onStockSaved,
+  onProductSaved,
+  onProductRemoved,
 }: {
   products: Product[];
   onStockSaved: (id: string, stock: number) => void;
+  onProductSaved: (product: Product) => void;
+  onProductRemoved: (id: string) => void;
 }) {
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState<(typeof categories)[number] | "All">("All");
   const [sort, setSort] = useState<SortMode>("low-stock");
+  const [modal, setModal] = useState<ModalState>(null);
 
   const shown = useMemo(() => {
     let list = products;
@@ -118,27 +126,37 @@ export default function InventoryPanel({
             {c}
           </button>
         ))}
-        <div className="ml-auto flex items-center gap-1.5">
-          <span className="font-mono text-[0.65rem] uppercase tracking-wide text-ink-soft">Sort</span>
-          <select
-            value={sort}
-            onChange={(e) => setSort(e.target.value as SortMode)}
-            className="rounded border border-line bg-paper px-2 py-1 font-mono text-xs text-ink outline-none focus:border-green"
+        <div className="ml-auto flex items-center gap-3">
+          <div className="flex items-center gap-1.5">
+            <span className="font-mono text-[0.65rem] uppercase tracking-wide text-ink-soft">Sort</span>
+            <select
+              value={sort}
+              onChange={(e) => setSort(e.target.value as SortMode)}
+              className="rounded border border-line bg-paper px-2 py-1 font-mono text-xs text-ink outline-none focus:border-green"
+            >
+              <option value="low-stock">Low stock first</option>
+              <option value="name">Name (A–Z)</option>
+            </select>
+          </div>
+          <button
+            onClick={() => setModal({ mode: "create" })}
+            className="rounded-full bg-green px-3.5 py-1.5 font-mono text-xs font-semibold text-white transition hover:bg-green-deep"
           >
-            <option value="low-stock">Low stock first</option>
-            <option value="name">Name (A–Z)</option>
-          </select>
+            + Add Product
+          </button>
         </div>
       </div>
 
       <div className="mt-4 overflow-x-auto rounded-lg border border-line">
-        <table className="w-full min-w-[620px] border-collapse font-body text-sm">
+        <table className="w-full min-w-[720px] border-collapse font-body text-sm">
           <thead>
             <tr className="border-b border-line bg-panel text-left">
+              <th className="px-4 py-2.5"></th>
               <th className="px-4 py-2.5 font-mono text-[0.68rem] uppercase tracking-wide text-ink-soft">Product</th>
               <th className="px-4 py-2.5 font-mono text-[0.68rem] uppercase tracking-wide text-ink-soft">Category</th>
               <th className="px-4 py-2.5 font-mono text-[0.68rem] uppercase tracking-wide text-ink-soft">Price</th>
               <th className="px-4 py-2.5 font-mono text-[0.68rem] uppercase tracking-wide text-ink-soft">Stock</th>
+              <th className="px-4 py-2.5"></th>
             </tr>
           </thead>
           <tbody>
@@ -147,6 +165,17 @@ export default function InventoryPanel({
               const lowStock = p.stock > 0 && p.stock <= 3;
               return (
                 <tr key={p.id} className="border-b border-line last:border-none">
+                  <td className="px-4 py-2.5">
+                    {p.image_url ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={p.image_url} alt="" className="h-9 w-9 rounded object-cover" />
+                    ) : (
+                      <div
+                        className="h-9 w-9 rounded"
+                        style={{ backgroundColor: p.swatch }}
+                      />
+                    )}
+                  </td>
                   <td className="px-4 py-2.5 text-ink">{p.name}</td>
                   <td className="px-4 py-2.5 text-ink-soft">{p.category}</td>
                   <td className="px-4 py-2.5 font-mono text-ink-soft">${p.price.toFixed(2)}</td>
@@ -165,12 +194,20 @@ export default function InventoryPanel({
                       )}
                     </div>
                   </td>
+                  <td className="px-4 py-2.5 text-right">
+                    <button
+                      onClick={() => setModal({ mode: "edit", product: p })}
+                      className="font-mono text-[0.65rem] uppercase tracking-wide text-ink-soft hover:text-green"
+                    >
+                      Edit
+                    </button>
+                  </td>
                 </tr>
               );
             })}
             {shown.length === 0 && (
               <tr>
-                <td colSpan={4} className="px-4 py-6 text-center font-body text-sm text-ink-soft">
+                <td colSpan={6} className="px-4 py-6 text-center font-body text-sm text-ink-soft">
                   No products match.
                 </td>
               </tr>
@@ -178,6 +215,16 @@ export default function InventoryPanel({
           </tbody>
         </table>
       </div>
+
+      {modal && (
+        <ProductFormModal
+          mode={modal.mode}
+          product={modal.mode === "edit" ? modal.product : undefined}
+          onClose={() => setModal(null)}
+          onSaved={onProductSaved}
+          onDeleted={onProductRemoved}
+        />
+      )}
     </div>
   );
 }
