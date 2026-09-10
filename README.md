@@ -19,10 +19,18 @@ Real, once Supabase is connected (see setup below):
   sync.
 - **Rewards signups** are saved to a real table you can look at in Supabase.
 - **An employee dashboard** at `/dashboard` — not linked from the site nav,
-  reachable only if you know the URL — shows current inventory (editable),
-  recent orders, and rewards signups, all reading from the same Supabase
-  tables as the storefront. See the security note below before showing
-  anyone this URL or using it with real customer data.
+  reachable only if you know the URL — updates live with no manual refresh
+  (new orders and stock changes just appear), and has:
+  - a stat row (today's sales, orders, low-stock count, new signups)
+  - inventory with search, category filters, sort-by-low-stock, and quick
+    +/− stock buttons
+  - an order workflow — each order moves New → Preparing → Ready →
+    Completed as staff click through it, instead of just sitting in a
+    static list
+  - rewards signups, searchable
+
+  See the security note below before showing anyone this URL or using it
+  with real customer data.
 
 Still mocked, on purpose, because the real credentials aren't available yet:
 - **Payments** (`app/checkout/page.tsx`) — "Place Order" simulates a 1.4s
@@ -49,7 +57,9 @@ data. It stops being fine the moment real customer phone numbers or emails
 are in the rewards table. Before that happens, put a real login in front of
 `/dashboard` (Supabase Auth is a natural fit, and mirrors the auth you
 already built for True Doc Pros) and tighten the RLS policies in
-`supabase/seed.sql` to require it.
+`supabase/seed.sql` to require it. The same file now also opens up update
+access on orders (so staff can change an order's status) — same tradeoff,
+same fix later.
 
 ## Setting up Supabase (no coding required)
 
@@ -73,7 +83,10 @@ That's it — no code changes needed. The home page, order page, rewards
 form, and `/dashboard` will automatically start using Supabase once those
 two variables are set. If step 2 (`supabase/seed.sql`) gets updated later —
 it's written to be safe to re-run any time you pull a newer version of this
-project — just paste the new version in and run it again.
+project — just paste the new version in and run it again. (The dashboard's
+live-update feature specifically needs the newest version of this file run
+at least once — it's what turns on Supabase's Realtime for the three
+tables. Re-running it is harmless even if you already have data in there.)
 
 ## Running it locally
 

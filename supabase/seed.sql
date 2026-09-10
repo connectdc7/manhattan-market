@@ -122,6 +122,20 @@ create table if not exists orders (
   subtotal numeric(10, 2) not null
 );
 
+-- Order status, for the dashboard's kitchen/counter-style workflow (New ->
+-- Preparing -> Ready -> Completed). Added with a separate statement + a
+-- named constraint so this file stays safe to re-run on a table that
+-- already existed before this column did.
+alter table orders add column if not exists status text not null default 'new';
+
+do $$
+begin
+  if not exists (select 1 from pg_constraint where conname = 'orders_status_check') then
+    alter table orders add constraint orders_status_check
+      check (status in ('new', 'preparing', 'ready', 'completed'));
+  end if;
+end $$;
+
 alter table orders enable row level security;
 
 drop policy if exists "Public can create orders" on orders;
@@ -137,3 +151,41 @@ create policy "Public can read orders"
   on orders for select
   to anon
   using (true);
+
+-- Lets the dashboard advance an order's status (New -> Preparing -> Ready ->
+-- Completed) without a login. Same tradeoff as above.
+drop policy if exists "Public can update orders" on orders;
+create policy "Public can update orders"
+  on orders for update
+  to anon
+  using (true)
+  with check (true);
+
+-- ---------------------------------------------------------------------------
+-- Realtime — lets the dashboard update the moment an order comes in or
+-- stock changes, instead of needing a manual refresh. Wrapped in existence
+-- checks so this file stays safe to re-run.
+-- ---------------------------------------------------------------------------
+do $$
+begin
+  if not exists (
+    select 1 from pg_publication_tables
+    where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'products'
+  ) then
+    alter publication supabase_realtime add table products;
+  end if;
+
+  if not exists (
+    select 1 from pg_publication_tables
+    where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'orders'
+  ) then
+    alter publication supabase_realtime add table orders;
+  end if;
+
+  if not exists (
+    select 1 from pg_publication_tables
+    where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'rewards_signups'
+  ) then
+    alter publication supabase_realtime add table rewards_signups;
+  end if;
+end $$;
