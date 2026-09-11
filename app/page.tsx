@@ -52,9 +52,9 @@ export default async function Home() {
         <div className="relative mx-auto max-w-6xl px-5 py-20 sm:py-28">
           <p className="eyebrow text-gold">Manhattan Market</p>
           <h1 className="mt-3 max-w-2xl font-display text-5xl font-bold leading-[1.05] sm:text-6xl">
-            Order ahead.
+            <span className="hero-line">Order ahead.</span>
             <br />
-            <span className="italic text-gold">Skip the line.</span>
+            <span className="hero-line hero-line-pop italic text-gold">Skip the line.</span>
           </h1>
           <p className="mt-5 max-w-xl font-body text-lg text-white/75">
             Hot food, snacks, and everyday essentials — ready for pickup, or delivered
@@ -102,7 +102,7 @@ export default async function Home() {
           lib/product-of-day.ts). Only renders when something qualifies. */}
       {productOfDay && (
         <Reveal>
-          <section className="border-b border-line bg-green-deep text-white">
+          <section className="border-b border-line bg-espresso text-white">
             <div className="mx-auto max-w-6xl px-5 py-14">
               <p className="eyebrow text-gold">Product of the Day</p>
               <h2 className="mt-2 max-w-lg font-display text-2xl font-bold sm:text-3xl">

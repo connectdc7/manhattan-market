@@ -12,6 +12,7 @@
   --gold: #f0bd3e;
   --gold-ink: #4a3300;
   --gold-tint: #fbf1d9;
+  --espresso: #3a2712;
 }
 
 @theme inline {
@@ -26,6 +27,7 @@
   --color-gold: var(--gold);
   --color-gold-ink: var(--gold-ink);
   --color-gold-tint: var(--gold-tint);
+  --color-espresso: var(--espresso);
   --font-display: 'Fraunces', Georgia, 'Times New Roman', serif;
   --font-body: 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
   --font-mono: 'IBM Plex Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace;
@@ -187,6 +189,37 @@ h1, h2, h3, h4 {
 }
 @media (prefers-reduced-motion: reduce) {
   .reveal {
+    opacity: 1;
+    animation: none;
+  }
+}
+
+/* Hero headline — each line rises into place once on load (not
+   scroll-triggered; it's above the fold, so it should just play as soon as
+   the page is ready). The second line lands slightly after the first and
+   gets a bit more spring, since it's the punchline. */
+@keyframes hero-line-in {
+  from { opacity: 0; transform: translateY(30px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes hero-line-in-pop {
+  0% { opacity: 0; transform: translateY(30px) scale(0.96); }
+  65% { opacity: 1; transform: translateY(-2px) scale(1.015); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+.hero-line {
+  display: inline-block;
+  opacity: 0;
+  animation: hero-line-in 0.85s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+.hero-line-pop {
+  animation-name: hero-line-in-pop;
+  animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+  animation-delay: 0.22s;
+}
+@media (prefers-reduced-motion: reduce) {
+  .hero-line,
+  .hero-line-pop {
     opacity: 1;
     animation: none;
   }
