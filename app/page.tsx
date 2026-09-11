@@ -102,18 +102,19 @@ export default async function Home() {
           lib/product-of-day.ts). Only renders when something qualifies. */}
       {productOfDay && (
         <Reveal>
-          <section className="border-b border-line bg-espresso text-white">
+          <section className="border-b border-line bg-paper text-ink">
+            <div className="stripe-bar h-1" />
             <div className="mx-auto max-w-6xl px-5 py-14">
-              <p className="eyebrow text-gold">Product of the Day</p>
+              <p className="eyebrow text-green">Product of the Day</p>
               <h2 className="mt-2 max-w-lg font-display text-2xl font-bold sm:text-3xl">
                 New, healthy, and easy on your wallet
               </h2>
-              <p className="mt-2 max-w-lg font-body text-sm text-white/75">
+              <p className="mt-2 max-w-lg font-body text-sm text-ink-soft">
                 Every day we spotlight something fresh from the shelf that&apos;s good for
                 you and priced fair — today, it&apos;s this.
               </p>
 
-              <div className="mt-8 flex flex-col gap-6 overflow-hidden rounded-lg border border-white/15 bg-paper text-ink sm:flex-row">
+              <div className="mt-8 flex flex-col gap-6 overflow-hidden rounded-lg border border-line bg-pink-tint text-ink shadow-sm sm:flex-row">
                 <div className="relative sm:w-64 sm:shrink-0">
                   {productOfDay.image_url ? (
                     // eslint-disable-next-line @next/next/no-img-element

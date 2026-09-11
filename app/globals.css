@@ -12,7 +12,8 @@
   --gold: #f0bd3e;
   --gold-ink: #4a3300;
   --gold-tint: #fbf1d9;
-  --espresso: #3a2712;
+  --pink: #f6b9c6;
+  --pink-tint: #fbe9ec;
 }
 
 @theme inline {
@@ -27,7 +28,8 @@
   --color-gold: var(--gold);
   --color-gold-ink: var(--gold-ink);
   --color-gold-tint: var(--gold-tint);
-  --color-espresso: var(--espresso);
+  --color-pink: var(--pink);
+  --color-pink-tint: var(--pink-tint);
   --font-display: 'Fraunces', Georgia, 'Times New Roman', serif;
   --font-body: 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
   --font-mono: 'IBM Plex Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace;
@@ -94,10 +96,10 @@ h1, h2, h3, h4 {
 .stripe-bar {
   background-image: repeating-linear-gradient(
     -45deg,
-    var(--gold) 0px,
-    var(--gold) 14px,
-    var(--green-deep) 14px,
-    var(--green-deep) 28px
+    var(--paper) 0px,
+    var(--paper) 14px,
+    var(--pink) 14px,
+    var(--pink) 28px
   );
 }
 
