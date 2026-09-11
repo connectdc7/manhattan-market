@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { categories, updateProductStock, setProductSpecial, Product } from "@/lib/products";
+import { categories, updateProductStock, setProductSpecial, setProductHealthy, Product } from "@/lib/products";
 import ProductFormModal from "./ProductFormModal";
 import CloverPanel from "./CloverPanel";
 
@@ -96,12 +96,20 @@ export default function InventoryPanel({
   const [sort, setSort] = useState<SortMode>("low-stock");
   const [modal, setModal] = useState<ModalState>(null);
   const [togglingSpecial, setTogglingSpecial] = useState<string | null>(null);
+  const [togglingHealthy, setTogglingHealthy] = useState<string | null>(null);
   const [notifyState, setNotifyState] = useState<Record<string, string>>({});
 
   const handleToggleSpecial = async (product: Product) => {
     setTogglingSpecial(product.id);
     await setProductSpecial(product.id, !product.is_special);
     setTogglingSpecial(null);
+    onRefresh();
+  };
+
+  const handleToggleHealthy = async (product: Product) => {
+    setTogglingHealthy(product.id);
+    await setProductHealthy(product.id, !product.is_healthy);
+    setTogglingHealthy(null);
     onRefresh();
   };
 
@@ -232,6 +240,11 @@ export default function InventoryPanel({
                         Special
                       </span>
                     )}
+                    {p.is_healthy && (
+                      <span className="ml-2 rounded-full bg-green-tint px-2 py-0.5 font-mono text-[0.6rem] font-semibold uppercase tracking-wide text-green-deep">
+                        Healthy Pick
+                      </span>
+                    )}
                   </td>
                   <td className="px-4 py-2.5 text-ink-soft">{p.category}</td>
                   <td className="px-4 py-2.5 font-mono text-ink-soft">${p.price.toFixed(2)}</td>
@@ -290,6 +303,13 @@ export default function InventoryPanel({
                         className="font-mono text-[0.6rem] uppercase tracking-wide text-ink-soft hover:text-gold-ink disabled:opacity-60"
                       >
                         {p.is_special ? "Unset Special" : "Make Special"}
+                      </button>
+                      <button
+                        onClick={() => handleToggleHealthy(p)}
+                        disabled={togglingHealthy === p.id}
+                        className="font-mono text-[0.6rem] uppercase tracking-wide text-ink-soft hover:text-green disabled:opacity-60"
+                      >
+                        {p.is_healthy ? "Unset Healthy Pick" : "Mark Healthy Pick"}
                       </button>
                     </div>
                   </td>

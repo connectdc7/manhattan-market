@@ -57,6 +57,21 @@ function storeNow(now: Date) {
   return { dayIndex, minutesSinceMidnight };
 }
 
+// Today's date, as the store sees it (STORE_TIMEZONE), formatted "YYYY-MM-DD".
+// Used anywhere something needs to change once per store-local calendar day —
+// e.g. the homepage's "Product of the Day" rotation — regardless of what
+// timezone the server or the visitor happens to be in.
+export function getStoreDateKey(now: Date = new Date()): string {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: STORE_TIMEZONE,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(now);
+  const get = (type: string) => parts.find((p) => p.type === type)?.value ?? "";
+  return `${get("year")}-${get("month")}-${get("day")}`;
+}
+
 function toMinutes(hhmm: string): number {
   const [h, m] = hhmm.split(":").map(Number);
   return h * 60 + m;

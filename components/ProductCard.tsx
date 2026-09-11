@@ -5,7 +5,13 @@ import { Product } from "@/lib/products";
 import { useCart } from "@/lib/cart-context";
 import { requestRestockNotification } from "@/lib/restock";
 
-export default function ProductCard({ product }: { product: Product }) {
+export default function ProductCard({
+  product,
+  highlighted = false,
+}: {
+  product: Product;
+  highlighted?: boolean;
+}) {
   const { add } = useCart();
   const lowStock = product.stock > 0 && product.stock <= 3;
   const outOfStock = product.stock === 0;
@@ -30,7 +36,15 @@ export default function ProductCard({ product }: { product: Product }) {
   };
 
   return (
-    <div className="group flex flex-col overflow-hidden rounded-lg border border-line bg-paper transition-all duration-300 hover:-translate-y-1 hover:border-green/40 hover:shadow-lg">
+    <div
+      id={`product-${product.id}`}
+      className={`group flex flex-col overflow-hidden rounded-lg border bg-paper transition-all duration-300 hover:-translate-y-1 hover:border-green/40 hover:shadow-lg ${
+        highlighted ? "border-green shadow-lg ring-2 ring-green/30" : "border-line"
+      }`}
+    >
+      {highlighted && (
+        <div className="stripe-bar h-1" />
+      )}
       {product.image_url ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img

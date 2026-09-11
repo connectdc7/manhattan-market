@@ -65,6 +65,17 @@ alter table products add column if not exists restocked_at timestamptz;
 -- whatever's in the price column.
 alter table products add column if not exists is_special boolean not null default false;
 
+-- Staff-controlled "Healthy Pick" flag, toggled from the dashboard's
+-- Inventory tab. Feeds the homepage's "Product of the Day" section, which
+-- rotates daily among healthy, reasonably-priced, newer products.
+alter table products add column if not exists is_healthy boolean not null default false;
+
+-- When the row was added. Defaults to now() for anything new going forward;
+-- backfilled below (for the 12 seed rows only, and only if still at their
+-- insert-time default) with staggered dates so the "newest first" half of
+-- the Product of the Day pick has a real mix to work with in the demo.
+alter table products add column if not exists created_at timestamptz not null default now();
+
 create or replace function set_restocked_at()
 returns trigger
 language plpgsql
@@ -150,6 +161,30 @@ insert into products (id, name, category, price, stock, blurb, swatch) values
   ('milk-half-gallon', 'Milk, Half Gallon', 'Grocery', 3.25, 11, 'Whole, 2%, and skim in the cooler.', '#e8e4d8'),
   ('bread-loaf', 'White Bread Loaf', 'Grocery', 3.00, 8, 'Fresh delivery every other day.', '#d9b978')
 on conflict (id) do nothing;
+
+-- Demo defaults for the Healthy Pick flag and staggered created_at dates
+-- (see the column comments above) — safe to re-run: each row only updates
+-- if it's still sitting at the plain insert-time default, so it never
+-- overwrites a real choice staff made from the dashboard afterward.
+update products set is_healthy = true
+  where id in ('trail-mix', 'orange-juice', 'sparkling-water', 'milk-half-gallon')
+  and is_healthy = false;
+
+update products set created_at = now() - interval '5 days'
+  where id = 'trail-mix' and created_at::date = current_date;
+update products set created_at = now() - interval '2 days'
+  where id = 'orange-juice' and created_at::date = current_date;
+update products set created_at = now() - interval '60 days'
+  where id = 'sparkling-water' and created_at::date = current_date;
+update products set created_at = now() - interval '90 days'
+  where id = 'milk-half-gallon' and created_at::date = current_date;
+update products set created_at = now() - interval '120 days'
+  where id = 'chicken-empanada' and created_at::date = current_date;
+update products set created_at = now() - interval '150 days'
+  where id in ('cold-brew', 'bread-loaf') and created_at::date = current_date;
+update products set created_at = now() - interval '180 days'
+  where id in ('hot-coffee', 'bacon-egg-sandwich', 'chips-classic', 'chocolate-bar', 'energy-drink')
+  and created_at::date = current_date;
 
 -- ---------------------------------------------------------------------------
 -- rewards_signups

@@ -3,6 +3,7 @@ import { getProducts } from "@/lib/products";
 import { getActiveOrderCount } from "@/lib/orders";
 import { isSupabaseConfigured } from "@/lib/supabase";
 import { getStoreStatus } from "@/lib/store-hours";
+import { getProductOfTheDay, isNewProduct } from "@/lib/product-of-day";
 import ReorderCard from "@/components/ReorderCard";
 import Reveal from "@/components/Reveal";
 
@@ -21,6 +22,8 @@ export default async function Home() {
 
   const lowStockCount = products.filter((p) => p.stock > 0 && p.stock <= 3).length;
   const specials = products.filter((p) => p.is_special);
+  const productOfDay = getProductOfTheDay(products);
+  const productOfDayIsNew = productOfDay ? isNewProduct(productOfDay) : false;
 
   const justRestocked = products
     .filter((p) => {
@@ -93,6 +96,72 @@ export default async function Home() {
           </div>
         </div>
       </section>
+
+      {/* Product of the Day — rotates automatically each store-local day
+          among healthy, reasonably-priced, newer products (see
+          lib/product-of-day.ts). Only renders when something qualifies. */}
+      {productOfDay && (
+        <Reveal>
+          <section className="border-b border-line bg-green-deep text-white">
+            <div className="mx-auto max-w-6xl px-5 py-14">
+              <p className="eyebrow text-gold">Product of the Day</p>
+              <h2 className="mt-2 max-w-lg font-display text-2xl font-bold sm:text-3xl">
+                New, healthy, and easy on your wallet
+              </h2>
+              <p className="mt-2 max-w-lg font-body text-sm text-white/75">
+                Every day we spotlight something fresh from the shelf that&apos;s good for
+                you and priced fair — today, it&apos;s this.
+              </p>
+
+              <div className="mt-8 flex flex-col gap-6 overflow-hidden rounded-lg border border-white/15 bg-paper text-ink sm:flex-row">
+                <div className="relative sm:w-64 sm:shrink-0">
+                  {productOfDay.image_url ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={productOfDay.image_url}
+                      alt={productOfDay.name}
+                      className="h-48 w-full object-cover sm:h-full"
+                    />
+                  ) : (
+                    <div
+                      className="flex h-48 items-center justify-center font-mono text-[0.65rem] uppercase tracking-widest text-white/70 sm:h-full"
+                      style={{ backgroundColor: productOfDay.swatch }}
+                    >
+                      sample photo
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex flex-1 flex-col justify-center gap-3 p-6">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="stamp-badge bg-green-tint font-mono text-[0.65rem] font-semibold uppercase tracking-wide text-green-deep">
+                      Healthy Pick
+                    </span>
+                    {productOfDayIsNew && (
+                      <span className="stamp-badge bg-gold-tint font-mono text-[0.65rem] font-semibold uppercase tracking-wide text-gold-ink">
+                        New
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex items-start justify-between gap-3">
+                    <h3 className="font-display text-xl font-bold text-ink">{productOfDay.name}</h3>
+                    <span className="price-tag price-tag-gold shrink-0 font-mono text-sm font-semibold text-gold-ink">
+                      ${productOfDay.price.toFixed(2)}
+                    </span>
+                  </div>
+                  <p className="font-body text-sm text-ink-soft">{productOfDay.blurb}</p>
+                  <Link
+                    href={`/order#product-${productOfDay.id}`}
+                    className="mt-2 inline-flex w-fit items-center gap-1.5 rounded-full bg-green px-5 py-2.5 font-mono text-xs font-semibold text-white transition-all hover:-translate-y-0.5 hover:bg-green-deep active:translate-y-0 active:scale-95"
+                  >
+                    Order it now →
+                  </Link>
+                </div>
+              </div>
+            </div>
+          </section>
+        </Reveal>
+      )}
 
       {/* Today's Specials — ticket style */}
       {specials.length > 0 && (

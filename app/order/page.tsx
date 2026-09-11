@@ -10,6 +10,7 @@ export default function OrderPage() {
   const [active, setActive] = useState<(typeof categories)[number] | "All">("All");
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
+  const [highlightId, setHighlightId] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -23,6 +24,31 @@ export default function OrderPage() {
       cancelled = true;
     };
   }, []);
+
+  // Deep-link support for links like /order#product-trail-mix (the
+  // homepage's "Product of the Day" section uses this): once the catalog's
+  // loaded, switch to that product's category if needed so it's actually
+  // in the shown list, scroll it into view, and briefly highlight it.
+  useEffect(() => {
+    if (loading) return;
+    const hash = window.location.hash.replace("#product-", "");
+    if (!hash) return;
+    const target = products.find((p) => p.id === hash);
+    if (!target) return;
+
+    setActive(target.category);
+    setHighlightId(target.id);
+
+    const timer = setTimeout(() => {
+      document.getElementById(`product-${target.id}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }, 60);
+    const clear = setTimeout(() => setHighlightId(null), 3000);
+    return () => {
+      clearTimeout(timer);
+      clearTimeout(clear);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading]);
 
   const shown = active === "All" ? products : products.filter((p) => p.category === active);
 
@@ -51,7 +77,7 @@ export default function OrderPage() {
         <div className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {shown.map((product, i) => (
             <Reveal key={product.id} delayMs={Math.min(i, 8) * 60}>
-              <ProductCard product={product} />
+              <ProductCard product={product} highlighted={product.id === highlightId} />
             </Reveal>
           ))}
         </div>

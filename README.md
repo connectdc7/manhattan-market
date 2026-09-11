@@ -24,6 +24,11 @@ Real, once Supabase is connected (see setup below):
     based on how many orders are actually in the queue right now
   - **"Today's Specials"** — whatever staff flag from the dashboard shows in
     a banner automatically, no redeploy needed
+  - **"Product of the Day"** — automatically spotlights one healthy,
+    reasonably-priced, recently-added product on the homepage, and links
+    straight to it on the order page. Rotates once per day on its own — see
+    "How Product of the Day works" below for the details and how staff mark
+    a product eligible
   - **reorder your last order** in one click — remembered per-browser, no
     account required
   - **"notify me when it's back"** on anything sold out — see "Connecting
@@ -47,9 +52,11 @@ Real, once Supabase is connected (see setup below):
     remove a product entirely
   - a **sales-velocity warning** on any item selling fast enough to run out
     soon, even if the raw stock count doesn't look low yet
-  - a **"Make Special"** toggle per product, and a **"Notify"** button on
-    sold-out items that either emails everyone waiting (once connected) or
-    hands you their contact info to reach out yourself
+  - a **"Make Special"** toggle per product, and a **"Mark Healthy Pick"**
+    toggle that makes a product eligible for the homepage's "Product of the
+    Day" — and a **"Notify"** button on sold-out items that either emails
+    everyone waiting (once connected) or hands you their contact info to
+    reach out yourself
   - an order workflow — each order moves New → Preparing → Ready →
     Completed as staff click through it, instead of just sitting in a
     static list
@@ -75,6 +82,50 @@ Every page that has a stubbed piece says so in small print, so nothing is
 presented as more finished than it is. If Supabase isn't connected at all,
 the site still works — it just falls back to a local sample menu instead of
 a live database.
+
+## How "Product of the Day" works
+
+No cron job, no button to click — it's computed fresh on every homepage
+load, so it's always correct with zero moving parts to maintain:
+
+1. **Eligible** = in stock, marked **Healthy Pick** from the dashboard, and
+   priced at or below the average price across the whole menu (so
+   "reasonably priced" adjusts automatically as prices change, instead of
+   being a hardcoded dollar amount).
+2. Among eligible products, the **5 most recently added** (by `created_at`)
+   form the day's rotation pool — this is what keeps the feature promoting
+   new arrivals.
+3. Which one shows **today** is picked deterministically from that pool
+   using the store's own calendar date (in `America/New_York` — see
+   `STORE_TIMEZONE` in `lib/store-hours.ts`) — so it changes once a day, at
+   midnight store time, the same for every visitor, without storing
+   "today's pick" anywhere.
+
+To make a product eligible: open **Inventory** on the dashboard and click
+**"Mark Healthy Pick"** on it. If nothing on the menu is both a Healthy Pick
+and in stock, the section just doesn't show — it never displays something
+that isn't actually a fair pick that day. The logic lives in
+`lib/product-of-day.ts` if you want to tune the thresholds (pool size,
+price cutoff, how long something counts as "new").
+
+## Adding real product photos
+
+Every product falls back to a solid-color placeholder tile until it has a
+real photo — there's no bulk stock-photo library wired in, on purpose:
+sourcing photos from the open web wasn't possible from this build
+environment (its network is locked down to a small allowlist for security,
+and image hosts like Wikimedia Commons and general stock-photo sites aren't
+on it), and using someone else's product photos wouldn't be Manhattan
+Market's real inventory anyway. Two ways to add real ones:
+
+- **From the dashboard (fastest, no code)** — open **Inventory**, click
+  **Edit** on a product, and choose a photo from your phone or computer. It
+  uploads straight to Supabase Storage and shows up on the site immediately.
+  This works for all 12 sample products right now.
+- **Send me the photos** — attach product photos to our chat and tell me
+  which product each one is, and I'll add them to the site for you (or, if
+  you'd rather, I can wire in a stock-photo/AI-image step once you tell me
+  which source you'd like to use).
 
 ## About the employee dashboard's security
 
