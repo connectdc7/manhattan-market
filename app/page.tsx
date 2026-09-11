@@ -29,30 +29,30 @@ export default async function Home() {
   return (
     <div>
       {/* Hero */}
-      <section className="relative overflow-hidden border-b border-line bg-green-deep text-white">
+      <section className="relative overflow-hidden border-b border-line bg-paper text-ink">
         <div
-          className="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full opacity-20 blur-3xl"
-          style={{ background: "var(--gold)" }}
+          className="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full opacity-60 blur-3xl"
+          style={{ background: "var(--pink-tint)" }}
         />
         <div className="relative mx-auto max-w-6xl px-5 py-20 sm:py-28">
-          <p className="eyebrow text-gold">Manhattan Market</p>
+          <p className="eyebrow text-pink-deep">Manhattan Market</p>
           <h1 className="mt-3 max-w-2xl font-display text-5xl font-bold leading-[1.05] sm:text-6xl">
             <span className="hero-line">Order ahead.</span>
             <br />
-            <span className="hero-line hero-line-pop italic text-gold">Skip the line.</span>
+            <span className="hero-line hero-line-pop italic text-pink-deep">Skip the line.</span>
           </h1>
-          <p className="mt-5 max-w-xl font-body text-lg text-white/75">
+          <p className="mt-5 max-w-xl font-body text-lg text-ink-soft">
             Hot food, snacks, and everyday essentials — ready for pickup, or delivered
             straight to your door.
           </p>
 
           {isSupabaseConfigured && (
-            <p className="mt-6 flex flex-wrap items-center gap-2 font-mono text-xs uppercase tracking-wide text-white/80">
+            <p className="mt-6 flex flex-wrap items-center gap-2 font-mono text-xs uppercase tracking-wide text-ink-soft">
               <span className="relative flex h-2 w-2">
                 {status.isOpen && (
-                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-gold opacity-75" />
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-pink-deep opacity-75" />
                 )}
-                <span className={`relative inline-flex h-2 w-2 rounded-full ${status.isOpen ? "bg-gold" : "bg-white/40"}`} />
+                <span className={`relative inline-flex h-2 w-2 rounded-full ${status.isOpen ? "bg-pink-deep" : "bg-ink/25"}`} />
               </span>
               {status.isOpen ? (
                 <>
@@ -68,13 +68,13 @@ export default async function Home() {
           <div className="mt-8 flex flex-wrap gap-3">
             <Link
               href="/order"
-              className="rounded-full bg-gold px-6 py-3 font-mono text-sm font-semibold text-gold-ink transition-all hover:-translate-y-0.5 hover:brightness-95 active:translate-y-0 active:scale-95"
+              className="rounded-full bg-pink-deep px-6 py-3 font-mono text-sm font-semibold text-white transition-all hover:-translate-y-0.5 hover:brightness-95 active:translate-y-0 active:scale-95"
             >
               Order Online
             </Link>
             <Link
               href="/rewards"
-              className="rounded-full border border-white/30 px-6 py-3 font-mono text-sm font-semibold text-white transition-all hover:-translate-y-0.5 hover:border-white active:translate-y-0 active:scale-95"
+              className="rounded-full border border-line px-6 py-3 font-mono text-sm font-semibold text-ink transition-all hover:-translate-y-0.5 hover:border-pink-deep hover:text-pink-deep active:translate-y-0 active:scale-95"
             >
               Join Rewards
             </Link>
