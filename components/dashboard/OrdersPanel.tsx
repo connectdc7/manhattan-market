@@ -132,6 +132,11 @@ export default function OrdersPanel({
                 <p className="mt-2 font-body text-sm text-ink-soft">
                   {o.items.map((it) => `${it.name} × ${it.qty}`).join(", ")}
                 </p>
+                {o.phone && (
+                  <p className="mt-1 font-mono text-[0.65rem] uppercase tracking-wide text-ink-soft">
+                    {o.phone} — texted when marked Ready
+                  </p>
+                )}
                 <div className="mt-3 flex items-center gap-3">
                   {next && (
                     <button

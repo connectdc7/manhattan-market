@@ -1,17 +1,19 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { getProducts, Product } from "@/lib/products";
-import { getOrders, updateOrderStatus, Order, OrderStatus } from "@/lib/orders";
+import { getOrders, updateOrderStatus, notifyOrderReady, Order, OrderStatus } from "@/lib/orders";
 import { getRewardsSignups, RewardsSignup } from "@/lib/rewards";
+import { getPendingRestockCounts } from "@/lib/restock";
 import { isSupabaseConfigured } from "@/lib/supabase";
 import { subscribeToDashboardChanges } from "@/lib/realtime";
 import StatTile from "@/components/dashboard/StatTile";
 import InventoryPanel from "@/components/dashboard/InventoryPanel";
 import OrdersPanel from "@/components/dashboard/OrdersPanel";
 import RewardsPanel from "@/components/dashboard/RewardsPanel";
+import AnalyticsPanel from "@/components/dashboard/AnalyticsPanel";
 
-type Tab = "orders" | "inventory" | "rewards";
+type Tab = "orders" | "inventory" | "rewards" | "analytics";
 
 function isToday(iso: string) {
   const d = new Date(iso);
@@ -26,16 +28,20 @@ export default function DashboardPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
   const [signups, setSignups] = useState<RewardsSignup[]>([]);
+  const [restockCounts, setRestockCounts] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
   const [live, setLive] = useState(false);
 
   const loadAll = () => {
-    Promise.all([getProducts(), getOrders(), getRewardsSignups()]).then(([p, o, s]) => {
-      setProducts(p);
-      setOrders(o);
-      setSignups(s);
-      setLoading(false);
-    });
+    Promise.all([getProducts(), getOrders(), getRewardsSignups(), getPendingRestockCounts()]).then(
+      ([p, o, s, r]) => {
+        setProducts(p);
+        setOrders(o);
+        setSignups(s);
+        setRestockCounts(r);
+        setLoading(false);
+      }
+    );
   };
 
   useEffect(() => {
@@ -79,7 +85,30 @@ export default function DashboardPage() {
   const handleStatusChange = async (id: string, status: OrderStatus) => {
     setOrders((prev) => prev.map((o) => (o.id === id ? { ...o, status } : o)));
     await updateOrderStatus(id, status);
+    if (status === "ready") {
+      const order = orders.find((o) => o.id === id);
+      notifyOrderReady(id, order?.phone);
+    }
   };
+
+  // Units sold per product over the last 7 days, in units/day — lets the
+  // Inventory tab flag a fast-moving item before it hits a fixed low-stock
+  // threshold, instead of only after.
+  const salesVelocity = useMemo(() => {
+    const cutoff = Date.now() - 7 * 24 * 60 * 60 * 1000;
+    const unitsByProduct: Record<string, number> = {};
+    for (const o of orders) {
+      if (new Date(o.created_at).getTime() < cutoff) continue;
+      for (const item of o.items) {
+        unitsByProduct[item.id] = (unitsByProduct[item.id] ?? 0) + item.qty;
+      }
+    }
+    const velocity: Record<string, number> = {};
+    for (const [id, units] of Object.entries(unitsByProduct)) {
+      velocity[id] = units / 7;
+    }
+    return velocity;
+  }, [orders]);
 
   const ordersToday = orders.filter((o) => isToday(o.created_at));
   const salesToday = ordersToday.reduce((sum, o) => sum + o.subtotal, 0);
@@ -148,6 +177,7 @@ export default function DashboardPage() {
                 ["orders", `Orders${activeOrderCount ? ` (${activeOrderCount})` : ""}`],
                 ["inventory", "Inventory"],
                 ["rewards", "Rewards"],
+                ["analytics", "Analytics"],
               ] as const
             ).map(([key, label]) => (
               <button
@@ -171,9 +201,13 @@ export default function DashboardPage() {
                 onProductSaved={handleProductSaved}
                 onProductRemoved={handleProductRemoved}
                 onRefresh={loadAll}
+                salesVelocity={salesVelocity}
+                restockCounts={restockCounts}
+                onRestockNotified={loadAll}
               />
             )}
             {tab === "rewards" && <RewardsPanel signups={signups} />}
+            {tab === "analytics" && <AnalyticsPanel orders={orders} />}
           </div>
         </>
       )}

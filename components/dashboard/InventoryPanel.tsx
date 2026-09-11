@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { categories, updateProductStock, Product } from "@/lib/products";
+import { categories, updateProductStock, setProductSpecial, Product } from "@/lib/products";
 import ProductFormModal from "./ProductFormModal";
 import CloverPanel from "./CloverPanel";
 
@@ -78,17 +78,57 @@ export default function InventoryPanel({
   onProductSaved,
   onProductRemoved,
   onRefresh,
+  salesVelocity,
+  restockCounts,
+  onRestockNotified,
 }: {
   products: Product[];
   onStockSaved: (id: string, stock: number) => void;
   onProductSaved: (product: Product) => void;
   onProductRemoved: (id: string) => void;
   onRefresh: () => void;
+  salesVelocity: Record<string, number>;
+  restockCounts: Record<string, number>;
+  onRestockNotified: () => void;
 }) {
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState<(typeof categories)[number] | "All">("All");
   const [sort, setSort] = useState<SortMode>("low-stock");
   const [modal, setModal] = useState<ModalState>(null);
+  const [togglingSpecial, setTogglingSpecial] = useState<string | null>(null);
+  const [notifyState, setNotifyState] = useState<Record<string, string>>({});
+
+  const handleToggleSpecial = async (product: Product) => {
+    setTogglingSpecial(product.id);
+    await setProductSpecial(product.id, !product.is_special);
+    setTogglingSpecial(null);
+    onRefresh();
+  };
+
+  const handleNotify = async (productId: string) => {
+    setNotifyState((prev) => ({ ...prev, [productId]: "sending" }));
+    try {
+      const res = await fetch("/api/restock/notify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ productId }),
+      });
+      const body = await res.json();
+      if (body.emailed) {
+        setNotifyState((prev) => ({ ...prev, [productId]: `Emailed ${body.notified} ${body.notified === 1 ? "person" : "people"}.` }));
+      } else if (body.contacts?.length) {
+        setNotifyState((prev) => ({
+          ...prev,
+          [productId]: `Email isn't connected yet — reach out yourself: ${body.contacts.join(", ")}`,
+        }));
+      } else {
+        setNotifyState((prev) => ({ ...prev, [productId]: "No one's waiting on this one." }));
+      }
+    } catch {
+      setNotifyState((prev) => ({ ...prev, [productId]: "Something went wrong — try again." }));
+    }
+    onRestockNotified();
+  };
 
   const shown = useMemo(() => {
     let list = products;
@@ -168,6 +208,10 @@ export default function InventoryPanel({
             {shown.map((p) => {
               const outOfStock = p.stock === 0;
               const lowStock = p.stock > 0 && p.stock <= 3;
+              const velocity = salesVelocity[p.id] ?? 0;
+              const daysLeft = velocity > 0 ? p.stock / velocity : null;
+              const urgentPace = !outOfStock && daysLeft !== null && daysLeft <= 5;
+              const pendingRestock = restockCounts[p.id] ?? 0;
               return (
                 <tr key={p.id} className="border-b border-line last:border-none">
                   <td className="px-4 py-2.5">
@@ -181,31 +225,73 @@ export default function InventoryPanel({
                       />
                     )}
                   </td>
-                  <td className="px-4 py-2.5 text-ink">{p.name}</td>
+                  <td className="px-4 py-2.5 text-ink">
+                    {p.name}
+                    {p.is_special && (
+                      <span className="ml-2 rounded-full bg-gold-tint px-2 py-0.5 font-mono text-[0.6rem] font-semibold uppercase tracking-wide text-gold-ink">
+                        Special
+                      </span>
+                    )}
+                  </td>
                   <td className="px-4 py-2.5 text-ink-soft">{p.category}</td>
                   <td className="px-4 py-2.5 font-mono text-ink-soft">${p.price.toFixed(2)}</td>
                   <td className="px-4 py-2.5">
-                    <div className="flex items-center gap-2">
-                      <StockStepper product={p} onSaved={onStockSaved} />
-                      {outOfStock && (
-                        <span className="font-mono text-[0.62rem] font-semibold uppercase tracking-wide text-[#a8461a]">
-                          Out
+                    <div className="flex flex-col gap-1.5">
+                      <div className="flex items-center gap-2">
+                        <StockStepper product={p} onSaved={onStockSaved} />
+                        {outOfStock && (
+                          <span className="font-mono text-[0.62rem] font-semibold uppercase tracking-wide text-[#a8461a]">
+                            Out
+                          </span>
+                        )}
+                        {lowStock && (
+                          <span className="font-mono text-[0.62rem] font-semibold uppercase tracking-wide text-[#a8461a]">
+                            Low
+                          </span>
+                        )}
+                      </div>
+                      {urgentPace && (
+                        <span className="font-mono text-[0.62rem] text-[#a8461a]">
+                          Selling ~{velocity.toFixed(1)}/day — ~{Math.max(1, Math.round(daysLeft!))}d left at this pace
                         </span>
                       )}
-                      {lowStock && (
-                        <span className="font-mono text-[0.62rem] font-semibold uppercase tracking-wide text-[#a8461a]">
-                          Low
+                      {outOfStock && pendingRestock > 0 && (
+                        <div className="flex items-center gap-2">
+                          <span className="font-mono text-[0.62rem] text-ink-soft">
+                            {pendingRestock} waiting to hear it's back
+                          </span>
+                          <button
+                            onClick={() => handleNotify(p.id)}
+                            disabled={notifyState[p.id] === "sending"}
+                            className="font-mono text-[0.62rem] font-semibold uppercase tracking-wide text-green hover:underline disabled:opacity-60"
+                          >
+                            {notifyState[p.id] === "sending" ? "Sending…" : "Notify"}
+                          </button>
+                        </div>
+                      )}
+                      {notifyState[p.id] && notifyState[p.id] !== "sending" && (
+                        <span className="max-w-[220px] font-body text-[0.68rem] text-ink-soft">
+                          {notifyState[p.id]}
                         </span>
                       )}
                     </div>
                   </td>
                   <td className="px-4 py-2.5 text-right">
-                    <button
-                      onClick={() => setModal({ mode: "edit", product: p })}
-                      className="font-mono text-[0.65rem] uppercase tracking-wide text-ink-soft hover:text-green"
-                    >
-                      Edit
-                    </button>
+                    <div className="flex flex-col items-end gap-1.5">
+                      <button
+                        onClick={() => setModal({ mode: "edit", product: p })}
+                        className="font-mono text-[0.65rem] uppercase tracking-wide text-ink-soft hover:text-green"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        onClick={() => handleToggleSpecial(p)}
+                        disabled={togglingSpecial === p.id}
+                        className="font-mono text-[0.6rem] uppercase tracking-wide text-ink-soft hover:text-gold-ink disabled:opacity-60"
+                      >
+                        {p.is_special ? "Unset Special" : "Make Special"}
+                      </button>
+                    </div>
                   </td>
                 </tr>
               );

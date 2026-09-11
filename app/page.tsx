@@ -1,14 +1,41 @@
 import Link from "next/link";
 import { getProducts } from "@/lib/products";
+import { getActiveOrderCount } from "@/lib/orders";
 import { isSupabaseConfigured } from "@/lib/supabase";
+import { getStoreStatus } from "@/lib/store-hours";
+import ReorderCard from "@/components/ReorderCard";
 
-// Stock counts need to be read fresh on every request once Supabase is
-// wired up, not baked in once at build time.
+// Stock counts, order queue, and open/closed status all need to be read
+// fresh on every request once Supabase is wired up, not baked in once at
+// build time.
 export const dynamic = "force-dynamic";
 
+function estimateWaitMinutes(activeOrders: number): number {
+  return Math.min(15 + activeOrders * 4, 40);
+}
+
 export default async function Home() {
-  const products = await getProducts();
+  const [products, activeOrders] = await Promise.all([getProducts(), getActiveOrderCount()]);
+  const status = getStoreStatus();
+
   const lowStockCount = products.filter((p) => p.stock > 0 && p.stock <= 3).length;
+  const specials = products.filter((p) => p.is_special);
+
+  const justRestocked = products
+    .filter((p) => {
+      if (!p.restocked_at) return false;
+      const hoursAgo = (Date.now() - new Date(p.restocked_at).getTime()) / 3_600_000;
+      return hoursAgo >= 0 && hoursAgo <= 48;
+    })
+    .sort((a, b) => new Date(b.restocked_at!).getTime() - new Date(a.restocked_at!).getTime())
+    .slice(0, 4);
+
+  const almostGone = products
+    .filter((p) => p.stock > 0 && p.stock <= 3)
+    .sort((a, b) => a.stock - b.stock)
+    .slice(0, 4);
+
+  const teaserItems = justRestocked.length > 0 ? justRestocked : products.slice(0, 4);
 
   return (
     <div>
@@ -23,6 +50,21 @@ export default async function Home() {
             Hot food, snacks, and everyday essentials — ready for pickup, or delivered
             straight to your door.
           </p>
+
+          {isSupabaseConfigured && (
+            <p className="mt-5 flex flex-wrap items-center gap-2 font-mono text-xs uppercase tracking-wide text-white/80">
+              <span className={`h-1.5 w-1.5 rounded-full ${status.isOpen ? "bg-gold" : "bg-white/40"}`} />
+              {status.isOpen ? (
+                <>
+                  Open now · closes {status.closesAt}
+                  {activeOrders > 0 && ` · ~${estimateWaitMinutes(activeOrders)} min for pickup`}
+                </>
+              ) : (
+                <>Closed now · opens {status.opensAt}{status.opensDay !== "today" ? ` ${status.opensDay}` : ""}</>
+              )}
+            </p>
+          )}
+
           <div className="mt-8 flex flex-wrap gap-3">
             <Link
               href="/order"
@@ -39,6 +81,27 @@ export default async function Home() {
           </div>
         </div>
       </section>
+
+      {/* Today's Specials */}
+      {specials.length > 0 && (
+        <section className="border-b border-line bg-gold-tint">
+          <div className="mx-auto max-w-6xl px-5 py-8">
+            <p className="eyebrow text-gold-ink">Today's Specials</p>
+            <div className="mt-3 flex flex-wrap gap-3">
+              {specials.map((p) => (
+                <span
+                  key={p.id}
+                  className="rounded-full border border-gold/40 bg-paper px-4 py-2 font-body text-sm text-ink"
+                >
+                  {p.name} <span className="font-mono text-xs text-ink-soft">${p.price.toFixed(2)}</span>
+                </span>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
+      <ReorderCard />
 
       {/* Feature grid */}
       <section className="mx-auto max-w-6xl px-5 py-16">
@@ -64,7 +127,7 @@ export default async function Home() {
             <div>
               <p className="eyebrow text-green">One stock count, everywhere</p>
               <h2 className="mt-2 max-w-lg font-display text-2xl font-bold text-ink sm:text-3xl">
-                What's on this site is what's on the shelf
+                {justRestocked.length > 0 ? "Just restocked" : "What's on this site is what's on the shelf"}
               </h2>
               <p className="mt-2 max-w-lg font-body text-sm text-ink-soft">
                 The website reads live from the same inventory system as the register, so
@@ -78,7 +141,7 @@ export default async function Home() {
           </div>
 
           <div className="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            {products.slice(0, 4).map((p) => (
+            {teaserItems.map((p) => (
               <div
                 key={p.id}
                 className="flex items-center justify-between rounded-md border border-line bg-paper px-4 py-3"
@@ -88,6 +151,23 @@ export default async function Home() {
               </div>
             ))}
           </div>
+
+          {almostGone.length > 0 && (
+            <div className="mt-6">
+              <p className="font-mono text-[0.65rem] uppercase tracking-wide text-ink-soft">Almost gone</p>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {almostGone.map((p) => (
+                  <span
+                    key={p.id}
+                    className="rounded-full border border-[#a8461a]/30 bg-paper px-3 py-1 font-mono text-xs text-[#a8461a]"
+                  >
+                    {p.name} · {p.stock} left
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
           <p className="mt-4 font-mono text-[0.68rem] uppercase tracking-wide text-ink-soft">
             {isSupabaseConfigured
               ? "Live from Supabase — place an order and watch these numbers move"

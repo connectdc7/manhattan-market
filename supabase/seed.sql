@@ -13,9 +13,9 @@
 -- Heads up on the employee dashboard (/dashboard): it was built unlisted
 -- with no login, to keep the demo quick to set up. To make that work, the
 -- policies below let anyone holding the public "anon" key — which ships in
--- the site's own JavaScript, so effectively anyone — read rewards signups
--- and orders, and add, edit, delete, or photograph products, not just view
--- them. That's an acceptable tradeoff for placeholder demo data, but before
+-- the site's own JavaScript, so effectively anyone — read rewards signups,
+-- orders, and restock-notification requests, and add, edit, delete, or
+-- photograph products, not just view them. That's an acceptable tradeoff for placeholder demo data, but before
 -- this goes live with real customer phone numbers/emails, put a real login
 -- (e.g. Supabase Auth) in front of /dashboard and tighten these policies to
 -- require it.
@@ -52,6 +52,36 @@ drop index if exists products_clover_item_id_idx;
 create unique index products_clover_item_id_idx
   on products (clover_item_id)
   where clover_item_id is not null;
+
+-- Set the moment stock last went UP (a delivery came in, a correction), as
+-- opposed to every stock change (which also happens on every sale). Powers
+-- the homepage's "just restocked" strip. A trigger (below) keeps this
+-- current automatically — nothing in the app code sets it directly.
+alter table products add column if not exists restocked_at timestamptz;
+
+-- Staff-controlled "Today's Special" flag, toggled from the dashboard's
+-- Inventory tab. Shows a banner on the storefront when any product has it
+-- set. Plain boolean, not tied to a discount — the price shown is still
+-- whatever's in the price column.
+alter table products add column if not exists is_special boolean not null default false;
+
+create or replace function set_restocked_at()
+returns trigger
+language plpgsql
+as $$
+begin
+  if new.stock > old.stock then
+    new.restocked_at = now();
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists products_set_restocked_at on products;
+create trigger products_set_restocked_at
+  before update on products
+  for each row
+  execute function set_restocked_at();
 
 alter table products enable row level security;
 
@@ -171,6 +201,12 @@ begin
   end if;
 end $$;
 
+-- Optional — a customer can leave a phone number at checkout to get a text
+-- when their order's marked Ready. Null for anyone who skips it, or for
+-- any order placed before this column existed. See the "Connecting SMS"
+-- section of the README for turning the actual texting on.
+alter table orders add column if not exists phone text;
+
 alter table orders enable row level security;
 
 drop policy if exists "Public can create orders" on orders;
@@ -192,6 +228,43 @@ create policy "Public can read orders"
 drop policy if exists "Public can update orders" on orders;
 create policy "Public can update orders"
   on orders for update
+  to anon
+  using (true)
+  with check (true);
+
+-- ---------------------------------------------------------------------------
+-- restock_requests — "notify me when this is back" requests left on a
+-- sold-out product. Same anon-access tradeoff as every other table in this
+-- file except the Clover ones (see the note at the top): staff read and
+-- act on these from the dashboard without a login, which also means anyone
+-- with the anon key could technically read this list of contacts. Fine for
+-- placeholder demo data; revisit alongside the login work mentioned above.
+-- ---------------------------------------------------------------------------
+create table if not exists restock_requests (
+  id uuid primary key default gen_random_uuid(),
+  product_id text not null references products (id) on delete cascade,
+  contact text not null,
+  notified boolean not null default false,
+  created_at timestamptz not null default now()
+);
+
+alter table restock_requests enable row level security;
+
+drop policy if exists "Public can request restock notifications" on restock_requests;
+create policy "Public can request restock notifications"
+  on restock_requests for insert
+  to anon
+  with check (true);
+
+drop policy if exists "Public can read restock requests" on restock_requests;
+create policy "Public can read restock requests"
+  on restock_requests for select
+  to anon
+  using (true);
+
+drop policy if exists "Public can update restock requests" on restock_requests;
+create policy "Public can update restock requests"
+  on restock_requests for update
   to anon
   using (true)
   with check (true);
@@ -289,5 +362,12 @@ begin
     where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'rewards_signups'
   ) then
     alter publication supabase_realtime add table rewards_signups;
+  end if;
+
+  if not exists (
+    select 1 from pg_publication_tables
+    where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'restock_requests'
+  ) then
+    alter publication supabase_realtime add table restock_requests;
   end if;
 end $$;

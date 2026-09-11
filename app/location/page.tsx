@@ -1,12 +1,4 @@
-const HOURS = [
-  ["Monday", "6:00am – 11:00pm"],
-  ["Tuesday", "6:00am – 11:00pm"],
-  ["Wednesday", "6:00am – 11:00pm"],
-  ["Thursday", "6:00am – 11:00pm"],
-  ["Friday", "6:00am – 11:00pm"],
-  ["Saturday", "6:00am – 11:00pm"],
-  ["Sunday", "7:00am – 10:00pm"],
-];
+import { HOURS_DISPLAY } from "@/lib/store-hours";
 
 export default function LocationPage() {
   return (
@@ -32,7 +24,7 @@ export default function LocationPage() {
         <div>
           <table className="w-full border-collapse font-body text-sm">
             <tbody>
-              {HOURS.map(([day, time]) => (
+              {HOURS_DISPLAY.map(({ day, time }) => (
                 <tr key={day} className="border-b border-line last:border-none">
                   <td className="py-2.5 text-ink">{day}</td>
                   <td className="py-2.5 text-right font-mono text-ink-soft">{time}</td>

@@ -16,6 +16,20 @@ Real, once Supabase is connected (see setup below):
 - **Stock decrements for real** when an order is placed — atomically, in the
   database — so the menu reflects it immediately.
 - **Rewards signups** are saved to a real table you can look at in Supabase.
+- The **storefront** does more than list products:
+  - the homepage shows what's **just restocked** and what's **almost gone**,
+    pulled live from actual stock levels and from *when* stock last went up
+    — not a static "menu"
+  - a live **open/closed status** in the hero, with an estimated pickup wait
+    based on how many orders are actually in the queue right now
+  - **"Today's Specials"** — whatever staff flag from the dashboard shows in
+    a banner automatically, no redeploy needed
+  - **reorder your last order** in one click — remembered per-browser, no
+    account required
+  - **"notify me when it's back"** on anything sold out — see "Connecting
+    restock emails" below for turning on the actual email
+  - an optional phone number at checkout to get a text the moment staff mark
+    the order Ready — see "Connecting order-ready texts" below
 - **An employee dashboard** at `/dashboard` — linked from a "Dashboard" button
   in the site header for now, so it's one click to jump back and forth during
   a demo. There's no login yet (see the security note below), so that button
@@ -31,10 +45,18 @@ Real, once Supabase is connected (see setup below):
     name, category, price, description, or photo (staff pick a photo from
     their phone or computer; it uploads straight to Supabase Storage), or
     remove a product entirely
+  - a **sales-velocity warning** on any item selling fast enough to run out
+    soon, even if the raw stock count doesn't look low yet
+  - a **"Make Special"** toggle per product, and a **"Notify"** button on
+    sold-out items that either emails everyone waiting (once connected) or
+    hands you their contact info to reach out yourself
   - an order workflow — each order moves New → Preparing → Ready →
     Completed as staff click through it, instead of just sitting in a
     static list
   - rewards signups, searchable
+  - an **Analytics tab** — best/worst sellers, an hourly sales chart, and a
+    today-vs-yesterday comparison, all from the same order data already in
+    Supabase
   - a **Clover Sync** panel on the Inventory tab — see "Connecting Clover"
     below. It's built and ready, but does nothing until you connect a real
     Clover account.
@@ -61,22 +83,23 @@ quick to set up, and it's now also linked right from the site header (a
 "Dashboard" button) so it's easy to jump to during a walkthrough. Once a real
 login is in place, swap that header link/button for one that requires signing
 in first — see the fix below. To make it work without one, `supabase/seed.sql` opens up
-read access to orders and rewards signups, and write access to products
-(stock, name, price, description, photos — add, edit, and delete), to
-anyone holding the public "anon" key — which ships inside the site's own
-JavaScript, so in practice that means anyone who finds the page. The
-`product-photos` storage bucket used for photo uploads is public for the
-same reason: anyone can view (and, with the anon key, upload) a photo
-there.
+read access to orders, rewards signups, and restock-notification requests,
+and write access to products (stock, name, price, description, photos, the
+Special flag — add, edit, and delete), to anyone holding the public "anon"
+key — which ships inside the site's own JavaScript, so in practice that
+means anyone who finds the page. The `product-photos` storage bucket used
+for photo uploads is public for the same reason: anyone can view (and, with
+the anon key, upload) a photo there.
 
 That's a fine tradeoff while everything in these tables is placeholder demo
 data. It stops being fine the moment real customer phone numbers or emails
-are in the rewards table, or someone could deface the menu. Before that
-happens, put a real login in front of `/dashboard` (Supabase Auth is a
-natural fit, and mirrors the auth you already built for True Doc Pros) and
-tighten the RLS/storage policies in `supabase/seed.sql` to require it. The
-same file also opens up update access on orders (so staff can change an
-order's status) — same tradeoff, same fix later.
+are in the rewards, orders, or restock-request tables, or someone could
+deface the menu. Before that happens, put a real login in front of
+`/dashboard` (Supabase Auth is a natural fit, and mirrors the auth you
+already built for True Doc Pros) and tighten the RLS/storage policies in
+`supabase/seed.sql` to require it. The same file also opens up update access
+on orders (so staff can change an order's status) — same tradeoff, same fix
+later.
 
 The two Clover tables (`clover_connections`, `clover_webhook_state`) are the
 one deliberate exception — they're locked down, not opened up. No policy
@@ -92,9 +115,10 @@ touch them. See "Connecting Clover" below.
    any region, set a database password and save it somewhere).
 2. Once it's ready, open the **SQL Editor** (left sidebar), click **New
    query**, paste in the entire contents of `supabase/seed.sql` from this
-   project, and click **Run**. That creates the `products` and
-   `rewards_signups` tables and seeds the same 12 sample items already in
-   the app.
+   project, and click **Run**. That creates all the tables the site and
+   dashboard use (products, orders, rewards signups, restock-notification
+   requests, and the Clover ones) and seeds the same 12 sample items already
+   in the app.
 3. Go to **Project Settings > API**. You'll need two values from there:
    the **Project URL** and the **anon public** key.
 4. In your Vercel project, go to **Settings > Environment Variables** and
@@ -165,6 +189,53 @@ auto-refresh before it expires (Clover's tokens are long-lived, so this is
 unlikely to bite you soon, but if the panel ever shows disconnected
 unexpectedly, click Connect Clover again).
 
+## Connecting restock emails (optional)
+
+The "notify me when it's back" button on out-of-stock items already saves
+requests to Supabase, and the dashboard's "Notify" button already works —
+without an email provider connected, it marks those requests handled and
+shows you the list of emails to reach out to by hand. To have it actually
+send the email itself:
+
+1. Go to [resend.com](https://resend.com) and sign up (free tier covers a
+   store this size many times over).
+2. Verify a sending domain there (their dashboard walks you through adding
+   a couple of DNS records — if your domain's registrar is somewhere like
+   GoDaddy or Namecheap, this is a few clicks in their DNS settings, not
+   code). Until a domain's verified, Resend also gives you a working
+   `onboarding@resend.dev` address you can send from for testing.
+3. Create an API key in Resend's dashboard.
+4. In Vercel's environment variables, add:
+   - `RESEND_API_KEY` — the key from step 3.
+   - `RESEND_FROM_EMAIL` — an address on your verified domain (or the
+     `onboarding@resend.dev` one, for testing).
+   - Redeploy so they take effect.
+5. That's it — the next time staff click **Notify** on a restocked item,
+   it emails everyone who asked instead of just listing their addresses.
+
+## Connecting order-ready texts (optional)
+
+The phone field at checkout and the "texted when marked Ready" note in the
+dashboard are already wired up; without Twilio connected, that text simply
+never sends (nothing else about checkout is affected). To turn it on:
+
+1. Go to [twilio.com](https://twilio.com) and sign up.
+2. Buy a phone number to send from (Twilio's console walks you through
+   this — a free trial credit usually covers testing).
+3. From the Twilio Console's dashboard, copy your **Account SID** and
+   **Auth Token**.
+4. In Vercel's environment variables, add:
+   - `TWILIO_ACCOUNT_SID` and `TWILIO_AUTH_TOKEN` — from step 3.
+   - `TWILIO_FROM_NUMBER` — the number from step 2, in the form `+15551234567`.
+   - Redeploy so they take effect.
+5. That's it — customers who leave a phone number at checkout get a text
+   the moment staff mark their order Ready.
+
+A trial Twilio account can usually only text numbers you've verified in
+the console first — fine for testing, but worth knowing before you wonder
+why a real customer didn't get their text. Upgrading the Twilio account
+(a few dollars) removes that limit.
+
 ## Running it locally
 
 ```bash
@@ -174,7 +245,7 @@ npm run dev
 
 Then open http://localhost:3000. To test against Supabase locally too, copy
 `.env.local.example` to `.env.local` and fill in the same two values (and
-the Clover ones, if you're testing that too).
+the Clover, Resend, or Twilio ones, if you're testing those too).
 
 ## Deploying
 
@@ -192,7 +263,9 @@ Same flow as True Doc Pros:
    hand for now, or by connecting Clover (see above) and clicking Sync.
 2. Add Stripe Checkout to `app/checkout/page.tsx`.
 3. Wire the delivery toggle to the Uber Direct API.
-4. Replace placeholder copy — address, hours, photos in `/gallery` — with
-   the real thing.
+4. Replace placeholder copy — address, photos in `/gallery` — with the real
+   thing, and the real hours in `lib/store-hours.ts` (one place that feeds
+   both the Hours & Location page and the homepage's live open/closed
+   status — including the store's actual timezone, if it's not New York).
 5. Put a real login in front of `/dashboard` before anyone but you uses it
    (see the security note above).

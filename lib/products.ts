@@ -21,6 +21,8 @@ export type Product = {
   blurb: string;
   swatch: string; // placeholder tile color, used when no photo has been uploaded
   image_url?: string; // real product photo, uploaded from the dashboard — empty until staff add one
+  restocked_at?: string | null; // set automatically (by a DB trigger) whenever stock goes up
+  is_special?: boolean; // staff-toggled "Today's Special" flag, shown on the storefront
 };
 
 export const fallbackProducts: Product[] = [
@@ -40,7 +42,8 @@ export const fallbackProducts: Product[] = [
 
 export const categories = ["Hot Food", "Snacks", "Drinks", "Grocery"] as const;
 
-const PRODUCT_COLUMNS = "id, name, category, price, stock, blurb, swatch, image_url";
+const PRODUCT_COLUMNS =
+  "id, name, category, price, stock, blurb, swatch, image_url, restocked_at, is_special";
 
 export async function getProducts(): Promise<Product[]> {
   if (!supabase) return fallbackProducts;
@@ -210,6 +213,19 @@ export async function updateProduct(id: string, edits: ProductEdits): Promise<Pr
     return null;
   }
   return { ...data, price: Number(data.price) } as Product;
+}
+
+// Toggles a product's "Today's Special" flag from the dashboard. Doesn't
+// touch price — it's a spotlight, not a discount.
+export async function setProductSpecial(id: string, isSpecial: boolean): Promise<boolean> {
+  const client = supabase;
+  if (!client) return false;
+  const { error } = await client.from("products").update({ is_special: isSpecial }).eq("id", id);
+  if (error) {
+    console.error("setProductSpecial:", error.message);
+    return false;
+  }
+  return true;
 }
 
 // Removes a product entirely — for correcting a mistaken add, or dropping

@@ -6,6 +6,7 @@ import { useCart } from "@/lib/cart-context";
 import { decrementStock } from "@/lib/products";
 import { createOrder } from "@/lib/orders";
 import { isSupabaseConfigured } from "@/lib/supabase";
+import { saveLastOrder } from "@/components/ReorderCard";
 
 type Stage = "review" | "processing" | "done";
 
@@ -13,6 +14,7 @@ export default function CheckoutPage() {
   const { lines, subtotal, clear } = useCart();
   const [stage, setStage] = useState<Stage>("review");
   const [fulfillment, setFulfillment] = useState<"pickup" | "delivery">("pickup");
+  const [phone, setPhone] = useState("");
 
   const placeOrder = () => {
     setStage("processing");
@@ -20,13 +22,20 @@ export default function CheckoutPage() {
     const orderItems = lines.map((l) => ({ id: l.id, name: l.name, price: l.price, qty: l.qty }));
     const orderFulfillment = fulfillment;
     const orderSubtotal = subtotal;
+    const orderPhone = phone.trim() || null;
     setTimeout(async () => {
       // Payment is mocked (Stripe goes here later), but the stock decrement
       // and order record are real when Supabase is configured — so the
       // menu and the employee dashboard reflect the order immediately, the
       // same way they would once Clover is wired in.
       await decrementStock(orderedLines);
-      await createOrder({ fulfillment: orderFulfillment, items: orderItems, subtotal: orderSubtotal });
+      await createOrder({
+        fulfillment: orderFulfillment,
+        items: orderItems,
+        subtotal: orderSubtotal,
+        phone: orderPhone,
+      });
+      saveLastOrder(orderItems);
       setStage("done");
       clear();
     }, 1400);
@@ -118,6 +127,19 @@ export default function CheckoutPage() {
           </p>
         )}
       </div>
+
+      <label className="mt-6 flex flex-col gap-1">
+        <span className="font-body text-sm font-semibold text-ink">
+          Phone <span className="font-normal text-ink-soft">(optional — get a text when it's ready)</span>
+        </span>
+        <input
+          type="tel"
+          value={phone}
+          onChange={(e) => setPhone(e.target.value)}
+          placeholder="(555) 555-0123"
+          className="rounded border border-line bg-paper px-3 py-2 font-body text-sm text-ink outline-none focus:border-green sm:max-w-xs"
+        />
+      </label>
 
       <button
         onClick={placeOrder}

@@ -11,6 +11,7 @@
   --green-tint: #e3ebe4;
   --gold: #f0bd3e;
   --gold-ink: #4a3300;
+  --gold-tint: #fbf1d9;
 }
 
 @theme inline {
@@ -24,6 +25,7 @@
   --color-green-tint: var(--green-tint);
   --color-gold: var(--gold);
   --color-gold-ink: var(--gold-ink);
+  --color-gold-tint: var(--gold-tint);
   --font-display: 'Fraunces', Georgia, 'Times New Roman', serif;
   --font-body: 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
   --font-mono: 'IBM Plex Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace;

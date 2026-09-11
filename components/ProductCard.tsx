@@ -1,12 +1,26 @@
 "use client";
 
+import { useState } from "react";
 import { Product } from "@/lib/products";
 import { useCart } from "@/lib/cart-context";
+import { requestRestockNotification } from "@/lib/restock";
 
 export default function ProductCard({ product }: { product: Product }) {
   const { add } = useCart();
   const lowStock = product.stock > 0 && product.stock <= 3;
   const outOfStock = product.stock === 0;
+
+  const [notifyOpen, setNotifyOpen] = useState(false);
+  const [email, setEmail] = useState("");
+  const [notifyState, setNotifyState] = useState<"idle" | "saving" | "done">("idle");
+
+  const handleNotifySubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email.trim()) return;
+    setNotifyState("saving");
+    const ok = await requestRestockNotification(product.id, email.trim());
+    setNotifyState(ok ? "done" : "idle");
+  };
 
   return (
     <div className="flex flex-col overflow-hidden rounded-lg border border-line bg-paper transition hover:shadow-sm">
@@ -15,7 +29,9 @@ export default function ProductCard({ product }: { product: Product }) {
         <img src={product.image_url} alt={product.name} className="h-32 w-full object-cover" />
       ) : (
         <div
-          className="flex h-32 items-center justify-center font-mono text-[0.65rem] uppercase tracking-widest text-white/70"
+          className={`flex h-32 items-center justify-center font-mono text-[0.65rem] uppercase tracking-widest text-white/70 ${
+            outOfStock ? "grayscale" : ""
+          }`}
           style={{ backgroundColor: product.swatch }}
         >
           sample photo
@@ -46,6 +62,39 @@ export default function ProductCard({ product }: { product: Product }) {
             Add
           </button>
         </div>
+
+        {outOfStock && (
+          <div className="mt-1 border-t border-line pt-2">
+            {notifyState === "done" ? (
+              <p className="font-body text-xs text-green">We'll email you when it's back.</p>
+            ) : notifyOpen ? (
+              <form onSubmit={handleNotifySubmit} className="flex items-center gap-1.5">
+                <input
+                  type="email"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="you@email.com"
+                  className="w-full min-w-0 rounded border border-line bg-paper px-2 py-1 font-body text-xs text-ink outline-none focus:border-green"
+                />
+                <button
+                  type="submit"
+                  disabled={notifyState === "saving"}
+                  className="whitespace-nowrap rounded-full border border-line px-2.5 py-1 font-mono text-[0.65rem] font-semibold text-ink-soft transition hover:border-green hover:text-green disabled:opacity-60"
+                >
+                  {notifyState === "saving" ? "…" : "Notify me"}
+                </button>
+              </form>
+            ) : (
+              <button
+                onClick={() => setNotifyOpen(true)}
+                className="font-mono text-[0.65rem] uppercase tracking-wide text-ink-soft hover:text-green"
+              >
+                Notify me when it's back
+              </button>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

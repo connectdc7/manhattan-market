@@ -13,6 +13,7 @@ export function subscribeToDashboardChanges(onChange: () => void): () => void {
     .on("postgres_changes", { event: "*", schema: "public", table: "products" }, onChange)
     .on("postgres_changes", { event: "*", schema: "public", table: "orders" }, onChange)
     .on("postgres_changes", { event: "*", schema: "public", table: "rewards_signups" }, onChange)
+    .on("postgres_changes", { event: "*", schema: "public", table: "restock_requests" }, onChange)
     .subscribe();
 
   return () => {
