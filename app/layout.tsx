@@ -21,7 +21,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           rel="stylesheet"
         />
       </head>
-      <body className="flex min-h-full flex-col font-body">
+      <body className="bg-paper-texture flex min-h-full flex-col font-body">
         <CartProvider>
           <Header />
           <main className="flex-1">{children}</main>

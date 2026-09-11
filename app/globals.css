@@ -31,6 +31,10 @@
   --font-mono: 'IBM Plex Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace;
 }
 
+html {
+  scroll-behavior: smooth;
+}
+
 body {
   background: var(--paper);
   color: var(--ink);
@@ -47,4 +51,158 @@ h1, h2, h3, h4 {
   letter-spacing: 0.14em;
   text-transform: uppercase;
   font-weight: 600;
+}
+
+::selection {
+  background: var(--gold);
+  color: var(--gold-ink);
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: var(--panel);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--line);
+  border-radius: 999px;
+  border: 2px solid var(--panel);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--green);
+}
+
+/* ------------------------------------------------------------------ */
+/* Bodega/ticket visual language — a signature look tied to the store */
+/* itself (a corner-store price gun, an awning, a register receipt)   */
+/* instead of a generic storefront template.                         */
+/* ------------------------------------------------------------------ */
+
+/* Subtle paper grain, applied to the whole page so it never reads as
+   flat, digital white — like the inside of a deli. */
+.bg-paper-texture {
+  background-image: radial-gradient(circle at 1px 1px, rgba(29, 35, 31, 0.05) 1px, transparent 0);
+  background-size: 20px 20px;
+}
+
+/* A thin awning-striped band — the site's signature accent, used
+   sparingly as a strip, never as a full background. */
+.stripe-bar {
+  background-image: repeating-linear-gradient(
+    -45deg,
+    var(--gold) 0px,
+    var(--gold) 14px,
+    var(--green-deep) 14px,
+    var(--green-deep) 28px
+  );
+}
+
+/* A torn/perforated receipt edge — a row of little punched dots,
+   dividing a "ticket" section from what's below it. */
+.receipt-perforation {
+  height: 12px;
+  background-color: var(--line);
+  background-image: radial-gradient(circle at 6px 6px, var(--paper) 5px, transparent 5.5px);
+  background-size: 12px 12px;
+  background-position: 0 0;
+}
+.receipt-perforation.on-panel {
+  background-color: var(--line);
+  background-image: radial-gradient(circle at 6px 6px, var(--panel) 5px, transparent 5.5px);
+}
+
+/* A price-gun sticker: rotated, dashed border, a little punch-hole —
+   used everywhere a price appears so it reads as this store's own
+   typographic signature rather than a generic $X.XX. */
+.price-tag {
+  position: relative;
+  display: inline-block;
+  transform: rotate(-2.5deg);
+  border: 1.5px dashed var(--green);
+  border-radius: 5px;
+  padding: 0.1rem 0.55rem 0.1rem 0.7rem;
+  background: var(--paper);
+  white-space: nowrap;
+}
+.price-tag::before {
+  content: "";
+  position: absolute;
+  left: -3px;
+  top: 50%;
+  width: 5px;
+  height: 5px;
+  transform: translateY(-50%);
+  background: var(--panel);
+  border: 1px solid var(--green);
+  border-radius: 50%;
+}
+.price-tag-gold {
+  border-color: var(--gold-ink);
+}
+.price-tag-gold::before {
+  border-color: var(--gold-ink);
+}
+
+/* A rubber-stamped badge feel for statuses — rotated, thick-ish
+   border, ink-like — instead of a plain rounded pill. */
+.stamp-badge {
+  display: inline-block;
+  transform: rotate(-3deg);
+  border: 1.5px solid currentColor;
+  border-radius: 4px;
+  padding: 0.05rem 0.5rem;
+}
+
+/* Receipt line item: "Name .......... $Price", the dotted leader
+   filling whatever space is left between the two. */
+.receipt-line {
+  display: flex;
+  align-items: baseline;
+  gap: 0.35rem;
+}
+.receipt-line .receipt-fill {
+  flex: 1;
+  border-bottom: 1px dotted var(--line);
+  transform: translateY(-0.3em);
+}
+
+/* Scroll-reveal: fade + rise as a section enters the viewport. */
+@keyframes reveal-up {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.reveal {
+  opacity: 0;
+}
+.reveal.is-visible {
+  animation: reveal-up 0.7s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+@media (prefers-reduced-motion: reduce) {
+  .reveal {
+    opacity: 1;
+    animation: none;
+  }
+}
+
+/* A quick, springy "bump" — used when something's added to the cart. */
+@keyframes bump {
+  0% { transform: scale(1); }
+  35% { transform: scale(1.25); }
+  65% { transform: scale(0.92); }
+  100% { transform: scale(1); }
+}
+
+/* A stamp landing — used for the order-success checkmark. */
+@keyframes stamp-in {
+  0% { transform: scale(0) rotate(-10deg); opacity: 0; }
+  55% { transform: scale(1.15) rotate(3deg); opacity: 1; }
+  100% { transform: scale(1) rotate(0deg); opacity: 1; }
 }

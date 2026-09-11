@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import { categories, getProducts, Product } from "@/lib/products";
 import ProductCard from "@/components/ProductCard";
+import CategoryPills from "@/components/CategoryPills";
+import Reveal from "@/components/Reveal";
 
 export default function OrderPage() {
   const [active, setActive] = useState<(typeof categories)[number] | "All">("All");
@@ -35,30 +37,22 @@ export default function OrderPage() {
         launch.
       </p>
 
-      <div className="mt-8 flex flex-wrap gap-2">
-        {(["All", ...categories] as const).map((c) => (
-          <button
-            key={c}
-            onClick={() => setActive(c)}
-            className={`rounded-full border px-4 py-1.5 font-mono text-xs font-semibold transition ${
-              active === c
-                ? "border-green bg-green text-white"
-                : "border-line text-ink-soft hover:border-green hover:text-green"
-            }`}
-          >
-            {c}
-          </button>
-        ))}
+      <div className="mt-8">
+        <CategoryPills options={["All", ...categories] as const} active={active} onChange={setActive} />
       </div>
 
       {loading ? (
-        <p className="mt-10 font-mono text-xs uppercase tracking-wide text-ink-soft">
-          Loading menu…
-        </p>
+        <div className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div key={i} className="h-64 animate-pulse rounded-lg border border-line bg-panel" />
+          ))}
+        </div>
       ) : (
         <div className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-          {shown.map((product) => (
-            <ProductCard key={product.id} product={product} />
+          {shown.map((product, i) => (
+            <Reveal key={product.id} delayMs={Math.min(i, 8) * 60}>
+              <ProductCard product={product} />
+            </Reveal>
           ))}
         </div>
       )}

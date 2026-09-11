@@ -59,7 +59,7 @@ export default function CheckoutPage() {
   if (stage === "done") {
     return (
       <div className="mx-auto max-w-lg px-5 py-20 text-center">
-        <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-green text-2xl text-white">
+        <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-green text-2xl text-white [animation:stamp-in_0.5s_cubic-bezier(0.2,1.4,0.4,1)_forwards]">
           ✓
         </div>
         <h1 className="mt-5 font-display text-2xl font-bold text-ink">Order placed</h1>
@@ -86,20 +86,23 @@ export default function CheckoutPage() {
       <p className="eyebrow text-green">Checkout</p>
       <h1 className="mt-2 font-display text-3xl font-bold text-ink">Review your order</h1>
 
-      <div className="mt-8 divide-y divide-line rounded-lg border border-line">
-        {lines.map((line) => (
-          <div key={line.id} className="flex items-center justify-between px-5 py-3">
-            <span className="font-body text-sm text-ink">
-              {line.name} <span className="text-ink-soft">× {line.qty}</span>
-            </span>
-            <span className="font-mono text-sm font-semibold text-ink">
-              ${(line.price * line.qty).toFixed(2)}
-            </span>
-          </div>
-        ))}
-        <div className="flex items-center justify-between px-5 py-3">
-          <span className="font-body text-sm font-semibold text-ink">Subtotal</span>
-          <span className="font-mono text-sm font-semibold text-ink">${subtotal.toFixed(2)}</span>
+      <div className="mt-8 rounded-lg border border-line bg-paper p-5">
+        <div className="flex flex-col gap-2.5">
+          {lines.map((line) => (
+            <div key={line.id} className="receipt-line font-mono text-sm text-ink">
+              <span className="whitespace-nowrap">
+                {line.name} <span className="text-ink-soft">× {line.qty}</span>
+              </span>
+              <span className="receipt-fill" />
+              <span className="whitespace-nowrap font-semibold">${(line.price * line.qty).toFixed(2)}</span>
+            </div>
+          ))}
+        </div>
+        <div className="receipt-perforation -mx-5 mt-4 w-[calc(100%+2.5rem)]" />
+        <div className="receipt-line mt-4 font-body text-sm font-semibold text-ink">
+          <span>Subtotal</span>
+          <span className="receipt-fill" />
+          <span className="price-tag font-mono">${subtotal.toFixed(2)}</span>
         </div>
       </div>
 
@@ -110,7 +113,7 @@ export default function CheckoutPage() {
             <button
               key={f}
               onClick={() => setFulfillment(f)}
-              className={`rounded-full border px-4 py-1.5 font-mono text-xs font-semibold capitalize transition ${
+              className={`rounded-full border px-4 py-1.5 font-mono text-xs font-semibold capitalize transition-all active:scale-95 ${
                 fulfillment === f
                   ? "border-green bg-green text-white"
                   : "border-line text-ink-soft hover:border-green hover:text-green"
@@ -144,7 +147,7 @@ export default function CheckoutPage() {
       <button
         onClick={placeOrder}
         disabled={stage === "processing"}
-        className="mt-8 w-full rounded-full bg-green py-3.5 text-center font-mono text-sm font-semibold text-white transition hover:bg-green-deep disabled:opacity-60"
+        className="mt-8 w-full rounded-full bg-green py-3.5 text-center font-mono text-sm font-semibold text-white transition-all hover:bg-green-deep active:scale-[0.98] disabled:opacity-60"
       >
         {stage === "processing" ? "Processing…" : `Place Order — $${subtotal.toFixed(2)}`}
       </button>
