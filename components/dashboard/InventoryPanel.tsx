@@ -79,8 +79,6 @@ export default function InventoryPanel({
   onProductRemoved,
   onRefresh,
   salesVelocity,
-  restockCounts,
-  onRestockNotified,
 }: {
   products: Product[];
   onStockSaved: (id: string, stock: number) => void;
@@ -88,8 +86,6 @@ export default function InventoryPanel({
   onProductRemoved: (id: string) => void;
   onRefresh: () => void;
   salesVelocity: Record<string, number>;
-  restockCounts: Record<string, number>;
-  onRestockNotified: () => void;
 }) {
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState<(typeof categories)[number] | "All">("All");
@@ -97,7 +93,6 @@ export default function InventoryPanel({
   const [modal, setModal] = useState<ModalState>(null);
   const [togglingSpecial, setTogglingSpecial] = useState<string | null>(null);
   const [togglingHealthy, setTogglingHealthy] = useState<string | null>(null);
-  const [notifyState, setNotifyState] = useState<Record<string, string>>({});
 
   const handleToggleSpecial = async (product: Product) => {
     setTogglingSpecial(product.id);
@@ -111,31 +106,6 @@ export default function InventoryPanel({
     await setProductHealthy(product.id, !product.is_healthy);
     setTogglingHealthy(null);
     onRefresh();
-  };
-
-  const handleNotify = async (productId: string) => {
-    setNotifyState((prev) => ({ ...prev, [productId]: "sending" }));
-    try {
-      const res = await fetch("/api/restock/notify", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ productId }),
-      });
-      const body = await res.json();
-      if (body.emailed) {
-        setNotifyState((prev) => ({ ...prev, [productId]: `Emailed ${body.notified} ${body.notified === 1 ? "person" : "people"}.` }));
-      } else if (body.contacts?.length) {
-        setNotifyState((prev) => ({
-          ...prev,
-          [productId]: `Email isn't connected yet — reach out yourself: ${body.contacts.join(", ")}`,
-        }));
-      } else {
-        setNotifyState((prev) => ({ ...prev, [productId]: "No one's waiting on this one." }));
-      }
-    } catch {
-      setNotifyState((prev) => ({ ...prev, [productId]: "Something went wrong — try again." }));
-    }
-    onRestockNotified();
   };
 
   const shown = useMemo(() => {
@@ -219,7 +189,6 @@ export default function InventoryPanel({
               const velocity = salesVelocity[p.id] ?? 0;
               const daysLeft = velocity > 0 ? p.stock / velocity : null;
               const urgentPace = !outOfStock && daysLeft !== null && daysLeft <= 5;
-              const pendingRestock = restockCounts[p.id] ?? 0;
               return (
                 <tr key={p.id} className="border-b border-line last:border-none">
                   <td className="px-4 py-2.5">
@@ -266,25 +235,6 @@ export default function InventoryPanel({
                       {urgentPace && (
                         <span className="font-mono text-[0.62rem] text-[#a8461a]">
                           Selling ~{velocity.toFixed(1)}/day — ~{Math.max(1, Math.round(daysLeft!))}d left at this pace
-                        </span>
-                      )}
-                      {outOfStock && pendingRestock > 0 && (
-                        <div className="flex items-center gap-2">
-                          <span className="font-mono text-[0.62rem] text-ink-soft">
-                            {pendingRestock} waiting to hear it's back
-                          </span>
-                          <button
-                            onClick={() => handleNotify(p.id)}
-                            disabled={notifyState[p.id] === "sending"}
-                            className="font-mono text-[0.62rem] font-semibold uppercase tracking-wide text-green hover:underline disabled:opacity-60"
-                          >
-                            {notifyState[p.id] === "sending" ? "Sending…" : "Notify"}
-                          </button>
-                        </div>
-                      )}
-                      {notifyState[p.id] && notifyState[p.id] !== "sending" && (
-                        <span className="max-w-[220px] font-body text-[0.68rem] text-ink-soft">
-                          {notifyState[p.id]}
                         </span>
                       )}
                     </div>

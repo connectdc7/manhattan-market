@@ -16,7 +16,10 @@ export default function OrderPage() {
     let cancelled = false;
     getProducts().then((data) => {
       if (!cancelled) {
-        setProducts(data);
+        // Only ever show what's actually in stock — the site should always
+        // match the live inventory, so a sold-out item just isn't on the
+        // menu rather than sitting there unbuyable.
+        setProducts(data.filter((p) => p.stock > 0));
         setLoading(false);
       }
     });

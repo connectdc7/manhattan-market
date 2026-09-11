@@ -17,13 +17,16 @@ Real, once Supabase is connected (see setup below):
   database — so the menu reflects it immediately.
 - **Rewards signups** are saved to a real table you can look at in Supabase.
 - The **storefront** does more than list products:
-  - the homepage shows what's **just restocked** and what's **almost gone**,
-    pulled live from actual stock levels and from *when* stock last went up
-    — not a static "menu"
+  - the **order page only ever shows what's actually in stock** — a product
+    reads straight from the live Supabase count on every page load, and the
+    moment it hits zero it drops off the menu instead of sitting there
+    unbuyable. Low-stock items ("Only 3 left") still show and still sell —
+    only a true zero hides something
   - a live **open/closed status** in the hero, with an estimated pickup wait
     based on how many orders are actually in the queue right now
   - **"Today's Specials"** — whatever staff flag from the dashboard shows in
-    a banner automatically, no redeploy needed
+    a banner automatically (as long as it's still in stock), no redeploy
+    needed
   - **"Product of the Day"** — automatically spotlights one healthy,
     reasonably-priced, recently-added product on the homepage, and links
     straight to it on the order page. Rotates once per day on its own — see
@@ -31,8 +34,6 @@ Real, once Supabase is connected (see setup below):
     a product eligible
   - **reorder your last order** in one click — remembered per-browser, no
     account required
-  - **"notify me when it's back"** on anything sold out — see "Connecting
-    restock emails" below for turning on the actual email
   - an optional phone number at checkout to get a text the moment staff mark
     the order Ready — see "Connecting order-ready texts" below
 - **An employee dashboard** at `/dashboard` — linked from a "Dashboard" button
@@ -54,9 +55,7 @@ Real, once Supabase is connected (see setup below):
     soon, even if the raw stock count doesn't look low yet
   - a **"Make Special"** toggle per product, and a **"Mark Healthy Pick"**
     toggle that makes a product eligible for the homepage's "Product of the
-    Day" — and a **"Notify"** button on sold-out items that either emails
-    everyone waiting (once connected) or hands you their contact info to
-    reach out yourself
+    Day"
   - an order workflow — each order moves New → Preparing → Ready →
     Completed as staff click through it, instead of just sitting in a
     static list
@@ -134,18 +133,18 @@ quick to set up, and it's now also linked right from the site header (a
 "Dashboard" button) so it's easy to jump to during a walkthrough. Once a real
 login is in place, swap that header link/button for one that requires signing
 in first — see the fix below. To make it work without one, `supabase/seed.sql` opens up
-read access to orders, rewards signups, and restock-notification requests,
-and write access to products (stock, name, price, description, photos, the
-Special flag — add, edit, and delete), to anyone holding the public "anon"
-key — which ships inside the site's own JavaScript, so in practice that
-means anyone who finds the page. The `product-photos` storage bucket used
-for photo uploads is public for the same reason: anyone can view (and, with
-the anon key, upload) a photo there.
+read access to orders and rewards signups, and write access to products
+(stock, name, price, description, photos, the Special and Healthy Pick
+flags — add, edit, and delete), to anyone holding the public "anon" key —
+which ships inside the site's own JavaScript, so in practice that means
+anyone who finds the page. The `product-photos` storage bucket used for
+photo uploads is public for the same reason: anyone can view (and, with the
+anon key, upload) a photo there.
 
 That's a fine tradeoff while everything in these tables is placeholder demo
 data. It stops being fine the moment real customer phone numbers or emails
-are in the rewards, orders, or restock-request tables, or someone could
-deface the menu. Before that happens, put a real login in front of
+are in the rewards or orders tables, or someone could deface the menu.
+Before that happens, put a real login in front of
 `/dashboard` (Supabase Auth is a natural fit, and mirrors the auth you
 already built for True Doc Pros) and tighten the RLS/storage policies in
 `supabase/seed.sql` to require it. The same file also opens up update access
@@ -167,9 +166,8 @@ touch them. See "Connecting Clover" below.
 2. Once it's ready, open the **SQL Editor** (left sidebar), click **New
    query**, paste in the entire contents of `supabase/seed.sql` from this
    project, and click **Run**. That creates all the tables the site and
-   dashboard use (products, orders, rewards signups, restock-notification
-   requests, and the Clover ones) and seeds the same 12 sample items already
-   in the app.
+   dashboard use (products, orders, rewards signups, and the Clover ones)
+   and seeds the same 12 sample items already in the app.
 3. Go to **Project Settings > API**. You'll need two values from there:
    the **Project URL** and the **anon public** key.
 4. In your Vercel project, go to **Settings > Environment Variables** and
@@ -239,30 +237,6 @@ of Clover sync. And the connection's access token doesn't currently
 auto-refresh before it expires (Clover's tokens are long-lived, so this is
 unlikely to bite you soon, but if the panel ever shows disconnected
 unexpectedly, click Connect Clover again).
-
-## Connecting restock emails (optional)
-
-The "notify me when it's back" button on out-of-stock items already saves
-requests to Supabase, and the dashboard's "Notify" button already works —
-without an email provider connected, it marks those requests handled and
-shows you the list of emails to reach out to by hand. To have it actually
-send the email itself:
-
-1. Go to [resend.com](https://resend.com) and sign up (free tier covers a
-   store this size many times over).
-2. Verify a sending domain there (their dashboard walks you through adding
-   a couple of DNS records — if your domain's registrar is somewhere like
-   GoDaddy or Namecheap, this is a few clicks in their DNS settings, not
-   code). Until a domain's verified, Resend also gives you a working
-   `onboarding@resend.dev` address you can send from for testing.
-3. Create an API key in Resend's dashboard.
-4. In Vercel's environment variables, add:
-   - `RESEND_API_KEY` — the key from step 3.
-   - `RESEND_FROM_EMAIL` — an address on your verified domain (or the
-     `onboarding@resend.dev` one, for testing).
-   - Redeploy so they take effect.
-5. That's it — the next time staff click **Notify** on a restocked item,
-   it emails everyone who asked instead of just listing their addresses.
 
 ## Connecting order-ready texts (optional)
 

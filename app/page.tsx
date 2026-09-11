@@ -20,26 +20,11 @@ export default async function Home() {
   const [products, activeOrders] = await Promise.all([getProducts(), getActiveOrderCount()]);
   const status = getStoreStatus();
 
-  const lowStockCount = products.filter((p) => p.stock > 0 && p.stock <= 3).length;
-  const specials = products.filter((p) => p.is_special);
+  // Only ever promote what's actually sellable right now — a special banner
+  // for something that just sold out would be worse than not showing one.
+  const specials = products.filter((p) => p.is_special && p.stock > 0);
   const productOfDay = getProductOfTheDay(products);
   const productOfDayIsNew = productOfDay ? isNewProduct(productOfDay) : false;
-
-  const justRestocked = products
-    .filter((p) => {
-      if (!p.restocked_at) return false;
-      const hoursAgo = (Date.now() - new Date(p.restocked_at).getTime()) / 3_600_000;
-      return hoursAgo >= 0 && hoursAgo <= 48;
-    })
-    .sort((a, b) => new Date(b.restocked_at!).getTime() - new Date(a.restocked_at!).getTime())
-    .slice(0, 4);
-
-  const almostGone = products
-    .filter((p) => p.stock > 0 && p.stock <= 3)
-    .sort((a, b) => a.stock - b.stock)
-    .slice(0, 4);
-
-  const teaserItems = justRestocked.length > 0 ? justRestocked : products.slice(0, 4);
 
   return (
     <div>
@@ -206,63 +191,6 @@ export default async function Home() {
                 <p className="mt-1.5 font-body text-sm text-ink-soft">{f.body}</p>
               </div>
             ))}
-          </div>
-        </section>
-      </Reveal>
-
-      {/* Live stock teaser */}
-      <Reveal>
-        <section className="bg-panel">
-          <div className="mx-auto max-w-6xl px-5 py-16">
-            <div className="flex flex-wrap items-end justify-between gap-4">
-              <div>
-                <p className="eyebrow text-green">One stock count, everywhere</p>
-                <h2 className="mt-2 max-w-lg font-display text-2xl font-bold text-ink sm:text-3xl">
-                  {justRestocked.length > 0 ? "Just restocked" : "What's on this site is what's on the shelf"}
-                </h2>
-                <p className="mt-2 max-w-lg font-body text-sm text-ink-soft">
-                  The website reads live from the same inventory system as the register, so
-                  nothing gets sold online that just sold out in-store — or the other way
-                  around.
-                </p>
-              </div>
-              <span className="stamp-badge bg-green-tint font-mono text-xs font-semibold text-green-deep">
-                {lowStockCount} item{lowStockCount === 1 ? "" : "s"} running low right now
-              </span>
-            </div>
-
-            <div className="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-              {teaserItems.map((p, i) => (
-                <Reveal key={p.id} delayMs={i * 80}>
-                  <div className="flex items-center justify-between rounded-md border border-line bg-paper px-4 py-3 transition-all duration-300 hover:-translate-y-0.5 hover:border-green/50 hover:shadow-sm">
-                    <span className="font-body text-sm text-ink">{p.name}</span>
-                    <span className="font-mono text-xs font-semibold text-green">{p.stock} left</span>
-                  </div>
-                </Reveal>
-              ))}
-            </div>
-
-            {almostGone.length > 0 && (
-              <div className="mt-8">
-                <p className="font-mono text-[0.65rem] uppercase tracking-wide text-ink-soft">Almost gone</p>
-                <div className="mt-3 flex flex-wrap gap-3">
-                  {almostGone.map((p) => (
-                    <span
-                      key={p.id}
-                      className="stamp-badge font-mono text-xs text-[#a8461a]"
-                    >
-                      {p.name} · {p.stock} left
-                    </span>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            <p className="mt-6 font-mono text-[0.68rem] uppercase tracking-wide text-ink-soft">
-              {isSupabaseConfigured
-                ? "Live from Supabase — place an order and watch these numbers move"
-                : "Preview build — these counts will sync live from the Clover terminal"}
-            </p>
           </div>
         </section>
       </Reveal>

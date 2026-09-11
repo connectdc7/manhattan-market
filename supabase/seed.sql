@@ -269,11 +269,12 @@ create policy "Public can update orders"
 
 -- ---------------------------------------------------------------------------
 -- restock_requests — "notify me when this is back" requests left on a
--- sold-out product. Same anon-access tradeoff as every other table in this
--- file except the Clover ones (see the note at the top): staff read and
--- act on these from the dashboard without a login, which also means anyone
--- with the anon key could technically read this list of contacts. Fine for
--- placeholder demo data; revisit alongside the login work mentioned above.
+-- sold-out product. NO LONGER USED BY THE APP: the storefront now hides
+-- out-of-stock products entirely instead of offering a notify-me signup, so
+-- nothing reads or writes this table anymore. Left in place (rather than
+-- dropped) so re-running this file stays harmless either way — safe to
+-- ignore, or drop it yourself in the SQL Editor if you'd like it gone:
+-- `drop table if exists restock_requests;`
 -- ---------------------------------------------------------------------------
 create table if not exists restock_requests (
   id uuid primary key default gen_random_uuid(),

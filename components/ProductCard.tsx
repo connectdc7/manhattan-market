@@ -3,7 +3,6 @@
 import { useState } from "react";
 import { Product } from "@/lib/products";
 import { useCart } from "@/lib/cart-context";
-import { requestRestockNotification } from "@/lib/restock";
 
 export default function ProductCard({
   product,
@@ -14,20 +13,13 @@ export default function ProductCard({
 }) {
   const { add } = useCart();
   const lowStock = product.stock > 0 && product.stock <= 3;
+  // Product listings only ever fetch in-stock items now, but this stays as
+  // a defensive fallback — e.g. if a product sells out in the moment
+  // between page load and this render — so the Add button never lets
+  // someone order something that isn't actually there.
   const outOfStock = product.stock === 0;
 
-  const [notifyOpen, setNotifyOpen] = useState(false);
-  const [email, setEmail] = useState("");
-  const [notifyState, setNotifyState] = useState<"idle" | "saving" | "done">("idle");
   const [justAdded, setJustAdded] = useState(false);
-
-  const handleNotifySubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!email.trim()) return;
-    setNotifyState("saving");
-    const ok = await requestRestockNotification(product.id, email.trim());
-    setNotifyState(ok ? "done" : "idle");
-  };
 
   const handleAdd = () => {
     add({ id: product.id, name: product.name, price: product.price });
@@ -91,39 +83,6 @@ export default function ProductCard({
             {justAdded ? "Added ✓" : "Add"}
           </button>
         </div>
-
-        {outOfStock && (
-          <div className="mt-1 border-t border-line pt-2">
-            {notifyState === "done" ? (
-              <p className="font-body text-xs text-green">We'll email you when it's back.</p>
-            ) : notifyOpen ? (
-              <form onSubmit={handleNotifySubmit} className="flex items-center gap-1.5">
-                <input
-                  type="email"
-                  required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="you@email.com"
-                  className="w-full min-w-0 rounded border border-line bg-paper px-2 py-1 font-body text-xs text-ink outline-none focus:border-green"
-                />
-                <button
-                  type="submit"
-                  disabled={notifyState === "saving"}
-                  className="whitespace-nowrap rounded-full border border-line px-2.5 py-1 font-mono text-[0.65rem] font-semibold text-ink-soft transition hover:border-green hover:text-green disabled:opacity-60"
-                >
-                  {notifyState === "saving" ? "…" : "Notify me"}
-                </button>
-              </form>
-            ) : (
-              <button
-                onClick={() => setNotifyOpen(true)}
-                className="font-mono text-[0.65rem] uppercase tracking-wide text-ink-soft hover:text-green"
-              >
-                Notify me when it's back
-              </button>
-            )}
-          </div>
-        )}
       </div>
     </div>
   );

@@ -4,7 +4,6 @@ import { useEffect, useMemo, useState } from "react";
 import { getProducts, Product } from "@/lib/products";
 import { getOrders, updateOrderStatus, notifyOrderReady, Order, OrderStatus } from "@/lib/orders";
 import { getRewardsSignups, RewardsSignup } from "@/lib/rewards";
-import { getPendingRestockCounts } from "@/lib/restock";
 import { isSupabaseConfigured } from "@/lib/supabase";
 import { subscribeToDashboardChanges } from "@/lib/realtime";
 import StatTile from "@/components/dashboard/StatTile";
@@ -28,20 +27,16 @@ export default function DashboardPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
   const [signups, setSignups] = useState<RewardsSignup[]>([]);
-  const [restockCounts, setRestockCounts] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
   const [live, setLive] = useState(false);
 
   const loadAll = () => {
-    Promise.all([getProducts(), getOrders(), getRewardsSignups(), getPendingRestockCounts()]).then(
-      ([p, o, s, r]) => {
-        setProducts(p);
-        setOrders(o);
-        setSignups(s);
-        setRestockCounts(r);
-        setLoading(false);
-      }
-    );
+    Promise.all([getProducts(), getOrders(), getRewardsSignups()]).then(([p, o, s]) => {
+      setProducts(p);
+      setOrders(o);
+      setSignups(s);
+      setLoading(false);
+    });
   };
 
   useEffect(() => {
@@ -202,8 +197,6 @@ export default function DashboardPage() {
                 onProductRemoved={handleProductRemoved}
                 onRefresh={loadAll}
                 salesVelocity={salesVelocity}
-                restockCounts={restockCounts}
-                onRestockNotified={loadAll}
               />
             )}
             {tab === "rewards" && <RewardsPanel signups={signups} />}
