@@ -105,6 +105,66 @@ h1, h2, h3, h4 {
   );
 }
 
+/* ------------------------------------------------------------------ */
+/* Apple-blossom petals — a soft, on-brand motion accent for the hero:  */
+/* small pink/white petals drift down and collect along the bottom     */
+/* edge, still gently stirring once "landed" rather than sitting still.*/
+/* ------------------------------------------------------------------ */
+.petal-field {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+.petal {
+  position: absolute;
+  width: var(--size, 9px);
+  height: calc(var(--size, 9px) * 1.55);
+  display: block;
+  filter: drop-shadow(0 1px 1px rgba(29, 35, 31, 0.12));
+}
+.petal-fall {
+  top: -8%;
+  left: var(--x, 10%);
+  opacity: var(--o, 0.8);
+  animation-name: petal-fall-y, petal-sway;
+  animation-duration: var(--fall-dur, 12s), var(--sway-dur, 4s);
+  animation-delay: var(--fall-delay, 0s), var(--sway-delay, 0s);
+  animation-timing-function: linear, ease-in-out;
+  animation-iteration-count: infinite, infinite;
+  animation-direction: normal, alternate;
+}
+.petal-ground {
+  top: var(--y, 94%);
+  left: var(--x, 10%);
+  opacity: var(--o, 0.85);
+  animation: petal-idle var(--idle-dur, 4s) ease-in-out infinite;
+  animation-delay: var(--idle-delay, 0s);
+}
+@keyframes petal-fall-y {
+  0% { top: -8%; }
+  100% { top: 104%; }
+}
+@keyframes petal-sway {
+  0% { transform: translateX(-16px) rotate(-20deg); }
+  50% { transform: translateX(16px) rotate(190deg); }
+  100% { transform: translateX(-16px) rotate(400deg); }
+}
+@keyframes petal-idle {
+  0%, 100% { transform: translateY(0) rotate(var(--rot, 0deg)); }
+  50% { transform: translateY(-2px) rotate(calc(var(--rot, 0deg) + 8deg)); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .petal-fall {
+    animation: none;
+    top: 104%;
+    opacity: 0;
+  }
+  .petal-ground {
+    animation: none;
+  }
+}
+
 /* A torn/perforated receipt edge — a row of little punched dots,
    dividing a "ticket" section from what's below it. */
 .receipt-perforation {
