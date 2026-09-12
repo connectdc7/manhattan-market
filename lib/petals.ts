@@ -1,8 +1,8 @@
 // Deterministic pseudo-random placement/timing/color for the homepage
-// hero's falling apple-blossom petals. Deterministic (not Math.random) so
-// the server-rendered markup never mismatches what the client hydrates —
-// there's no client state here, just CSS animation, but this keeps every
-// request's output stable and avoids any hydration warning risk.
+// hero's falling/collected flower petals. Deterministic (not Math.random)
+// so the server-rendered markup never mismatches what the client
+// hydrates — there's no client state here, just CSS animation, but this
+// keeps every request's output stable and avoids any hydration warning.
 import type { CSSProperties } from "react";
 
 function rand(seed: number): number {
@@ -10,18 +10,27 @@ function rand(seed: number): number {
   return x - Math.floor(x);
 }
 
-// Apple-blossom petals run mostly white with a soft pink blush — weighted
-// toward the lighter end so the field doesn't read as uniformly pink.
-const PETAL_COLORS = ["#ffffff", "#fdf1f4", "#fbe9ec", "#f6b9c6", "#f2a3b7"];
+// Each petal is a soft radial gradient from a pale center to a pink edge —
+// mimicking real rose/blossom petals, which are cream at the base and
+// blush pink toward the curled rim. A few (colorA, colorB) pairs give
+// variety from nearly-white to a deeper pink, like a real scattered pile.
+const PETAL_GRADIENTS: [string, string][] = [
+  ["#fffdfc", "#fbe9ec"],
+  ["#fffaf9", "#f6c9d3"],
+  ["#fff7f6", "#f2a3b7"],
+  ["#fffdfc", "#f6b9c6"],
+  ["#fff9f8", "#e98aa6"],
+];
 
-function pickColor(t: number): string {
-  const idx = Math.min(PETAL_COLORS.length - 1, Math.floor(t * PETAL_COLORS.length));
-  return PETAL_COLORS[idx];
+function pickGradient(t: number): [string, string] {
+  const idx = Math.min(PETAL_GRADIENTS.length - 1, Math.floor(t * PETAL_GRADIENTS.length));
+  return PETAL_GRADIENTS[idx];
 }
 
 export interface Petal {
   style: CSSProperties;
-  fill: string;
+  colorA: string;
+  colorB: string;
 }
 
 // Petals still drifting down through the hero, looping from top to bottom.
@@ -32,12 +41,14 @@ export function fallingPetals(count: number): Petal[] {
     const c = rand(i * 5.3 + 3);
     const d = rand(i * 2.9 + 4);
     const e = rand(i * 9.4 + 5);
+    const [colorA, colorB] = pickGradient(e);
     return {
-      fill: pickColor(e),
+      colorA,
+      colorB,
       style: {
         "--x": `${(a * 94 + 2).toFixed(1)}%`,
-        "--size": `${(9 + b * 8).toFixed(1)}px`,
-        "--o": (0.55 + c * 0.35).toFixed(2),
+        "--size": `${(10 + b * 9).toFixed(1)}px`,
+        "--o": (0.6 + c * 0.35).toFixed(2),
         "--fall-dur": `${(11 + a * 10).toFixed(1)}s`,
         "--fall-delay": `-${(d * 20).toFixed(1)}s`,
         "--sway-dur": `${(3 + b * 3).toFixed(1)}s`,
@@ -47,11 +58,11 @@ export function fallingPetals(count: number): Petal[] {
   });
 }
 
-// Petals that have already "landed" along the bottom edge — resting in a
-// dense drift that reads as the section's divider (no hard border line
-// needed). "depth" pushes some further back (smaller, fainter, higher up)
-// and some further forward (bigger, bolder, lower down) so the pile reads
-// as a pile rather than a flat row of identical dots.
+// Petals that have already "landed" along the bottom edge — a dense drift
+// that acts as the section's divider (no hard border line needed). "depth"
+// pushes some further back (smaller, fainter, higher up) and some further
+// forward (bigger, bolder, lower down) so the pile reads as a heap with
+// real volume, not a flat row of identical dots.
 export function groundPetals(count: number): Petal[] {
   return Array.from({ length: count }, (_, i) => {
     const a = rand(i * 4.4 + 11);
@@ -59,13 +70,15 @@ export function groundPetals(count: number): Petal[] {
     const c = rand(i * 8.8 + 13);
     const e = rand(i * 9.4 + 14);
     const depth = rand(i * 11.3 + 15); // 0 = far/back, 1 = near/front
+    const [colorA, colorB] = pickGradient(e);
     return {
-      fill: pickColor(e),
+      colorA,
+      colorB,
       style: {
-        "--x": `${(a * 98).toFixed(1)}%`,
-        "--y": `${(85 + depth * 14).toFixed(1)}%`,
-        "--size": `${(7 + (1 - depth) * 6 + c * 5).toFixed(1)}px`,
-        "--o": (0.55 + depth * 0.4).toFixed(2),
+        "--x": `${(a * 99).toFixed(1)}%`,
+        "--y": `${(80 + depth * 19).toFixed(1)}%`,
+        "--size": `${(8 + (1 - depth) * 6 + c * 8).toFixed(1)}px`,
+        "--o": (0.65 + depth * 0.32).toFixed(2),
         "--rot": `${(b * 360 - 180).toFixed(0)}deg`,
         "--idle-dur": `${(3 + c * 3).toFixed(1)}s`,
         "--idle-delay": `-${(a * 5).toFixed(1)}s`,
