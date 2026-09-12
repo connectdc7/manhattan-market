@@ -18,20 +18,35 @@ function estimateWaitMinutes(activeOrders: number): number {
   return Math.min(15 + activeOrders * 4, 40);
 }
 
-// A small apple-blossom flower — five outlined, veined petals around a
-// gold center — used for both the petals still falling and the ones
-// already collected at the bottom of the hero. An actual flower shape
-// (not a single elongated petal) so it reads as a blossom, not a capsule.
-function Blossom({ fill, className, style }: { fill: string; className: string; style: CSSProperties }) {
+// A single soft, rounded flower petal — a radial gradient from a pale
+// center to a pink edge, plus a gently curved vein — modeled on real
+// scattered rose/blossom petals rather than a symmetric flower icon (which
+// reads as a star at small sizes). Each instance needs its own gradient id
+// since many of these render on one page.
+function Petal({ id, colorA, colorB, className, style }: { id: string; colorA: string; colorB: string; className: string; style: CSSProperties }) {
   return (
-    <svg viewBox="0 0 32 32" className={className} style={style}>
-      {[0, 72, 144, 216, 288].map((deg) => (
-        <g key={deg} transform={`rotate(${deg} 16 16)`}>
-          <ellipse cx="16" cy="9" rx="5.4" ry="7.2" fill={fill} stroke="#d98aa0" strokeWidth="0.5" strokeOpacity="0.5" />
-          <path d="M16 15 L16 3" stroke="#d98aa0" strokeWidth="0.4" strokeOpacity="0.4" strokeLinecap="round" />
-        </g>
-      ))}
-      <circle cx="16" cy="16" r="3" fill="var(--gold)" stroke="var(--gold-ink)" strokeWidth="0.5" strokeOpacity="0.5" />
+    <svg viewBox="0 0 24 28" className={className} style={style}>
+      <defs>
+        <radialGradient id={id} cx="38%" cy="28%" r="80%">
+          <stop offset="0%" stopColor={colorA} />
+          <stop offset="100%" stopColor={colorB} />
+        </radialGradient>
+      </defs>
+      <path
+        d="M12 27C4 22 1 13 5 6C7.5 1.5 16.5 1.5 19 6C23 13 20 22 12 27Z"
+        fill={`url(#${id})`}
+        stroke={colorB}
+        strokeOpacity="0.3"
+        strokeWidth="0.5"
+      />
+      <path
+        d="M12 23C9.5 18 9.8 10 12 5"
+        fill="none"
+        stroke={colorB}
+        strokeOpacity="0.4"
+        strokeWidth="0.5"
+        strokeLinecap="round"
+      />
     </svg>
   );
 }
@@ -53,11 +68,25 @@ export default async function Home() {
           lib/petals.ts + the .petal* rules in globals.css). */}
       <section className="relative overflow-hidden bg-paper text-ink">
         <div className="petal-field" aria-hidden="true">
-          {fallingPetals(16).map((p, i) => (
-            <Blossom key={`petal-fall-${i}`} fill={p.fill} className="petal petal-fall" style={p.style} />
+          {fallingPetals(18).map((p, i) => (
+            <Petal
+              key={`petal-fall-${i}`}
+              id={`petal-grad-fall-${i}`}
+              colorA={p.colorA}
+              colorB={p.colorB}
+              className="petal petal-fall"
+              style={p.style}
+            />
           ))}
-          {groundPetals(46).map((p, i) => (
-            <Blossom key={`petal-ground-${i}`} fill={p.fill} className="petal petal-ground" style={p.style} />
+          {groundPetals(110).map((p, i) => (
+            <Petal
+              key={`petal-ground-${i}`}
+              id={`petal-grad-ground-${i}`}
+              colorA={p.colorA}
+              colorB={p.colorB}
+              className="petal petal-ground"
+              style={p.style}
+            />
           ))}
         </div>
         <div className="relative z-10 mx-auto max-w-6xl px-5 py-20 sm:py-28">
