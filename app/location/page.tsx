@@ -8,7 +8,7 @@ export default function LocationPage() {
         Find us
       </h1>
       <p className="mt-2 font-body text-sm text-ink-soft">
-        Placeholder address and hours — swap in the real ones before launch.
+        Hours below are a placeholder until confirmed — the address and contact info are current.
       </p>
 
       <div className="mt-8 grid gap-8 sm:grid-cols-2">
@@ -16,9 +16,16 @@ export default function LocationPage() {
           <div className="flex h-48 items-center justify-center rounded-lg border border-line bg-panel font-mono text-xs uppercase tracking-widest text-ink-soft">
             map placeholder
           </div>
-          <p className="mt-4 font-body text-sm text-ink">123 Main Street</p>
-          <p className="font-body text-sm text-ink-soft">New York, NY 10001</p>
-          <p className="mt-1 font-body text-sm text-ink-soft">(555) 555-0123</p>
+          <p className="mt-4 font-body text-sm text-ink">3706 Connecticut Ave NW</p>
+          <p className="font-body text-sm text-ink-soft">Washington, DC 20008</p>
+          <p className="mt-2 font-body text-sm text-ink-soft">
+            <a href="tel:+12024601405" className="hover:text-pink-deep">(202) 460-1405</a>
+          </p>
+          <p className="font-body text-sm text-ink-soft">
+            <a href="mailto:partners@manhattanmarketdc.com" className="hover:text-pink-deep">
+              partners@manhattanmarketdc.com
+            </a>
+          </p>
         </div>
 
         <div>
