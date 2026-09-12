@@ -9,9 +9,16 @@ export default function Footer() {
           <div>
             <p className="font-display text-lg font-bold">Manhattan Market</p>
             <p className="mt-2 font-body text-sm text-white/70">
-              123 Main Street, New York, NY
+              3706 Connecticut Ave NW
               <br />
-              (placeholder address — swap in the real one)
+              Washington, DC 20008
+            </p>
+            <p className="mt-3 font-body text-sm text-white/80">
+              <a href="tel:+12024601405" className="hover:text-gold">(202) 460-1405</a>
+              <br />
+              <a href="mailto:partners@manhattanmarketdc.com" className="hover:text-gold">
+                partners@manhattanmarketdc.com
+              </a>
             </p>
           </div>
           <div>
