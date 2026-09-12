@@ -4,6 +4,7 @@ import { getActiveOrderCount } from "@/lib/orders";
 import { isSupabaseConfigured } from "@/lib/supabase";
 import { getStoreStatus } from "@/lib/store-hours";
 import { getProductOfTheDay, isNewProduct } from "@/lib/product-of-day";
+import { fallingPetals, groundPetals } from "@/lib/petals";
 import ReorderCard from "@/components/ReorderCard";
 import Reveal from "@/components/Reveal";
 
@@ -28,13 +29,23 @@ export default async function Home() {
 
   return (
     <div>
-      {/* Hero */}
+      {/* Hero — clean white background with small apple-blossom petals
+          drifting down and collecting along the bottom edge (see
+          lib/petals.ts + the .petal* rules in globals.css). */}
       <section className="relative overflow-hidden border-b border-line bg-paper text-ink">
-        <div
-          className="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full opacity-60 blur-3xl"
-          style={{ background: "var(--pink-deep)" }}
-        />
-        <div className="relative mx-auto max-w-6xl px-5 py-20 sm:py-28">
+        <div className="petal-field" aria-hidden="true">
+          {fallingPetals(16).map((p, i) => (
+            <svg key={`petal-fall-${i}`} viewBox="0 0 14 22" className="petal petal-fall" style={p.style}>
+              <path d="M7 21C12 17 13 5 9 2A3 3 0 0 1 5 2C1 5 2 17 7 21Z" fill={p.fill} />
+            </svg>
+          ))}
+          {groundPetals(12).map((p, i) => (
+            <svg key={`petal-ground-${i}`} viewBox="0 0 14 22" className="petal petal-ground" style={p.style}>
+              <path d="M7 21C12 17 13 5 9 2A3 3 0 0 1 5 2C1 5 2 17 7 21Z" fill={p.fill} />
+            </svg>
+          ))}
+        </div>
+        <div className="relative z-10 mx-auto max-w-6xl px-5 py-20 sm:py-28">
           <p className="eyebrow text-pink-deep">Manhattan Market</p>
           <h1 className="mt-3 max-w-2xl font-display text-5xl font-bold leading-[1.05] sm:text-6xl">
             <span className="hero-line">Order ahead.</span>
