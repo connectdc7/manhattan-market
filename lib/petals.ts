@@ -47,22 +47,26 @@ export function fallingPetals(count: number): Petal[] {
   });
 }
 
-// Petals that have already "landed" along the bottom edge — resting, but
-// with a slow idle wobble so the ground never looks frozen.
+// Petals that have already "landed" along the bottom edge — resting in a
+// dense drift that reads as the section's divider (no hard border line
+// needed). "depth" pushes some further back (smaller, fainter, higher up)
+// and some further forward (bigger, bolder, lower down) so the pile reads
+// as a pile rather than a flat row of identical dots.
 export function groundPetals(count: number): Petal[] {
   return Array.from({ length: count }, (_, i) => {
     const a = rand(i * 4.4 + 11);
     const b = rand(i * 6.6 + 12);
     const c = rand(i * 8.8 + 13);
     const e = rand(i * 9.4 + 14);
+    const depth = rand(i * 11.3 + 15); // 0 = far/back, 1 = near/front
     return {
       fill: pickColor(e),
       style: {
-        "--x": `${(a * 96 + 1).toFixed(1)}%`,
-        "--y": `${(90 + b * 7).toFixed(1)}%`,
-        "--size": `${(8 + c * 7).toFixed(1)}px`,
-        "--o": (0.6 + a * 0.3).toFixed(2),
-        "--rot": `${(b * 60 - 30).toFixed(0)}deg`,
+        "--x": `${(a * 98).toFixed(1)}%`,
+        "--y": `${(85 + depth * 14).toFixed(1)}%`,
+        "--size": `${(7 + (1 - depth) * 6 + c * 5).toFixed(1)}px`,
+        "--o": (0.55 + depth * 0.4).toFixed(2),
+        "--rot": `${(b * 360 - 180).toFixed(0)}deg`,
         "--idle-dur": `${(3 + c * 3).toFixed(1)}s`,
         "--idle-delay": `-${(a * 5).toFixed(1)}s`,
       } as CSSProperties,
