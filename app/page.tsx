@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { CSSProperties } from "react";
 import { getProducts } from "@/lib/products";
 import { getActiveOrderCount } from "@/lib/orders";
 import { isSupabaseConfigured } from "@/lib/supabase";
@@ -17,6 +18,24 @@ function estimateWaitMinutes(activeOrders: number): number {
   return Math.min(15 + activeOrders * 4, 40);
 }
 
+// A small apple-blossom flower — five outlined, veined petals around a
+// gold center — used for both the petals still falling and the ones
+// already collected at the bottom of the hero. An actual flower shape
+// (not a single elongated petal) so it reads as a blossom, not a capsule.
+function Blossom({ fill, className, style }: { fill: string; className: string; style: CSSProperties }) {
+  return (
+    <svg viewBox="0 0 32 32" className={className} style={style}>
+      {[0, 72, 144, 216, 288].map((deg) => (
+        <g key={deg} transform={`rotate(${deg} 16 16)`}>
+          <ellipse cx="16" cy="9" rx="5.4" ry="7.2" fill={fill} stroke="#d98aa0" strokeWidth="0.5" strokeOpacity="0.5" />
+          <path d="M16 15 L16 3" stroke="#d98aa0" strokeWidth="0.4" strokeOpacity="0.4" strokeLinecap="round" />
+        </g>
+      ))}
+      <circle cx="16" cy="16" r="3" fill="var(--gold)" stroke="var(--gold-ink)" strokeWidth="0.5" strokeOpacity="0.5" />
+    </svg>
+  );
+}
+
 export default async function Home() {
   const [products, activeOrders] = await Promise.all([getProducts(), getActiveOrderCount()]);
   const status = getStoreStatus();
@@ -32,17 +51,13 @@ export default async function Home() {
       {/* Hero — clean white background with small apple-blossom petals
           drifting down and collecting along the bottom edge (see
           lib/petals.ts + the .petal* rules in globals.css). */}
-      <section className="relative overflow-hidden border-b border-line bg-paper text-ink">
+      <section className="relative overflow-hidden bg-paper text-ink">
         <div className="petal-field" aria-hidden="true">
           {fallingPetals(16).map((p, i) => (
-            <svg key={`petal-fall-${i}`} viewBox="0 0 14 22" className="petal petal-fall" style={p.style}>
-              <path d="M7 21C12 17 13 5 9 2A3 3 0 0 1 5 2C1 5 2 17 7 21Z" fill={p.fill} />
-            </svg>
+            <Blossom key={`petal-fall-${i}`} fill={p.fill} className="petal petal-fall" style={p.style} />
           ))}
-          {groundPetals(12).map((p, i) => (
-            <svg key={`petal-ground-${i}`} viewBox="0 0 14 22" className="petal petal-ground" style={p.style}>
-              <path d="M7 21C12 17 13 5 9 2A3 3 0 0 1 5 2C1 5 2 17 7 21Z" fill={p.fill} />
-            </svg>
+          {groundPetals(46).map((p, i) => (
+            <Blossom key={`petal-ground-${i}`} fill={p.fill} className="petal petal-ground" style={p.style} />
           ))}
         </div>
         <div className="relative z-10 mx-auto max-w-6xl px-5 py-20 sm:py-28">
@@ -99,7 +114,6 @@ export default async function Home() {
       {productOfDay && (
         <Reveal>
           <section className="border-b border-line bg-paper text-ink">
-            <div className="stripe-bar h-1" />
             <div className="mx-auto max-w-6xl px-5 py-14">
               <p className="eyebrow text-green">Product of the Day</p>
               <h2 className="mt-2 max-w-lg font-display text-2xl font-bold sm:text-3xl">
