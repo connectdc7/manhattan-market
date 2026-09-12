@@ -118,10 +118,10 @@ h1, h2, h3, h4 {
 }
 .petal {
   position: absolute;
-  width: var(--size, 9px);
-  height: calc(var(--size, 9px) * 1.55);
+  width: var(--size, 12px);
+  height: var(--size, 12px);
   display: block;
-  filter: drop-shadow(0 1px 1px rgba(29, 35, 31, 0.12));
+  filter: drop-shadow(0 1px 1.5px rgba(29, 35, 31, 0.15));
 }
 .petal-fall {
   top: -8%;
