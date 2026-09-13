@@ -1,4 +1,14 @@
+import type { Metadata } from "next";
 import { HOURS_DISPLAY } from "@/lib/store-hours";
+
+export const metadata: Metadata = {
+  title: "Hours & Location",
+  description:
+    "Visit Manhattan Market at 3706 Connecticut Ave NW, Washington, DC 20008. Store hours, directions, and contact info.",
+  alternates: {
+    canonical: "/location",
+  },
+};
 
 export default function LocationPage() {
   return (
