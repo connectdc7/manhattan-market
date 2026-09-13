@@ -1,3 +1,14 @@
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Gallery",
+  description:
+    "A look inside Manhattan Market — our storefront, hot food counter, and shelves in Woodley Park, Washington, DC.",
+  alternates: {
+    canonical: "/gallery",
+  },
+};
+
 const TILES = [
   { label: "Storefront", color: "#21594a" },
   { label: "Hot food counter", color: "#c98b3a" },
