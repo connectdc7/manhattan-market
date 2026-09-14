@@ -5,7 +5,7 @@ import { getActiveOrderCount } from "@/lib/orders";
 import { isSupabaseConfigured } from "@/lib/supabase";
 import { getStoreStatus } from "@/lib/store-hours";
 import { getProductOfTheDay, isNewProduct } from "@/lib/product-of-day";
-import { fallingPetals, groundPetals } from "@/lib/petals";
+import { fallingLeaves, groundLeaves } from "@/lib/petals";
 import ReorderCard from "@/components/ReorderCard";
 import Reveal from "@/components/Reveal";
 
@@ -18,35 +18,32 @@ function estimateWaitMinutes(activeOrders: number): number {
   return Math.min(15 + activeOrders * 4, 40);
 }
 
-// A single soft, rounded flower petal — a radial gradient from a pale
-// center to a pink edge, plus a gently curved vein — modeled on real
-// scattered rose/blossom petals rather than a symmetric flower icon (which
-// reads as a star at small sizes). Each instance needs its own gradient id
-// since many of these render on one page.
-function Petal({ id, colorA, colorB, className, style }: { id: string; colorA: string; colorB: string; className: string; style: CSSProperties }) {
+// A single oak leaf — one fixed lobed outline plus a midrib and side
+// veins, reused for every leaf on the page. Only its fill/stroke colors
+// (colorA/colorB), size, position, and timing (all driven by
+// lib/petals.ts + the CSS custom properties on `style`) differ from one
+// instance to the next; the color *change* as a leaf falls is animated
+// live in CSS (see .leaf-fall / @keyframes leaf-color in globals.css),
+// not baked in here.
+function Leaf({ colorA, colorB, className, style }: { colorA: string; colorB: string; className: string; style: CSSProperties }) {
   return (
-    <svg viewBox="0 0 24 28" className={className} style={style}>
-      <defs>
-        <radialGradient id={id} cx="38%" cy="28%" r="80%">
-          <stop offset="0%" stopColor={colorA} />
-          <stop offset="100%" stopColor={colorB} />
-        </radialGradient>
-      </defs>
+    <svg viewBox="0 0 26 32" className={className} style={style}>
       <path
-        d="M12 27C4 22 1 13 5 6C7.5 1.5 16.5 1.5 19 6C23 13 20 22 12 27Z"
-        fill={`url(#${id})`}
+        d="M13.15 2.00C13.60 2.15 14.92 2.62 15.58 2.93C16.23 3.24 16.79 3.55 17.09 3.86C17.38 4.17 17.41 4.48 17.32 4.79C17.24 5.10 16.80 5.40 16.59 5.71C16.38 6.02 16.02 6.33 16.05 6.64C16.08 6.95 16.32 7.26 16.77 7.57C17.23 7.88 18.10 8.19 18.79 8.50C19.48 8.81 20.44 9.12 20.93 9.43C21.43 9.74 21.79 10.05 21.75 10.36C21.71 10.67 21.22 10.98 20.71 11.29C20.20 11.60 19.26 11.90 18.71 12.21C18.16 12.52 17.54 12.83 17.41 13.14C17.28 13.45 17.51 13.76 17.93 14.07C18.36 14.38 19.29 14.69 19.96 15.00C20.62 15.31 21.53 15.62 21.92 15.93C22.31 16.24 22.49 16.55 22.29 16.86C22.09 17.17 21.38 17.48 20.72 17.79C20.06 18.10 18.98 18.40 18.33 18.71C17.68 19.02 17.02 19.33 16.80 19.64C16.58 19.95 16.74 20.26 17.01 20.57C17.28 20.88 18.00 21.19 18.43 21.50C18.86 21.81 19.45 22.12 19.61 22.43C19.76 22.74 19.68 23.05 19.36 23.36C19.04 23.67 18.31 23.98 17.70 24.29C17.09 24.60 16.23 24.90 15.68 25.21C15.13 25.52 14.67 25.83 14.39 26.14C14.12 26.45 14.21 26.76 14.00 27.07C13.80 27.38 13.34 27.85 13.15 28.00C12.96 28.15 13.11 28.15 12.85 28.00C12.59 27.85 11.83 27.38 11.61 27.07C11.40 26.76 11.69 26.45 11.57 26.14C11.46 25.83 11.32 25.52 10.93 25.21C10.54 24.90 9.85 24.60 9.22 24.29C8.58 23.98 7.68 23.67 7.13 23.36C6.59 23.05 6.08 22.74 5.96 22.43C5.84 22.12 6.09 21.81 6.43 21.50C6.76 21.19 7.52 20.88 7.97 20.57C8.43 20.26 9.02 19.95 9.14 19.64C9.25 19.33 9.09 19.02 8.67 18.71C8.26 18.40 7.35 18.10 6.64 17.79C5.92 17.48 4.90 17.17 4.38 16.86C3.86 16.55 3.48 16.24 3.53 15.93C3.58 15.62 4.12 15.31 4.69 15.00C5.25 14.69 6.28 14.38 6.92 14.07C7.56 13.76 8.29 13.45 8.52 13.14C8.76 12.83 8.64 12.52 8.32 12.21C8.00 11.90 7.18 11.60 6.61 11.29C6.04 10.98 5.21 10.67 4.87 10.36C4.53 10.05 4.38 9.74 4.58 9.43C4.78 9.12 5.44 8.81 6.07 8.50C6.69 8.19 7.68 7.88 8.32 7.57C8.96 7.26 9.60 6.95 9.90 6.64C10.20 6.33 10.18 6.02 10.11 5.71C10.04 5.40 9.62 5.10 9.48 4.79C9.33 4.48 9.11 4.17 9.23 3.86C9.36 3.55 9.64 3.24 10.24 2.93C10.84 2.62 12.37 2.15 12.85 2.00C13.33 1.85 12.70 1.85 13.15 2.00Z"
+        fill={colorA}
         stroke={colorB}
-        strokeOpacity="0.3"
-        strokeWidth="0.5"
+        strokeOpacity="0.5"
+        strokeWidth="0.35"
       />
       <path
-        d="M12 23C9.5 18 9.8 10 12 5"
+        d="M13 3L13 28M13 7.79L21.72 10.13M13 14.29L22.39 16.63M13 20.79L19.58 23.13M13 7.22L4.51 9.56M13 13.72L3.53 16.06M13 20.22L6.03 22.56"
         fill="none"
         stroke={colorB}
         strokeOpacity="0.4"
         strokeWidth="0.5"
         strokeLinecap="round"
       />
+      <path d="M12.5 28L13 31L13.4 28Z" fill={colorB} />
     </svg>
   );
 }
@@ -63,29 +60,28 @@ export default async function Home() {
 
   return (
     <div>
-      {/* Hero — clean white background with small apple-blossom petals
-          drifting down and collecting along the bottom edge (see
-          lib/petals.ts + the .petal* rules in globals.css). */}
+      {/* Hero — clean white background with small oak leaves drifting
+          down, turning from green to gold to brown as they fall, and
+          collecting along the bottom edge already brown (see
+          lib/petals.ts + the .leaf* rules in globals.css). */}
       <section className="relative overflow-hidden bg-paper text-ink">
-        <div className="petal-field" aria-hidden="true">
-          {fallingPetals(18).map((p, i) => (
-            <Petal
-              key={`petal-fall-${i}`}
-              id={`petal-grad-fall-${i}`}
-              colorA={p.colorA}
-              colorB={p.colorB}
-              className="petal petal-fall"
-              style={p.style}
+        <div className="leaf-field" aria-hidden="true">
+          {fallingLeaves(18).map((l, i) => (
+            <Leaf
+              key={`leaf-fall-${i}`}
+              colorA={l.colorA}
+              colorB={l.colorB}
+              className="leaf leaf-fall"
+              style={l.style}
             />
           ))}
-          {groundPetals(110).map((p, i) => (
-            <Petal
-              key={`petal-ground-${i}`}
-              id={`petal-grad-ground-${i}`}
-              colorA={p.colorA}
-              colorB={p.colorB}
-              className="petal petal-ground"
-              style={p.style}
+          {groundLeaves(110).map((l, i) => (
+            <Leaf
+              key={`leaf-ground-${i}`}
+              colorA={l.colorA}
+              colorB={l.colorB}
+              className="leaf leaf-ground"
+              style={l.style}
             />
           ))}
         </div>
