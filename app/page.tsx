@@ -18,32 +18,33 @@ function estimateWaitMinutes(activeOrders: number): number {
   return Math.min(15 + activeOrders * 4, 40);
 }
 
-// A single oak leaf — one fixed lobed outline plus a midrib and side
-// veins, reused for every leaf on the page. Only its fill/stroke colors
-// (colorA/colorB), size, position, and timing (all driven by
-// lib/petals.ts + the CSS custom properties on `style`) differ from one
-// instance to the next; the color *change* as a leaf falls is animated
-// live in CSS (see .leaf-fall / @keyframes leaf-color in globals.css),
-// not baked in here.
+// A single oak leaf — one fixed lobed outline (sharp, bristle-tipped
+// lobes with rounded notches between them, like a real red/pin oak
+// leaf) plus a midrib and side veins, reused for every leaf on the
+// page. Only its fill/stroke colors (colorA/colorB), size, position,
+// and timing (all driven by lib/petals.ts + the CSS custom properties
+// on `style`) differ from one instance to the next; the color *change*
+// as a leaf falls is animated live in CSS (see .leaf-fall /
+// @keyframes leaf-color in globals.css), not baked in here.
 function Leaf({ colorA, colorB, className, style }: { colorA: string; colorB: string; className: string; style: CSSProperties }) {
   return (
     <svg viewBox="0 0 26 32" className={className} style={style}>
       <path
-        d="M13.15 2.00C13.60 2.15 14.92 2.62 15.58 2.93C16.23 3.24 16.79 3.55 17.09 3.86C17.38 4.17 17.41 4.48 17.32 4.79C17.24 5.10 16.80 5.40 16.59 5.71C16.38 6.02 16.02 6.33 16.05 6.64C16.08 6.95 16.32 7.26 16.77 7.57C17.23 7.88 18.10 8.19 18.79 8.50C19.48 8.81 20.44 9.12 20.93 9.43C21.43 9.74 21.79 10.05 21.75 10.36C21.71 10.67 21.22 10.98 20.71 11.29C20.20 11.60 19.26 11.90 18.71 12.21C18.16 12.52 17.54 12.83 17.41 13.14C17.28 13.45 17.51 13.76 17.93 14.07C18.36 14.38 19.29 14.69 19.96 15.00C20.62 15.31 21.53 15.62 21.92 15.93C22.31 16.24 22.49 16.55 22.29 16.86C22.09 17.17 21.38 17.48 20.72 17.79C20.06 18.10 18.98 18.40 18.33 18.71C17.68 19.02 17.02 19.33 16.80 19.64C16.58 19.95 16.74 20.26 17.01 20.57C17.28 20.88 18.00 21.19 18.43 21.50C18.86 21.81 19.45 22.12 19.61 22.43C19.76 22.74 19.68 23.05 19.36 23.36C19.04 23.67 18.31 23.98 17.70 24.29C17.09 24.60 16.23 24.90 15.68 25.21C15.13 25.52 14.67 25.83 14.39 26.14C14.12 26.45 14.21 26.76 14.00 27.07C13.80 27.38 13.34 27.85 13.15 28.00C12.96 28.15 13.11 28.15 12.85 28.00C12.59 27.85 11.83 27.38 11.61 27.07C11.40 26.76 11.69 26.45 11.57 26.14C11.46 25.83 11.32 25.52 10.93 25.21C10.54 24.90 9.85 24.60 9.22 24.29C8.58 23.98 7.68 23.67 7.13 23.36C6.59 23.05 6.08 22.74 5.96 22.43C5.84 22.12 6.09 21.81 6.43 21.50C6.76 21.19 7.52 20.88 7.97 20.57C8.43 20.26 9.02 19.95 9.14 19.64C9.25 19.33 9.09 19.02 8.67 18.71C8.26 18.40 7.35 18.10 6.64 17.79C5.92 17.48 4.90 17.17 4.38 16.86C3.86 16.55 3.48 16.24 3.53 15.93C3.58 15.62 4.12 15.31 4.69 15.00C5.25 14.69 6.28 14.38 6.92 14.07C7.56 13.76 8.29 13.45 8.52 13.14C8.76 12.83 8.64 12.52 8.32 12.21C8.00 11.90 7.18 11.60 6.61 11.29C6.04 10.98 5.21 10.67 4.87 10.36C4.53 10.05 4.38 9.74 4.58 9.43C4.78 9.12 5.44 8.81 6.07 8.50C6.69 8.19 7.68 7.88 8.32 7.57C8.96 7.26 9.60 6.95 9.90 6.64C10.20 6.33 10.18 6.02 10.11 5.71C10.04 5.40 9.62 5.10 9.48 4.79C9.33 4.48 9.11 4.17 9.23 3.86C9.36 3.55 9.64 3.24 10.24 2.93C10.84 2.62 12.37 2.15 12.85 2.00C13.33 1.85 12.70 1.85 13.15 2.00Z"
+        d="M12.91 1.15Q13.00 1.00 13.08 1.16L13.52 1.99Q14.04 2.98 16.34 3.91Q18.29 4.38 18.64 4.85Q18.39 5.47 16.55 6.09Q14.45 7.33 17.34 8.58Q19.59 9.20 20.23 9.82Q19.62 10.46 17.41 11.11Q14.59 12.40 17.85 13.69Q20.28 14.34 21.11 14.98Q20.14 15.52 17.57 16.07Q14.03 17.15 16.54 18.23Q18.60 18.77 19.06 19.32Q18.55 20.00 16.44 20.69Q13.82 22.07 15.49 23.45Q17.12 24.14 17.15 24.83Q17.11 25.18 15.47 25.54Q13.80 26.25 13.40 27.38L13.10 28.23Q13.00 28.50 12.90 28.21L12.60 27.29Q12.20 26.08 10.32 25.28Q8.58 24.89 8.43 24.49Q8.58 23.90 10.33 23.31Q12.22 22.14 9.75 20.96Q7.72 20.37 7.28 19.78Q7.60 19.09 9.52 18.40Q11.76 17.02 8.56 15.63Q6.16 14.94 5.36 14.25Q6.15 13.65 8.55 13.06Q11.75 11.86 9.05 10.67Q6.91 10.07 6.36 9.48Q6.87 8.90 8.98 8.32Q11.59 7.16 9.50 6.01Q7.65 5.43 7.41 4.85Q7.73 4.37 9.65 3.89Q11.89 2.93 12.44 1.97L12.91 1.15Z"
         fill={colorA}
         stroke={colorB}
         strokeOpacity="0.5"
-        strokeWidth="0.35"
+        strokeWidth="0.3"
       />
       <path
-        d="M13 3L13 28M13 7.79L21.72 10.13M13 14.29L22.39 16.63M13 20.79L19.58 23.13M13 7.22L4.51 9.56M13 13.72L3.53 16.06M13 20.22L6.03 22.56"
+        d="M13 2.40L13 27.90M13 4.31L18.64 4.85M13 8.58L20.23 9.82M13 13.02L21.11 14.98M13 16.75L19.06 19.32M13 21.49L17.15 24.83M13 21.20L8.43 24.49M13 17.15L7.28 19.78M13 12.39L5.36 14.25M13 8.29L6.36 9.48M13 4.31L7.41 4.85"
         fill="none"
         stroke={colorB}
         strokeOpacity="0.4"
-        strokeWidth="0.5"
+        strokeWidth="0.45"
         strokeLinecap="round"
       />
-      <path d="M12.5 28L13 31L13.4 28Z" fill={colorB} />
+      <path d="M12.55 28.50L13 31.10L13.45 28.50Z" fill={colorB} />
     </svg>
   );
 }
