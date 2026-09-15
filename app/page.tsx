@@ -18,14 +18,13 @@ function estimateWaitMinutes(activeOrders: number): number {
   return Math.min(15 + activeOrders * 4, 40);
 }
 
-// A single oak leaf — one fixed lobed outline (sharp, bristle-tipped
-// lobes with rounded notches between them, like a real red/pin oak
-// leaf) plus a midrib and side veins, reused for every leaf on the
-// page. Only its fill/stroke colors (colorA/colorB), size, position,
-// and timing (all driven by lib/petals.ts + the CSS custom properties
-// on `style`) differ from one instance to the next; the color *change*
-// as a leaf falls is animated live in CSS (see .leaf-fall /
-// @keyframes leaf-color in globals.css), not baked in here.
+// A single oak leaf — one fixed lobed outline plus a midrib and side
+// veins, reused for every leaf on the page. Only its fill/stroke colors
+// (colorA/colorB), size, position, and timing (all driven by
+// lib/petals.ts + the CSS custom properties on `style`) differ from one
+// instance to the next; the color *change* as a leaf falls is animated
+// live in CSS (see .leaf-fall / @keyframes leaf-color in globals.css),
+// not baked in here.
 function Leaf({ colorA, colorB, className, style }: { colorA: string; colorB: string; className: string; style: CSSProperties }) {
   return (
     <svg viewBox="0 0 26 32" className={className} style={style}>
@@ -67,14 +66,20 @@ export default async function Home() {
           lib/petals.ts + the .leaf* rules in globals.css). */}
       <section className="relative overflow-hidden bg-paper text-ink">
         <div className="leaf-field" aria-hidden="true">
+          {/* Falling leaves are split across two nested elements on
+              purpose: the outer span owns position + the vertical fall
+              (a GPU-composited `transform`, not `top` — animating `top`
+              forces a layout recalculation on every frame, which is
+              expensive with this many elements and was making the fall
+              look sluggish/near-frozen on phones); the inner <Leaf> owns
+              the sway/spin and the green-to-brown color animation. CSS
+              custom properties set on the outer span (--x, --size,
+              --fall-dur, etc.) inherit down to the inner element, so
+              both can reference the same values from lib/petals.ts. */}
           {fallingLeaves(18).map((l, i) => (
-            <Leaf
-              key={`leaf-fall-${i}`}
-              colorA={l.colorA}
-              colorB={l.colorB}
-              className="leaf leaf-fall"
-              style={l.style}
-            />
+            <span key={`leaf-fall-${i}`} className="leaf-fall-wrap" style={l.style}>
+              <Leaf colorA={l.colorA} colorB={l.colorB} className="leaf leaf-fall-inner" style={{}} />
+            </span>
           ))}
           {groundLeaves(110).map((l, i) => (
             <Leaf
