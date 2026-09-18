@@ -125,7 +125,32 @@ Market's real inventory anyway. Two ways to add real ones:
   which product each one is, and I'll add them to the site for you (or, if
   you'd rather, I can wire in a stock-photo/AI-image step once you tell me
   which source you'd like to use).
+## AI photo auto-fill for adding products (optional)
 
+Adding products one at a time — typing the name, picking a category, then
+separately attaching a photo — is slow, especially from a phone. The
+**Add Product** form in the dashboard's Inventory tab can now shortcut most
+of that: choose or take a photo of the item, and the same photo is sent to
+Claude (Anthropic's AI) to read the label and guess the product's name and
+category, filling those fields in for you. Both stay fully editable — it's
+a starting guess, never a final answer — and if the photo doesn't read
+clearly, the form says so and just falls back to typing it in by hand like
+today.
+
+This is inert (the button still works, it just skips the AI step) until you
+add an environment variable in Vercel:
+
+- `ANTHROPIC_API_KEY` — get one from
+  [console.anthropic.com](https://console.anthropic.com), under **API
+  Keys**. Redeploy after adding it.
+
+A couple of things worth knowing: this only runs when *adding* a brand-new
+product (editing an existing one's photo never overwrites its real name or
+category), and it only fills in the Name field if you haven't already
+started typing one. Price and stock count are never guessed — a label
+rarely has the shelf price you're actually charging, and nothing but a
+physical count can know how many you have, so those stay exactly as
+manual as they are today.
 ## About the employee dashboard's security
 
 `/dashboard` has no login — that was a deliberate choice to keep this demo
