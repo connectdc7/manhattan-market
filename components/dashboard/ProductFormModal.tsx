@@ -18,6 +18,27 @@ type Props = {
   onDeleted?: (id: string) => void;
 };
 
+// Downscales a photo client-side before it's sent off for AI reading —
+// phone camera photos are routinely 3-8MB, and the model only needs enough
+// resolution to read a label, not the original. Keeps the request fast and
+// well under any size limit. Returns a plain base64 string (no data: URL
+// prefix) plus the JPEG mime type it was re-encoded as.
+async function downscaleForExtraction(file: File): Promise<{ base64: string; mediaType: string }> {
+  const bitmap = await createImageBitmap(file);
+  const maxDim = 1024;
+  const scale = Math.min(1, maxDim / Math.max(bitmap.width, bitmap.height));
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.round(bitmap.width * scale);
+  canvas.height = Math.round(bitmap.height * scale);
+  const ctx = canvas.getContext("2d");
+  if (!ctx) throw new Error("Canvas unavailable");
+  ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+  const dataUrl = canvas.toDataURL("image/jpeg", 0.85);
+  return { base64: dataUrl.split(",")[1] ?? "", mediaType: "image/jpeg" };
+}
+
+type ExtractStatus = "idle" | "reading" | "filled" | "unclear" | "failed";
+
 export default function ProductFormModal({ mode, product, onClose, onSaved, onDeleted }: Props) {
   const [name, setName] = useState(product?.name ?? "");
   const [category, setCategory] = useState<ProductCategory>(product?.category ?? categories[0]);
@@ -30,6 +51,7 @@ export default function ProductFormModal({ mode, product, onClose, onSaved, onDe
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [extractStatus, setExtractStatus] = useState<ExtractStatus>("idle");
 
   // Auto-cancel the "are you sure" delete state if the staffer wanders off.
   useEffect(() => {
@@ -44,6 +66,40 @@ export default function ProductFormModal({ mode, product, onClose, onSaved, onDe
     setPhotoFile(file);
     setRemovePhoto(false);
     setPhotoPreview(URL.createObjectURL(file));
+
+    // Only auto-fill for a brand-new product — editing an existing one
+    // means there's already a real name/category on file that a fresh
+    // photo shouldn't silently overwrite.
+    if (mode === "create") {
+      void autoFillFromPhoto(file);
+    }
+  };
+
+  // Sends the photo to the AI-reading endpoint and, if it comes back with a
+  // usable guess, fills in Name/Category — but only Name if the staffer
+  // hasn't already typed one, so a fast typist never gets overwritten.
+  // Every field this touches stays fully editable afterward; this is a
+  // starting guess, never an authority.
+  const autoFillFromPhoto = async (file: File) => {
+    setExtractStatus("reading");
+    try {
+      const { base64, mediaType } = await downscaleForExtraction(file);
+      const res = await fetch("/api/products/extract", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ imageBase64: base64, mediaType }),
+      });
+      if (!res.ok) {
+        setExtractStatus("failed");
+        return;
+      }
+      const result = (await res.json()) as { name: string; category: ProductCategory; confident: boolean };
+      setName((current) => (current.trim() ? current : result.name));
+      setCategory(result.category);
+      setExtractStatus(result.confident ? "filled" : "unclear");
+    } catch {
+      setExtractStatus("failed");
+    }
   };
 
   const handleRemovePhoto = () => {
@@ -156,8 +212,14 @@ export default function ProductFormModal({ mode, product, onClose, onSaved, onDe
                 )}
                 <div className="flex flex-col gap-1">
                   <label className="cursor-pointer rounded-full border border-line px-3 py-1.5 text-center font-mono text-xs font-semibold text-ink-soft transition hover:border-green hover:text-green">
-                    Choose Photo
-                    <input type="file" accept="image/*" onChange={handlePhotoChange} className="hidden" />
+                    {mode === "create" ? "Take / Choose Photo" : "Choose Photo"}
+                    <input
+                      type="file"
+                      accept="image/*"
+                      capture="environment"
+                      onChange={handlePhotoChange}
+                      className="hidden"
+                    />
                   </label>
                   {photoPreview && (
                     <button
@@ -170,6 +232,24 @@ export default function ProductFormModal({ mode, product, onClose, onSaved, onDe
                   )}
                 </div>
               </div>
+              {mode === "create" && extractStatus !== "idle" && (
+                <p
+                  className={`mt-1.5 font-mono text-[0.65rem] uppercase tracking-wide ${
+                    extractStatus === "failed"
+                      ? "text-ink-soft"
+                      : extractStatus === "unclear"
+                        ? "text-gold-ink"
+                        : extractStatus === "filled"
+                          ? "text-green"
+                          : "text-ink-soft"
+                  }`}
+                >
+                  {extractStatus === "reading" && "Reading photo…"}
+                  {extractStatus === "filled" && "AI filled in the name & category below — check them"}
+                  {extractStatus === "unclear" && "Couldn't read this clearly — check the name & category below"}
+                  {extractStatus === "failed" && "Couldn't auto-read this photo — fill in name & category by hand"}
+                </p>
+              )}
             </div>
 
             <label className="flex flex-col gap-1">
