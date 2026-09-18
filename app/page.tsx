@@ -5,7 +5,7 @@ import { getActiveOrderCount } from "@/lib/orders";
 import { isSupabaseConfigured } from "@/lib/supabase";
 import { getStoreStatus } from "@/lib/store-hours";
 import { getProductOfTheDay, isNewProduct } from "@/lib/product-of-day";
-import { fallingLeaves, groundLeaves } from "@/lib/petals";
+import { fallingPetals, groundPetals } from "@/lib/petals";
 import ReorderCard from "@/components/ReorderCard";
 import Reveal from "@/components/Reveal";
 
@@ -18,32 +18,36 @@ function estimateWaitMinutes(activeOrders: number): number {
   return Math.min(15 + activeOrders * 4, 40);
 }
 
-// A single oak leaf — one fixed lobed outline plus a midrib and side
-// veins, reused for every leaf on the page. Only its fill/stroke colors
-// (colorA/colorB), size, position, and timing (all driven by
-// lib/petals.ts + the CSS custom properties on `style`) differ from one
-// instance to the next; the color *change* as a leaf falls is animated
-// live in CSS (see .leaf-fall / @keyframes leaf-color in globals.css),
-// not baked in here.
-function Leaf({ colorA, colorB, className, style }: { colorA: string; colorB: string; className: string; style: CSSProperties }) {
+// A single cherry-blossom petal — the notched, rounded outline every
+// real sakura petal has (two soft lobes with a shallow cleft between
+// them at the tip, tapering to a point at the base). Reused for every
+// petal on the page; only its fill/blush colors (colorA/colorB), size,
+// position, and timing (all driven by lib/petals.ts + the CSS custom
+// properties on `style`) differ from one instance to the next. The
+// blush ellipse (a real petal is rosier near where it attaches to the
+// flower) and the highlight ellipse (light catching the curve) are
+// what push this past a flat colored shape toward something that reads
+// as an actual petal.
+function Petal({ colorA, colorB, className, style }: { colorA: string; colorB: string; className: string; style: CSSProperties }) {
   return (
-    <svg viewBox="0 0 26 32" className={className} style={style}>
+    <svg viewBox="0 0 24 28" className={className} style={style}>
       <path
-        d="M12.91 1.15Q13.00 1.00 13.08 1.16L13.52 1.99Q14.04 2.98 16.34 3.91Q18.29 4.38 18.64 4.85Q18.39 5.47 16.55 6.09Q14.45 7.33 17.34 8.58Q19.59 9.20 20.23 9.82Q19.62 10.46 17.41 11.11Q14.59 12.40 17.85 13.69Q20.28 14.34 21.11 14.98Q20.14 15.52 17.57 16.07Q14.03 17.15 16.54 18.23Q18.60 18.77 19.06 19.32Q18.55 20.00 16.44 20.69Q13.82 22.07 15.49 23.45Q17.12 24.14 17.15 24.83Q17.11 25.18 15.47 25.54Q13.80 26.25 13.40 27.38L13.10 28.23Q13.00 28.50 12.90 28.21L12.60 27.29Q12.20 26.08 10.32 25.28Q8.58 24.89 8.43 24.49Q8.58 23.90 10.33 23.31Q12.22 22.14 9.75 20.96Q7.72 20.37 7.28 19.78Q7.60 19.09 9.52 18.40Q11.76 17.02 8.56 15.63Q6.16 14.94 5.36 14.25Q6.15 13.65 8.55 13.06Q11.75 11.86 9.05 10.67Q6.91 10.07 6.36 9.48Q6.87 8.90 8.98 8.32Q11.59 7.16 9.50 6.01Q7.65 5.43 7.41 4.85Q7.73 4.37 9.65 3.89Q11.89 2.93 12.44 1.97L12.91 1.15Z"
+        d="M9,0.6 Q10.8,2.6 12,3.2 Q13.2,2.6 15,0.6 Q21,3 22.4,9.5 Q23.6,17 12,27.4 Q0.4,17 1.6,9.5 Q3,3 9,0.6 Z"
         fill={colorA}
         stroke={colorB}
-        strokeOpacity="0.5"
-        strokeWidth="0.3"
+        strokeOpacity="0.55"
+        strokeWidth="0.35"
       />
+      <ellipse cx="12" cy="19.5" rx="5.5" ry="7.2" fill={colorB} opacity="0.28" />
+      <ellipse cx="9.3" cy="7.5" rx="2.1" ry="4" fill="#ffffff" opacity="0.3" transform="rotate(-18 9.3 7.5)" />
       <path
-        d="M13 2.40L13 27.90M13 4.31L18.64 4.85M13 8.58L20.23 9.82M13 13.02L21.11 14.98M13 16.75L19.06 19.32M13 21.49L17.15 24.83M13 21.20L8.43 24.49M13 17.15L7.28 19.78M13 12.39L5.36 14.25M13 8.29L6.36 9.48M13 4.31L7.41 4.85"
+        d="M12,3.6 L12,26.6 M12,9 L19.5,13 M12,9 L4.5,13 M12,15 L17.5,19.5 M12,15 L6.5,19.5"
         fill="none"
         stroke={colorB}
-        strokeOpacity="0.4"
-        strokeWidth="0.45"
+        strokeOpacity="0.35"
+        strokeWidth="0.35"
         strokeLinecap="round"
       />
-      <path d="M12.55 28.50L13 31.10L13.45 28.50Z" fill={colorB} />
     </svg>
   );
 }
@@ -60,34 +64,33 @@ export default async function Home() {
 
   return (
     <div>
-      {/* Hero — clean white background with small oak leaves drifting
-          down, turning from green to gold to brown as they fall, and
-          collecting along the bottom edge already brown (see
-          lib/petals.ts + the .leaf* rules in globals.css). */}
+      {/* Hero — clean white background with small cherry-blossom petals
+          drifting down and collecting along the bottom edge as a drift
+          (see lib/petals.ts + the .petal* rules in globals.css). */}
       <section className="relative overflow-hidden bg-paper text-ink">
-        <div className="leaf-field" aria-hidden="true">
-          {/* Falling leaves are split across two nested elements on
+        <div className="petal-field" aria-hidden="true">
+          {/* Falling petals are split across two nested elements on
               purpose: the outer span owns position + the vertical fall
               (a GPU-composited `transform`, not `top` — animating `top`
               forces a layout recalculation on every frame, which is
               expensive with this many elements and was making the fall
-              look sluggish/near-frozen on phones); the inner <Leaf> owns
-              the sway/spin and the green-to-brown color animation. CSS
-              custom properties set on the outer span (--x, --size,
-              --fall-dur, etc.) inherit down to the inner element, so
-              both can reference the same values from lib/petals.ts. */}
-          {fallingLeaves(18).map((l, i) => (
-            <span key={`leaf-fall-${i}`} className="leaf-fall-wrap" style={l.style}>
-              <Leaf colorA={l.colorA} colorB={l.colorB} className="leaf leaf-fall-inner" style={{}} />
+              look sluggish/near-frozen on phones); the inner <Petal>
+              owns the tumble (rotate + edge-on flip). CSS custom
+              properties set on the outer span (--x, --size, --fall-dur,
+              etc.) inherit down to the inner element, so both can
+              reference the same values from lib/petals.ts. */}
+          {fallingPetals(18).map((p, i) => (
+            <span key={`petal-fall-${i}`} className="petal-fall-wrap" style={p.style}>
+              <Petal colorA={p.colorA} colorB={p.colorB} className="petal petal-fall-inner" style={{}} />
             </span>
           ))}
-          {groundLeaves(110).map((l, i) => (
-            <Leaf
-              key={`leaf-ground-${i}`}
-              colorA={l.colorA}
-              colorB={l.colorB}
-              className="leaf leaf-ground"
-              style={l.style}
+          {groundPetals(110).map((p, i) => (
+            <Petal
+              key={`petal-ground-${i}`}
+              colorA={p.colorA}
+              colorB={p.colorB}
+              className="petal petal-ground"
+              style={p.style}
             />
           ))}
         </div>
