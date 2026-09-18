@@ -106,27 +106,27 @@ h1, h2, h3, h4 {
 }
 
 /* ------------------------------------------------------------------ */
-/* Falling oak leaves — a seasonal, on-brand motion accent for the      */
-/* hero: leaves drift down starting green and shift through yellow,    */
-/* gold, and rust as they fall (see @keyframes leaf-color below), then  */
-/* collect along the bottom edge already brown — that landed pile acts */
+/* Falling cherry-blossom petals — a soft, on-brand motion accent for   */
+/* the hero: pale sakura-pink petals tumble down (a real rotate + an    */
+/* edge-on scaleX flip, not a flat spin — see @keyframes petal-flutter  */
+/* below) and collect along the bottom edge as a drift, which doubles   */
 /* as this section's divider, still gently stirring once "landed"      */
 /* rather than sitting still.                                          */
 /* ------------------------------------------------------------------ */
-.leaf-field {
+.petal-field {
   position: absolute;
   inset: 0;
   overflow: hidden;
   pointer-events: none;
 }
-.leaf {
+.petal {
   position: absolute;
   width: var(--size, 12px);
-  height: calc(var(--size, 12px) * 1.23);
+  height: calc(var(--size, 12px) * 1.17);
   display: block;
-  filter: drop-shadow(0 1px 1.5px rgba(29, 35, 31, 0.15));
+  filter: drop-shadow(0 1px 1.5px rgba(120, 40, 70, 0.15));
 }
-/* The falling leaf's position/movement layer. `top` is set once
+/* The falling petal's position/movement layer. `top` is set once
    (cheap) and the actual fall is a `transform: translateY` animation —
    GPU-composited, so it doesn't force a layout recalculation on every
    frame the way animating `top` does. That matters here: with 18 of
@@ -134,88 +134,87 @@ h1, h2, h3, h4 {
    rate on a throttled/mobile-class CPU in testing (and reads as
    sluggish or barely-moving), where the transform-based version stayed
    smooth. */
-.leaf-fall-wrap {
+.petal-fall-wrap {
   position: absolute;
   top: -10%;
   left: var(--x, 10%);
   opacity: var(--o, 0.8);
   width: var(--size, 12px);
-  height: calc(var(--size, 12px) * 1.23);
+  height: calc(var(--size, 12px) * 1.17);
   /* Static, not animated — drop-shadow is the most expensive single
-     filter to recompute, and it doesn't need to change as the leaf
-     changes color (color doesn't affect the shape/alpha a shadow is
-     cast from), so it lives here instead of inside @keyframes
-     leaf-color below. Measurably cheaper on a throttled/mobile CPU. */
-  filter: drop-shadow(0 1px 1.5px rgba(29, 35, 31, 0.15));
-  animation: leaf-fall-y var(--fall-dur, 12s) linear infinite;
+     filter to recompute, and a petal's color never changes as it
+     falls, so it lives here instead of inside the flutter keyframes
+     below. Measurably cheaper on a throttled/mobile CPU. */
+  filter: drop-shadow(0 1px 1.5px rgba(120, 40, 70, 0.15));
+  animation: petal-fall-y var(--fall-dur, 12s) linear infinite;
   animation-delay: var(--fall-delay, 0s);
 }
-/* The sway/spin + color-change layer, nested inside .leaf-fall-wrap so
-   its own `transform` (sway) doesn't fight with the wrapper's fall
-   `transform` — each animates a different element. */
-.leaf-fall-inner {
+/* The tumble layer, nested inside .petal-fall-wrap so its own
+   `transform` (flutter) doesn't fight with the wrapper's fall
+   `transform` — each animates a different element. petal-flutter
+   combines drift + rotation + a scaleX "edge-on" flip in one keyframe
+   set (rather than two separate animations racing for the same
+   `transform` property), which is what makes a falling petal read as
+   tumbling through the air instead of just spinning flat like a coin. */
+.petal-fall-inner {
   position: static;
   width: 100%;
   height: 100%;
-  animation-name: leaf-sway, leaf-color;
-  animation-duration: var(--sway-dur, 4s), var(--fall-dur, 12s);
-  animation-delay: var(--sway-delay, 0s), var(--fall-delay, 0s);
-  animation-timing-function: ease-in-out, linear;
-  animation-iteration-count: infinite, infinite;
-  animation-direction: alternate, normal;
+  animation: petal-flutter var(--flutter-dur, 4s) ease-in-out infinite;
+  animation-delay: var(--flutter-delay, 0s);
 }
-.leaf-ground {
+.petal-ground {
   top: var(--y, 94%);
   left: var(--x, 10%);
   opacity: var(--o, 0.85);
-  animation: leaf-idle var(--idle-dur, 4s) ease-in-out infinite;
+  animation: petal-idle var(--idle-dur, 4s) ease-in-out infinite;
   animation-delay: var(--idle-delay, 0s);
 }
-/* Only a fraction of the fallen-leaf pile visibly stirs. Measured on a
-   throttled mobile CPU: animating all 110 ground leaves at once (each
-   its own simultaneous CSS animation/compositor layer) was actually the
-   single biggest cost in the whole hero — bigger than the falling
-   leaves themselves — dragging combined frame rate down to ~30fps.
-   Leaving most of the pile settled and only letting every 6th leaf
-   idle-sway brought that back up to ~50fps, and reads as more natural
-   too: a whole pile of leaves doesn't uniformly rustle at once. */
-.leaf-ground:not(:nth-of-type(6n)) {
+/* Only a fraction of the fallen-petal drift visibly stirs. Measured on
+   a throttled mobile CPU: animating all 110 ground petals at once
+   (each its own simultaneous CSS animation/compositor layer) was
+   actually the single biggest cost in the whole hero — bigger than the
+   falling petals themselves — dragging combined frame rate down to
+   ~30fps. Leaving most of the drift settled and only letting every 6th
+   petal idle-stir brought that back up to ~50fps, and reads as more
+   natural too: a whole drift of petals doesn't uniformly rustle at
+   once. */
+.petal-ground:not(:nth-of-type(6n)) {
   animation: none;
 }
-@keyframes leaf-fall-y {
+@keyframes petal-fall-y {
   0% { transform: translateY(0); }
   100% { transform: translateY(130vh); }
 }
-@keyframes leaf-sway {
-  0% { transform: translateX(-16px) rotate(-20deg); }
-  50% { transform: translateX(16px) rotate(190deg); }
-  100% { transform: translateX(-16px) rotate(400deg); }
+/* One full rotation per cycle (0deg -> 360deg, so it loops seamlessly)
+   with a scaleX oscillation layered on top to fake the edge-on flip of
+   a petal tumbling in the air, plus a light side-to-side drift as it
+   catches passing air — closer to how a real petal actually falls than
+   a flat rotate-only sway. */
+@keyframes petal-flutter {
+  0%   { transform: translateX(0)    rotate(0deg)   scaleX(1); }
+  15%  { transform: translateX(8px)  rotate(45deg)  scaleX(0.4); }
+  30%  { transform: translateX(-6px) rotate(100deg) scaleX(1); }
+  45%  { transform: translateX(10px) rotate(160deg) scaleX(0.35); }
+  60%  { transform: translateX(-8px) rotate(220deg) scaleX(1); }
+  75%  { transform: translateX(6px)  rotate(280deg) scaleX(0.45); }
+  90%  { transform: translateX(-4px) rotate(340deg) scaleX(1); }
+  100% { transform: translateX(0)    rotate(360deg) scaleX(1); }
 }
-/* Runs in lockstep with leaf-fall-y (same --fall-dur/--fall-delay), so
-   a leaf is fresh green near the top of the hero and has finished
-   turning brown by the time it reaches the ground. No drop-shadow here
-   on purpose — see the comment on .leaf-fall-wrap above. */
-@keyframes leaf-color {
-  0% { filter: sepia(0) saturate(1) hue-rotate(0deg) brightness(1); }
-  30% { filter: sepia(0.45) saturate(2) hue-rotate(-5deg) brightness(1.05); }
-  55% { filter: sepia(0.7) saturate(3) hue-rotate(-12deg) brightness(1); }
-  80% { filter: sepia(0.9) saturate(2.2) hue-rotate(-18deg) brightness(0.88); }
-  100% { filter: sepia(1) saturate(1.3) hue-rotate(-22deg) brightness(0.68); }
-}
-@keyframes leaf-idle {
-  0%, 100% { transform: translateY(0) rotate(var(--rot, 0deg)); }
-  50% { transform: translateY(-2px) rotate(calc(var(--rot, 0deg) + 8deg)); }
+@keyframes petal-idle {
+  0%, 100% { transform: translateY(0) rotate(var(--rot, 0deg)) scaleX(1); }
+  50% { transform: translateY(-2px) rotate(calc(var(--rot, 0deg) + 8deg)) scaleX(0.85); }
 }
 @media (prefers-reduced-motion: reduce) {
-  .leaf-fall-wrap {
+  .petal-fall-wrap {
     animation: none;
     top: 104%;
     opacity: 0;
   }
-  .leaf-fall-inner {
+  .petal-fall-inner {
     animation: none;
   }
-  .leaf-ground {
+  .petal-ground {
     animation: none;
   }
 }
