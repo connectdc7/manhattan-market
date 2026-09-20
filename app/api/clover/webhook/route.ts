@@ -50,18 +50,9 @@ export async function POST(request: Request) {
   const connection = await getFreshCloverConnection();
   if (connection && body.merchants) {
     const events = body.merchants[connection.merchant_id] ?? [];
-    // TEMP DEBUG: print the raw event list Clover actually sent — safe to
-    // remove once we've confirmed objectId's real shape (the "I:" prefix
-    // filter below is an assumption from Clover's docs; if the live
-    // payload doesn't match it, every event gets silently skipped and
-    // this line is how we'd catch that).
-    console.log("[clover webhook] events for merchant", connection.merchant_id, JSON.stringify(events));
 
     for (const event of events) {
-      if (!event.objectId?.startsWith("I:")) {
-        console.log("[clover webhook] skipping non-inventory objectId", event.objectId);
-        continue;
-      }
+      if (!event.objectId?.startsWith("I:")) continue;
       const itemId = event.objectId.slice(2);
 
       if (event.type === "DELETE") {
@@ -70,12 +61,7 @@ export async function POST(request: Request) {
       }
 
       const item = await fetchCloverItem(connection.merchant_id, connection.access_token, itemId);
-      if (item) {
-        const saved = await upsertProductFromCloverItem(item);
-        console.log("[clover webhook] upserted item", itemId, "saved:", saved);
-      } else {
-        console.log("[clover webhook] fetchCloverItem returned null for", itemId);
-      }
+      if (item) await upsertProductFromCloverItem(item);
     }
     await recordWebhookEvent();
   }
