@@ -16,6 +16,9 @@ export async function POST() {
   }
 
   const items = await fetchAllCloverItems(connection.merchant_id, connection.access_token);
+  // TEMP DEBUG: print exactly what Clover's item list returned — safe to
+  // remove once Clover sync is confirmed working end to end.
+  console.log("[clover sync] fetched items", JSON.stringify(items.map((i) => ({ id: i.id, name: i.name }))));
 
   let succeeded = 0;
   let failed = 0;
