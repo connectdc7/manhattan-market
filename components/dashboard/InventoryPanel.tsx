@@ -93,6 +93,40 @@ export default function InventoryPanel({
   const [modal, setModal] = useState<ModalState>(null);
   const [togglingSpecial, setTogglingSpecial] = useState<string | null>(null);
   const [togglingHealthy, setTogglingHealthy] = useState<string | null>(null);
+  const [generatingPhotos, setGeneratingPhotos] = useState(false);
+  const [photoResult, setPhotoResult] = useState<string | null>(null);
+
+  const missingPhotoCount = useMemo(() => products.filter((p) => !p.image_url).length, [products]);
+
+  // One-off sweep over every product currently missing a photo — including
+  // ones Clover sync never touches at all (a product never linked to
+  // Clover, like an old sample item, or one added by hand). Separate from
+  // the automatic per-item generation Clover sync/webhook already do; see
+  // app/api/products/generate-missing-photos/route.ts.
+  const handleGenerateMissingPhotos = async () => {
+    setGeneratingPhotos(true);
+    setPhotoResult(null);
+    try {
+      const res = await fetch("/api/products/generate-missing-photos", { method: "POST" });
+      const body = await res.json();
+      if (res.ok) {
+        if (body.eligible === 0) {
+          setPhotoResult("Every product already has a photo.");
+        } else {
+          let message = `${body.generated} of ${body.eligible} photo${body.eligible === 1 ? "" : "s"} generated`;
+          if (body.failed > 0) message += `, ${body.failed} failed — check Vercel's function logs for why`;
+          message += ".";
+          setPhotoResult(message);
+        }
+        onRefresh();
+      } else {
+        setPhotoResult(body.error || "Couldn't generate photos.");
+      }
+    } catch {
+      setPhotoResult("Couldn't generate photos — check your connection.");
+    }
+    setGeneratingPhotos(false);
+  };
 
   const handleToggleSpecial = async (product: Product) => {
     setTogglingSpecial(product.id);
@@ -161,6 +195,17 @@ export default function InventoryPanel({
               <option value="name">Name (A–Z)</option>
             </select>
           </div>
+          {missingPhotoCount > 0 && (
+            <button
+              onClick={handleGenerateMissingPhotos}
+              disabled={generatingPhotos}
+              className="rounded-full border border-line px-3.5 py-1.5 font-mono text-xs font-semibold text-ink-soft transition hover:border-gold-ink hover:text-gold-ink disabled:opacity-60"
+            >
+              {generatingPhotos
+                ? "Generating…"
+                : `✦ Generate ${missingPhotoCount} missing photo${missingPhotoCount === 1 ? "" : "s"}`}
+            </button>
+          )}
           <button
             onClick={() => setModal({ mode: "create" })}
             className="rounded-full bg-green px-3.5 py-1.5 font-mono text-xs font-semibold text-white transition hover:bg-green-deep"
@@ -169,6 +214,8 @@ export default function InventoryPanel({
           </button>
         </div>
       </div>
+
+      {photoResult && <p className="mt-2 font-body text-xs text-ink-soft">{photoResult}</p>}
 
       <div className="mt-4 overflow-x-auto rounded-lg border border-line">
         <table className="w-full min-w-[720px] border-collapse font-body text-sm">

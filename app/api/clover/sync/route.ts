@@ -5,12 +5,11 @@
 import { NextResponse } from "next/server";
 import {
   fetchAllCloverItems,
-  generatePhotosForItems,
   getFreshCloverConnection,
   isCloverConfigured,
   upsertProductFromCloverItem,
 } from "@/lib/clover";
-import { isImageGenConfigured } from "@/lib/image-gen";
+import { generatePhotosForItems, isImageGenConfigured } from "@/lib/image-gen";
 
 // Pinned explicitly rather than left to Vercel's default: a catalog with
 // several items still missing a photo can spend real time in

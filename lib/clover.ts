@@ -9,7 +9,6 @@
 // Clover's own developer docs at docs.clover.com/dev.
 import { supabaseAdmin } from "./supabase-admin";
 import { categories, ProductCategory } from "./products";
-import { generateProductPhoto, isImageGenConfigured } from "./image-gen";
 
 export type CloverEnv = "sandbox" | "production";
 
@@ -281,62 +280,11 @@ export async function upsertProductFromCloverItem(item: CloverItem): Promise<Clo
   return { ok: true, id: newId, name: fields.name, category: fields.category, needsPhoto: true };
 }
 
-export type PhotoOutcome = "generated" | "failed" | "skipped";
-
-// Best-effort AI photo generation for one Clover-synced item — never fails
-// the caller. A missing/bad OPENAI_API_KEY, a flaky image API call, or a
-// storage error just leaves the item on its color-swatch placeholder, same
-// as before this existed; a staff member can still add a real photo from
-// the dashboard at any time, which always wins over a generated one.
-export async function generateAndSaveCloverPhoto(id: string, name: string, category: string): Promise<PhotoOutcome> {
-  if (!isImageGenConfigured()) return "skipped";
-  const url = await generateProductPhoto(id, name, category);
-  if (!url) return "failed";
-
-  const client = supabaseAdmin;
-  if (!client) return "failed";
-  const { error } = await client.from("products").update({ image_url: url }).eq("id", id);
-  if (error) {
-    console.error("[clover] saving generated photo failed", { id, error });
-    return "failed";
-  }
-  return "generated";
-}
-
-// How many photos to generate at once. Each OpenAI image call takes
-// several seconds on its own — running a whole catalog's worth one at a
-// time (the original approach) meant a sync with, say, 30 missing photos
-// could take 5+ minutes and risk running into Vercel's function time
-// limit before finishing the last few, which is exactly why some products
-// were getting a generated photo and others weren't. A small concurrency
-// window keeps this well inside that budget without hammering OpenAI's
-// rate limits.
-const PHOTO_CONCURRENCY = 4;
-
-// Runs photo generation for a batch of items that came back from
-// upsertProductFromCloverItem with needsPhoto: true, a few at a time, and
-// tallies the outcome so the caller (the sync route) can report real
-// numbers instead of a silent "some items didn't get a photo."
-export async function generatePhotosForItems(
-  items: { id: string; name: string; category: string }[]
-): Promise<{ generated: number; failed: number; skipped: number }> {
-  const stats = { generated: 0, failed: 0, skipped: 0 };
-  if (items.length === 0) return stats;
-
-  let cursor = 0;
-  async function worker() {
-    for (;;) {
-      const i = cursor++;
-      if (i >= items.length) return;
-      const item = items[i];
-      const outcome = await generateAndSaveCloverPhoto(item.id, item.name, item.category);
-      stats[outcome]++;
-    }
-  }
-
-  await Promise.all(Array.from({ length: Math.min(PHOTO_CONCURRENCY, items.length) }, worker));
-  return stats;
-}
+// Photo generation itself (generateAndSavePhoto, generatePhotosForItems)
+// lives in lib/image-gen.ts — it's no longer Clover-specific, since the
+// "generate missing photos" sweep in /api/products/generate-missing-photos
+// runs it over the whole products table, not just items synced from
+// Clover. See that file and README's "AI-generated product photos".
 
 export async function deleteProductByCloverItemId(cloverItemId: string): Promise<boolean> {
   const client = supabaseAdmin;

@@ -16,13 +16,12 @@ import { NextResponse } from "next/server";
 import {
   deleteProductByCloverItemId,
   fetchCloverItem,
-  generateAndSaveCloverPhoto,
   getFreshCloverConnection,
   recordWebhookEvent,
   recordWebhookVerification,
   upsertProductFromCloverItem,
 } from "@/lib/clover";
-import { isImageGenConfigured } from "@/lib/image-gen";
+import { generateAndSavePhoto, isImageGenConfigured } from "@/lib/image-gen";
 
 type CloverWebhookEvent = { objectId?: string; type?: "CREATE" | "UPDATE" | "DELETE"; ts?: number };
 type CloverWebhookBody = {
@@ -72,7 +71,7 @@ export async function POST(request: Request) {
 
       const result = await upsertProductFromCloverItem(item);
       if (result.ok && result.needsPhoto && result.id && isImageGenConfigured()) {
-        await generateAndSaveCloverPhoto(result.id, result.name, result.category);
+        await generateAndSavePhoto(result.id, result.name, result.category);
       }
     }
     await recordWebhookEvent();

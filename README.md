@@ -271,23 +271,31 @@ before it expires, so this shouldn't need attention day to day — if the
 panel ever shows disconnected unexpectedly anyway, click Connect Clover
 again.
 
-## AI-generated product photos for Clover-synced items (optional)
+## AI-generated product photos (optional)
 
-Clover's catalog has no photo field, so an item that syncs in from Clover
-normally lands with no picture at all — just the plain color tile — until
-someone uploads a real one from the dashboard. With this turned on, that
-step happens automatically instead: the moment a new item arrives (from
-**Sync Now** or the live webhook), an AI image model generates a clean,
-generic product photo from its name and category and saves it as that
-item's photo, so nothing sits on a bare color tile waiting for a human to
-get to it.
+Any product with no photo — a solid color tile instead of a picture — can
+get an AI-generated one instead of sitting there waiting for someone to
+upload a real photo. This happens two ways:
+
+- **Automatically, for Clover items.** Clover's catalog has no photo field
+  of its own, so an item that syncs in from Clover normally lands with no
+  picture at all. The moment a new item arrives (from **Sync Now** or the
+  live webhook), an AI image model generates a clean, generic product
+  photo from its name and category and saves it as that item's photo.
+- **On demand, for everything else.** The Inventory tab has a **"Generate
+  N missing photos"** button (it only shows up when at least one product
+  has none) that sweeps the *entire* product list — including items that
+  were added by hand, or that predate Clover being connected, which the
+  automatic sync path above never sees at all — and generates a photo for
+  every one that's missing it. Use this any time you want to catch up a
+  gap, not just for Clover items.
 
 A few things worth knowing:
 
-- **It only fills a gap, never overrides anything.** An item keeps its
+- **It only fills a gap, never overrides anything.** A product keeps its
   generated photo only until someone uploads a real one from the
-  dashboard — a real photo always wins, permanently, and re-syncing from
-  Clover afterward never touches it again.
+  dashboard — a real photo always wins, permanently, and neither the
+  automatic Clover path nor the manual button ever touches it again.
 - **The image is deliberately generic, not the real label.** The prompt
   asks the model to avoid reproducing a specific brand's actual logo or
   packaging (it has no way to know what a real "Lay's Classic Chips" bag
@@ -296,16 +304,19 @@ A few things worth knowing:
   reasonable stand-in for the shelf, not a substitute for the item's real
   packaging photo.
 - **It costs a small amount per image** (a few cents, via OpenAI's image
-  API) and runs automatically for every new Clover item with no photo —
-  there's no per-item confirmation step. If you'd rather review each one
-  before it's generated, or turn this off, tell me and I can switch it to
-  a manual "Generate photo" button in the dashboard instead, or remove it.
-- **Sync may take a little longer** the first time it runs against a
-  catalog with lots of unphotographed items, since each photo is generated
-  one at a time as part of the sync.
+  API). The automatic Clover path runs with no per-item confirmation step;
+  the dashboard button asks for nothing either once you click it, so a
+  sweep over a lot of missing photos at once will spend accordingly — the
+  button's label always tells you the count before you click it.
+- **A sync or a sweep may take a little while** the first time it runs
+  against a lot of missing photos, since each image takes a few seconds
+  and only a handful generate at once (to stay well within Vercel's
+  request time limit) — the result message tells you how many actually
+  got one versus failed.
 
-This is inert (Clover sync still works, it just skips this step) until you
-add one more environment variable in Vercel:
+This is inert (Clover sync and the dashboard button both still work, they
+just skip this step) until you add one more environment variable in
+Vercel:
 
 - `OPENAI_API_KEY` — get one from
   [platform.openai.com](https://platform.openai.com), under **API keys**.

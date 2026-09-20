@@ -1,16 +1,21 @@
-// AI-generated product photos — fills in a picture for items that sync in
-// from Clover with no photo at all (Clover's catalog API has no photo
-// field of its own). Runs OpenAI's image model from a short prompt built
-// out of the product's name and category, then stores the result in the
-// same "product-photos" Supabase bucket a staff-uploaded photo would go
-// to, so the rest of the site (ProductCard, Today's Specials, etc.) can't
-// tell the difference and needs no changes to use it.
+// AI-generated product photos — fills in a picture for any product that
+// has none, whether it synced in from Clover (which has no photo field of
+// its own) or was added by hand. Runs OpenAI's image model from a short
+// prompt built out of the product's name and category, then stores the
+// result in the same "product-photos" Supabase bucket a staff-uploaded
+// photo would go to, so the rest of the site (ProductCard, Today's
+// Specials, etc.) can't tell the difference and needs no changes to use
+// it. Used from three places: automatically as items sync in from Clover
+// (lib/clover.ts + app/api/clover/sync and .../webhook), and on demand for
+// every currently-missing photo at once
+// (app/api/products/generate-missing-photos, wired to the "Generate
+// missing photos" button in the dashboard's Inventory panel).
 //
 // Inert (does nothing, returns null) until OPENAI_API_KEY is set as an
-// environment variable — Clover sync and the webhook both keep working
-// normally without it, items just stay on the color-swatch placeholder
-// the way they always have. See README's "AI-generated product photos"
-// section.
+// environment variable — Clover sync, the webhook, and the dashboard
+// button all keep working normally without it, items just stay on the
+// color-swatch placeholder the way they always have. See README's
+// "AI-generated product photos" section.
 import { supabaseAdmin } from "./supabase-admin";
 
 export function isImageGenConfigured(): boolean {
@@ -96,4 +101,61 @@ export async function generateProductPhoto(
     console.error("generateProductPhoto:", err);
     return null;
   }
+}
+
+export type PhotoOutcome = "generated" | "failed" | "skipped";
+
+// Generates a photo for one product and saves it straight to its row —
+// never throws. A missing/bad OPENAI_API_KEY, a flaky image API call, or a
+// storage error just leaves the item on its color-swatch placeholder, same
+// as before this existed; a staff member can still add a real photo from
+// the dashboard at any time, which always wins over a generated one and
+// is never overwritten by this.
+export async function generateAndSavePhoto(id: string, name: string, category: string): Promise<PhotoOutcome> {
+  if (!isImageGenConfigured()) return "skipped";
+  const url = await generateProductPhoto(id, name, category);
+  if (!url) return "failed";
+
+  const client = supabaseAdmin;
+  if (!client) return "failed";
+  const { error } = await client.from("products").update({ image_url: url }).eq("id", id);
+  if (error) {
+    console.error("generateAndSavePhoto: saving failed", { id, error });
+    return "failed";
+  }
+  return "generated";
+}
+
+// How many photos to generate at once. Each OpenAI image call takes
+// several seconds on its own — running a whole batch one at a time meant
+// a sync (or a "generate missing photos" sweep) with, say, 30 items could
+// take 5+ minutes and risk running into Vercel's function time limit
+// before finishing the last few, which is exactly why some products would
+// get a generated photo and others wouldn't. A small concurrency window
+// keeps this well inside that budget without hammering OpenAI's rate
+// limits.
+const PHOTO_CONCURRENCY = 4;
+
+// Runs photo generation for a batch of products, a few at a time, and
+// tallies the outcome so the caller can report real numbers instead of a
+// silent "some items didn't get a photo."
+export async function generatePhotosForItems(
+  items: { id: string; name: string; category: string }[]
+): Promise<{ generated: number; failed: number; skipped: number }> {
+  const stats = { generated: 0, failed: 0, skipped: 0 };
+  if (items.length === 0) return stats;
+
+  let cursor = 0;
+  async function worker() {
+    for (;;) {
+      const i = cursor++;
+      if (i >= items.length) return;
+      const item = items[i];
+      const outcome = await generateAndSavePhoto(item.id, item.name, item.category);
+      stats[outcome]++;
+    }
+  }
+
+  await Promise.all(Array.from({ length: Math.min(PHOTO_CONCURRENCY, items.length) }, worker));
+  return stats;
 }
