@@ -211,18 +211,29 @@ function slugify(name: string): string {
   return `${base || "product"}-${suffix}`;
 }
 
+export type CloverUpsertResult = {
+  ok: boolean;
+  id: string | null;
+  name: string;
+  category: string;
+  // True when this item still has no photo at all after the upsert (new
+  // from Clover, or synced before an OPENAI_API_KEY was set) — the caller
+  // decides whether/when to actually generate one, see
+  // generatePhotosForItems below. Kept separate from the upsert itself so
+  // a sync pulling in a big catalog isn't stuck generating photos one at a
+  // time inside this loop; see README's "AI-generated product photos".
+  needsPhoto: boolean;
+};
+
 // Inserts or updates the products row linked to this Clover item (matched
 // by clover_item_id, not name — so a rename in Clover doesn't create a
 // duplicate). Never touches blurb or a manually-uploaded photo, since
-// Clover has no equivalent fields for either — but if the item still has
-// no photo at all (new from Clover, or synced before an OPENAI_API_KEY
-// was set), this kicks off an AI-generated one in its place. See
-// lib/image-gen.ts and README's "AI-generated product photos" section.
-export async function upsertProductFromCloverItem(item: CloverItem): Promise<boolean> {
+// Clover has no equivalent fields for either.
+export async function upsertProductFromCloverItem(item: CloverItem): Promise<CloverUpsertResult> {
   const client = supabaseAdmin;
-  if (!client) return false;
-
   const fields = mapCloverItemToProductFields(item);
+  const empty: CloverUpsertResult = { ok: false, id: null, name: fields.name, category: fields.category, needsPhoto: false };
+  if (!client) return empty;
 
   const { data: existing } = await client
     .from("products")
@@ -244,10 +255,13 @@ export async function upsertProductFromCloverItem(item: CloverItem): Promise<boo
     // constraint, a schema mismatch — has no other visible symptom: the
     // webhook/sync still responds 200 and the caller only sees `saved: false`.
     if (error) console.error("[clover] products update failed", { itemId: item.id, existingId: existing.id, error });
-    if (!error && !existing.image_url) {
-      await fillGeneratedPhoto(existing.id, fields.name, fields.category);
-    }
-    return !error;
+    return {
+      ok: !error,
+      id: error ? null : existing.id,
+      name: fields.name,
+      category: fields.category,
+      needsPhoto: !error && !existing.image_url,
+    };
   }
 
   const newId = slugify(fields.name);
@@ -262,26 +276,66 @@ export async function upsertProductFromCloverItem(item: CloverItem): Promise<boo
   });
   if (error) {
     console.error("[clover] products insert failed", { itemId: item.id, fields, error });
-    return false;
+    return empty;
   }
-  await fillGeneratedPhoto(newId, fields.name, fields.category);
-  return true;
+  return { ok: true, id: newId, name: fields.name, category: fields.category, needsPhoto: true };
 }
 
-// Best-effort AI photo generation for a Clover-synced item — never fails
-// the sync itself. A missing/bad OPENAI_API_KEY, a flaky image API call,
-// or a storage error just leaves the item on its color-swatch placeholder,
-// same as before this existed; a staff member can still add a real photo
-// from the dashboard at any time, which always wins over a generated one.
-async function fillGeneratedPhoto(id: string, name: string, category: string): Promise<void> {
-  if (!isImageGenConfigured()) return;
+export type PhotoOutcome = "generated" | "failed" | "skipped";
+
+// Best-effort AI photo generation for one Clover-synced item — never fails
+// the caller. A missing/bad OPENAI_API_KEY, a flaky image API call, or a
+// storage error just leaves the item on its color-swatch placeholder, same
+// as before this existed; a staff member can still add a real photo from
+// the dashboard at any time, which always wins over a generated one.
+export async function generateAndSaveCloverPhoto(id: string, name: string, category: string): Promise<PhotoOutcome> {
+  if (!isImageGenConfigured()) return "skipped";
   const url = await generateProductPhoto(id, name, category);
-  if (!url) return;
+  if (!url) return "failed";
 
   const client = supabaseAdmin;
-  if (!client) return;
+  if (!client) return "failed";
   const { error } = await client.from("products").update({ image_url: url }).eq("id", id);
-  if (error) console.error("[clover] saving generated photo failed", { id, error });
+  if (error) {
+    console.error("[clover] saving generated photo failed", { id, error });
+    return "failed";
+  }
+  return "generated";
+}
+
+// How many photos to generate at once. Each OpenAI image call takes
+// several seconds on its own — running a whole catalog's worth one at a
+// time (the original approach) meant a sync with, say, 30 missing photos
+// could take 5+ minutes and risk running into Vercel's function time
+// limit before finishing the last few, which is exactly why some products
+// were getting a generated photo and others weren't. A small concurrency
+// window keeps this well inside that budget without hammering OpenAI's
+// rate limits.
+const PHOTO_CONCURRENCY = 4;
+
+// Runs photo generation for a batch of items that came back from
+// upsertProductFromCloverItem with needsPhoto: true, a few at a time, and
+// tallies the outcome so the caller (the sync route) can report real
+// numbers instead of a silent "some items didn't get a photo."
+export async function generatePhotosForItems(
+  items: { id: string; name: string; category: string }[]
+): Promise<{ generated: number; failed: number; skipped: number }> {
+  const stats = { generated: 0, failed: 0, skipped: 0 };
+  if (items.length === 0) return stats;
+
+  let cursor = 0;
+  async function worker() {
+    for (;;) {
+      const i = cursor++;
+      if (i >= items.length) return;
+      const item = items[i];
+      const outcome = await generateAndSaveCloverPhoto(item.id, item.name, item.category);
+      stats[outcome]++;
+    }
+  }
+
+  await Promise.all(Array.from({ length: Math.min(PHOTO_CONCURRENCY, items.length) }, worker));
+  return stats;
 }
 
 export async function deleteProductByCloverItemId(cloverItemId: string): Promise<boolean> {

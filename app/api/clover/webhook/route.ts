@@ -16,17 +16,24 @@ import { NextResponse } from "next/server";
 import {
   deleteProductByCloverItemId,
   fetchCloverItem,
+  generateAndSaveCloverPhoto,
   getFreshCloverConnection,
   recordWebhookEvent,
   recordWebhookVerification,
   upsertProductFromCloverItem,
 } from "@/lib/clover";
+import { isImageGenConfigured } from "@/lib/image-gen";
 
 type CloverWebhookEvent = { objectId?: string; type?: "CREATE" | "UPDATE" | "DELETE"; ts?: number };
 type CloverWebhookBody = {
   verificationCode?: string;
   merchants?: Record<string, CloverWebhookEvent[]>;
 };
+
+// A single webhook delivery can carry several item events at once, each
+// possibly needing its own generated photo — pinned for the same reason
+// as /api/clover/sync (see there for the full explanation).
+export const maxDuration = 300;
 
 export async function POST(request: Request) {
   // Optional defense-in-depth: once CLOVER_WEBHOOK_AUTH_CODE is set (the
@@ -61,7 +68,12 @@ export async function POST(request: Request) {
       }
 
       const item = await fetchCloverItem(connection.merchant_id, connection.access_token, itemId);
-      if (item) await upsertProductFromCloverItem(item);
+      if (!item) continue;
+
+      const result = await upsertProductFromCloverItem(item);
+      if (result.ok && result.needsPhoto && result.id && isImageGenConfigured()) {
+        await generateAndSaveCloverPhoto(result.id, result.name, result.category);
+      }
     }
     await recordWebhookEvent();
   }

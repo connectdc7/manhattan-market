@@ -86,7 +86,18 @@ export default function CloverPanel({ onSynced }: { onSynced: () => void }) {
       const res = await fetch("/api/clover/sync", { method: "POST" });
       const body = await res.json();
       if (res.ok) {
-        setSyncResult(`Synced ${body.succeeded} of ${body.total} items.`);
+        let message = `Synced ${body.succeeded} of ${body.total} items.`;
+        // photos is only present once at least one item needed one this
+        // sync — most syncs after the first won't mention it at all.
+        const photos = body.photos as { generated: number; failed: number; skipped: number } | undefined;
+        if (photos && (photos.generated > 0 || photos.failed > 0)) {
+          message += ` ${photos.generated} photo${photos.generated === 1 ? "" : "s"} generated`;
+          if (photos.failed > 0) {
+            message += `, ${photos.failed} failed — check Vercel's function logs for why`;
+          }
+          message += ".";
+        }
+        setSyncResult(message);
         onSynced();
       } else {
         setSyncResult(body.error || "Sync failed.");
