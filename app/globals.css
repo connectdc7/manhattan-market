@@ -406,23 +406,57 @@ h1, h2, h3, h4 {
   }
 }
 
-/* Header logo only: hovering (or keyboard-focusing) the link gives the
-   skyline a little playful hop, on top of the rise-in/twinkle/beacon above
-   — a response to interaction rather than more constant motion, since this
-   mark sits in the sticky header for as long as someone's on the site. */
+/* Both logo placements (header link, footer mark): hovering — or
+   keyboard-focusing, for the header's link — grows the whole mark a
+   little, gives the skyline a playful hop, and speeds up the windows/
+   beacons into a rapid twinkle, on top of their usual slow ambient
+   blink. ".skyline-hover-zone" is the shared hook; put it on whatever
+   wraps a <SkylineWordmark> or <SkylineMark> — it doesn't have to be a
+   link (the footer's isn't, since that mark doesn't go anywhere). */
+.skyline-hover-zone {
+  transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.skyline-hover-zone:hover,
+.skyline-hover-zone:focus-visible {
+  transform: scale(1.06);
+}
+
 @keyframes skyline-hop {
   0% { transform: translateY(0); }
   40% { transform: translateY(-6px); }
   65% { transform: translateY(1px); }
   100% { transform: translateY(0); }
 }
-.skyline-logo-link:hover .skyline-hover-wrap,
-.skyline-logo-link:focus-visible .skyline-hover-wrap {
+.skyline-hover-zone:hover .skyline-hover-wrap,
+.skyline-hover-zone:focus-visible .skyline-hover-wrap {
   animation: skyline-hop 0.55s cubic-bezier(0.34, 1.56, 0.64, 1) 1;
 }
+
+/* Speeds up the windows/beacons' own animations (set inline per-element in
+   Logo.tsx) while hovered — !important because an inline style otherwise
+   always wins over a class selector, and this is the one place that's
+   supposed to override it. Scoped to "no-preference" so it never fights
+   with the reduced-motion block below. */
+@media (prefers-reduced-motion: no-preference) {
+  .skyline-hover-zone:hover .skyline-window,
+  .skyline-hover-zone:focus-visible .skyline-window {
+    animation-duration: 0.45s !important;
+  }
+  .skyline-hover-zone:hover .skyline-beacon,
+  .skyline-hover-zone:focus-visible .skyline-beacon {
+    animation-duration: 0.7s !important;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .skyline-logo-link:hover .skyline-hover-wrap,
-  .skyline-logo-link:focus-visible .skyline-hover-wrap {
+  .skyline-hover-zone,
+  .skyline-hover-zone:hover,
+  .skyline-hover-zone:focus-visible {
+    transition: none;
+    transform: none;
+  }
+  .skyline-hover-zone:hover .skyline-hover-wrap,
+  .skyline-hover-zone:focus-visible .skyline-hover-wrap {
     animation: none;
   }
 }
