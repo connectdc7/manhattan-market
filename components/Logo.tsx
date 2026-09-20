@@ -56,7 +56,7 @@ function beacon(delayS: number) {
 export function SkylineWordmark({ className = "h-24 w-auto" }: { className?: string }) {
   _delayIndex = 0; // reset so re-renders stagger the same way every time
   return (
-    <svg viewBox="0 0 1104 420" className={className} aria-hidden="true">
+    <svg viewBox="0 0 1104 500" className={className} aria-hidden="true">
       <g fill="currentColor">
         {/* ===== letterforms — static ===== */}
         <g className="skyline-letters">
@@ -185,14 +185,15 @@ export function SkylineWordmark({ className = "h-24 w-auto" }: { className?: str
           </g>
         </g>
 
-        {/* ===== MARKET ===== */}
+        {/* ===== MARKET — run nearly the full width, like a street
+            beneath the skyline ===== */}
         <text
           x="552"
-          y="378"
+          y="460"
           textAnchor="middle"
           fontFamily="Anton, 'IBM Plex Sans', sans-serif"
-          fontSize="52"
-          letterSpacing="16"
+          fontSize="150"
+          letterSpacing="46"
         >
           MARKET
         </text>
