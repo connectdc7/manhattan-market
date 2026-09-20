@@ -343,6 +343,25 @@ h1, h2, h3, h4 {
   }
 }
 
+/* The skyline mark/wordmark logo: each building rises into place, left to
+   right, like the city switching its lights on — plays once as soon as the
+   logo mounts (see components/Logo.tsx, which sets a staggered
+   animation-delay per building). */
+@keyframes skyline-rise {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.skyline-bldg {
+  opacity: 0;
+  animation: skyline-rise 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+@media (prefers-reduced-motion: reduce) {
+  .skyline-bldg {
+    opacity: 1;
+    animation: none;
+  }
+}
+
 /* A quick, springy "bump" — used when something's added to the cart. */
 @keyframes bump {
   0% { transform: scale(1); }
