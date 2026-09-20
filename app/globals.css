@@ -362,6 +362,27 @@ h1, h2, h3, h4 {
   }
 }
 
+/* Tiny lit windows on the skyline mark — a soft, staggered flicker so the
+   logo reads as alive rather than a static graphic, even once the rise-in
+   above has finished. Each window sets its own animation-duration/-delay
+   inline (see components/Logo.tsx) so they don't all pulse in sync. */
+@keyframes skyline-twinkle {
+  0%, 100% { opacity: 0.15; }
+  50% { opacity: 0.95; }
+}
+.skyline-window {
+  opacity: 0.15;
+  animation-name: skyline-twinkle;
+  animation-timing-function: ease-in-out;
+  animation-iteration-count: infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .skyline-window {
+    opacity: 0.55;
+    animation: none;
+  }
+}
+
 /* A quick, springy "bump" — used when something's added to the cart. */
 @keyframes bump {
   0% { transform: scale(1); }
