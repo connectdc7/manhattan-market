@@ -16,7 +16,7 @@ import { NextResponse } from "next/server";
 import {
   deleteProductByCloverItemId,
   fetchCloverItem,
-  getCloverConnection,
+  getFreshCloverConnection,
   recordWebhookEvent,
   recordWebhookVerification,
   upsertProductFromCloverItem,
@@ -47,7 +47,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: true });
   }
 
-  const connection = await getCloverConnection();
+  const connection = await getFreshCloverConnection();
   if (connection && body.merchants) {
     const events = body.merchants[connection.merchant_id] ?? [];
     // TEMP DEBUG: print the raw event list Clover actually sent — safe to
