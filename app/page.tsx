@@ -214,16 +214,43 @@ export default async function Home() {
           <section className="border-b border-line bg-gold-tint">
             <div className="mx-auto max-w-6xl px-5 py-8">
               <p className="eyebrow text-gold-ink">Today&apos;s Specials</p>
-              <div className="mt-4 flex flex-wrap gap-4">
+              <div className="mt-4 flex flex-wrap gap-3">
                 {specials.map((p) => (
-                  <span key={p.id} className="font-body text-sm text-ink">
-                    {p.name}{" "}
-                    <span className="price-tag price-tag-gold ml-1 font-mono text-xs font-semibold text-gold-ink">
-                      ${p.price.toFixed(2)}
+                  <Link
+                    key={p.id}
+                    href={`/order#product-${p.id}`}
+                    className="group flex items-center gap-3 rounded-lg border border-line/70 bg-paper py-2 pl-2 pr-4 transition-all hover:-translate-y-0.5 hover:border-gold-ink hover:shadow-sm active:translate-y-0"
+                  >
+                    <span className="h-11 w-11 shrink-0 overflow-hidden rounded-md">
+                      {p.image_url ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={p.image_url} alt={p.name} className="h-full w-full object-cover" />
+                      ) : (
+                        <span
+                          className="flex h-full w-full items-center justify-center font-mono text-[0.5rem] uppercase text-white/70"
+                          style={{ backgroundColor: p.swatch }}
+                        >
+                          photo
+                        </span>
+                      )}
                     </span>
-                  </span>
+                    <span className="flex flex-col gap-1">
+                      <span className="font-body text-sm font-medium text-ink group-hover:text-gold-ink">
+                        {p.name}
+                      </span>
+                      <span className="price-tag price-tag-gold w-fit font-mono text-xs font-semibold text-gold-ink">
+                        ${p.price.toFixed(2)}
+                      </span>
+                    </span>
+                  </Link>
                 ))}
               </div>
+              <Link
+                href="/order"
+                className="mt-5 inline-flex w-fit items-center gap-1.5 rounded-full bg-gold px-5 py-2.5 font-mono text-xs font-semibold text-gold-ink transition-all hover:-translate-y-0.5 hover:brightness-95 active:translate-y-0 active:scale-95"
+              >
+                Order Online →
+              </Link>
             </div>
             <div className="receipt-perforation" />
           </section>
