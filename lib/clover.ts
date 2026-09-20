@@ -193,7 +193,16 @@ export async function fetchCloverItem(
     `${cloverUrls().api}/v3/merchants/${merchantId}/items/${itemId}?expand=categories,itemStock`,
     { headers: { Authorization: `Bearer ${accessToken}` } }
   );
-  if (!res.ok) return null;
+  if (!res.ok) {
+    // TEMP DEBUG: log why a fetch failed instead of swallowing it, so a
+    // failed webhook-triggered item lookup shows up in Vercel logs with
+    // enough detail to diagnose (401 = bad/expired token or missing
+    // scope, 404 = wrong item id, etc). Safe to remove once Clover sync
+    // is confirmed working end to end.
+    const detail = await res.text().catch(() => "");
+    console.error("[clover] fetchCloverItem failed", { itemId, status: res.status, detail });
+    return null;
+  }
   return (await res.json()) as CloverItem;
 }
 
