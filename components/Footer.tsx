@@ -1,4 +1,6 @@
 import Link from "next/link";
+import Reveal from "@/components/Reveal";
+import { SkylineWordmark } from "@/components/Logo";
 
 export default function Footer() {
   return (
@@ -7,8 +9,10 @@ export default function Footer() {
       <div className="mx-auto max-w-6xl px-5 py-10">
         <div className="grid gap-8 sm:grid-cols-3">
           <div>
-            <p className="font-display text-lg font-bold">Manhattan Market</p>
-            <p className="mt-2 font-body text-sm text-white/70">
+            <Reveal>
+              <SkylineWordmark className="h-20 w-auto text-white sm:h-24" />
+            </Reveal>
+            <p className="mt-3 font-body text-sm text-white/70">
               3706 Connecticut Ave NW
               <br />
               Washington, DC 20008
