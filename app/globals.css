@@ -383,6 +383,50 @@ h1, h2, h3, h4 {
   }
 }
 
+/* Obstruction beacons on the tallest towers — a sharper, slower blink than
+   the windows above, so the logo still reads as alive at the small size it
+   renders in the sticky header, where the windows are nearly invisible. */
+@keyframes skyline-beacon {
+  0%, 76% { opacity: 0.15; }
+  84% { opacity: 1; }
+  92% { opacity: 0.15; }
+  100% { opacity: 0.15; }
+}
+.skyline-beacon {
+  opacity: 0.15;
+  animation-name: skyline-beacon;
+  animation-duration: 2.4s;
+  animation-timing-function: ease-in-out;
+  animation-iteration-count: infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .skyline-beacon {
+    opacity: 0.7;
+    animation: none;
+  }
+}
+
+/* Header logo only: hovering (or keyboard-focusing) the link gives the
+   skyline a little playful hop, on top of the rise-in/twinkle/beacon above
+   — a response to interaction rather than more constant motion, since this
+   mark sits in the sticky header for as long as someone's on the site. */
+@keyframes skyline-hop {
+  0% { transform: translateY(0); }
+  40% { transform: translateY(-6px); }
+  65% { transform: translateY(1px); }
+  100% { transform: translateY(0); }
+}
+.skyline-logo-link:hover .skyline-hover-wrap,
+.skyline-logo-link:focus-visible .skyline-hover-wrap {
+  animation: skyline-hop 0.55s cubic-bezier(0.34, 1.56, 0.64, 1) 1;
+}
+@media (prefers-reduced-motion: reduce) {
+  .skyline-logo-link:hover .skyline-hover-wrap,
+  .skyline-logo-link:focus-visible .skyline-hover-wrap {
+    animation: none;
+  }
+}
+
 /* A quick, springy "bump" — used when something's added to the cart. */
 @keyframes bump {
   0% { transform: scale(1); }
