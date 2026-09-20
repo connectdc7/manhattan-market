@@ -236,6 +236,12 @@ export async function upsertProductFromCloverItem(item: CloverItem): Promise<boo
         stock: fields.stock,
       })
       .eq("id", existing.id);
+    // TEMP DEBUG: upsertProductFromCloverItem was reporting `true`/`saved:
+    // true` while the row apparently never showed up — this surfaces the
+    // real Postgres/Supabase error instead of swallowing it, so we can see
+    // exactly why a write silently fails (RLS, constraint, bad column,
+    // etc). Safe to remove once Clover sync is confirmed working end to end.
+    if (error) console.error("[clover] products update failed", { itemId: item.id, existingId: existing.id, error });
     return !error;
   }
 
@@ -248,6 +254,7 @@ export async function upsertProductFromCloverItem(item: CloverItem): Promise<boo
     blurb: "",
     clover_item_id: item.id,
   });
+  if (error) console.error("[clover] products insert failed", { itemId: item.id, fields, error });
   return !error;
 }
 
