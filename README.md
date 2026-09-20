@@ -262,11 +262,54 @@ A few things worth knowing about what this integration does and doesn't do
 yet: it's one-way (Clover → this site's product list — stock, price, name,
 category), not the other direction, so changes made from `/dashboard`
 itself won't push back to Clover. Clover doesn't have an equivalent to this
-site's product description or photo, so those stay managed here regardless
-of Clover sync. The connection's access token refreshes itself
-automatically shortly before it expires, so this shouldn't need attention
-day to day — if the panel ever shows disconnected unexpectedly anyway,
-click Connect Clover again.
+site's product description, so that stays managed here regardless of
+Clover sync. Photos are a little different — see the next section — Clover
+has no photo field either, but a synced item with no photo yet can get an
+AI-generated placeholder automatically instead of sitting on a plain color
+tile. The connection's access token refreshes itself automatically shortly
+before it expires, so this shouldn't need attention day to day — if the
+panel ever shows disconnected unexpectedly anyway, click Connect Clover
+again.
+
+## AI-generated product photos for Clover-synced items (optional)
+
+Clover's catalog has no photo field, so an item that syncs in from Clover
+normally lands with no picture at all — just the plain color tile — until
+someone uploads a real one from the dashboard. With this turned on, that
+step happens automatically instead: the moment a new item arrives (from
+**Sync Now** or the live webhook), an AI image model generates a clean,
+generic product photo from its name and category and saves it as that
+item's photo, so nothing sits on a bare color tile waiting for a human to
+get to it.
+
+A few things worth knowing:
+
+- **It only fills a gap, never overrides anything.** An item keeps its
+  generated photo only until someone uploads a real one from the
+  dashboard — a real photo always wins, permanently, and re-syncing from
+  Clover afterward never touches it again.
+- **The image is deliberately generic, not the real label.** The prompt
+  asks the model to avoid reproducing a specific brand's actual logo or
+  packaging (it has no way to know what a real "Lay's Classic Chips" bag
+  looks like today, and guessing would risk an inaccurate fake label), so
+  what comes back is a clean, unbranded version of the product — a
+  reasonable stand-in for the shelf, not a substitute for the item's real
+  packaging photo.
+- **It costs a small amount per image** (a few cents, via OpenAI's image
+  API) and runs automatically for every new Clover item with no photo —
+  there's no per-item confirmation step. If you'd rather review each one
+  before it's generated, or turn this off, tell me and I can switch it to
+  a manual "Generate photo" button in the dashboard instead, or remove it.
+- **Sync may take a little longer** the first time it runs against a
+  catalog with lots of unphotographed items, since each photo is generated
+  one at a time as part of the sync.
+
+This is inert (Clover sync still works, it just skips this step) until you
+add one more environment variable in Vercel:
+
+- `OPENAI_API_KEY` — get one from
+  [platform.openai.com](https://platform.openai.com), under **API keys**.
+  Redeploy after adding it.
 
 ## Connecting Stripe (when you're ready)
 

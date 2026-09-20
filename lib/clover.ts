@@ -9,6 +9,7 @@
 // Clover's own developer docs at docs.clover.com/dev.
 import { supabaseAdmin } from "./supabase-admin";
 import { categories, ProductCategory } from "./products";
+import { generateProductPhoto, isImageGenConfigured } from "./image-gen";
 
 export type CloverEnv = "sandbox" | "production";
 
@@ -213,7 +214,10 @@ function slugify(name: string): string {
 // Inserts or updates the products row linked to this Clover item (matched
 // by clover_item_id, not name — so a rename in Clover doesn't create a
 // duplicate). Never touches blurb or a manually-uploaded photo, since
-// Clover has no equivalent fields for either.
+// Clover has no equivalent fields for either — but if the item still has
+// no photo at all (new from Clover, or synced before an OPENAI_API_KEY
+// was set), this kicks off an AI-generated one in its place. See
+// lib/image-gen.ts and README's "AI-generated product photos" section.
 export async function upsertProductFromCloverItem(item: CloverItem): Promise<boolean> {
   const client = supabaseAdmin;
   if (!client) return false;
@@ -222,7 +226,7 @@ export async function upsertProductFromCloverItem(item: CloverItem): Promise<boo
 
   const { data: existing } = await client
     .from("products")
-    .select("id")
+    .select("id, image_url")
     .eq("clover_item_id", item.id)
     .maybeSingle();
 
@@ -240,11 +244,15 @@ export async function upsertProductFromCloverItem(item: CloverItem): Promise<boo
     // constraint, a schema mismatch — has no other visible symptom: the
     // webhook/sync still responds 200 and the caller only sees `saved: false`.
     if (error) console.error("[clover] products update failed", { itemId: item.id, existingId: existing.id, error });
+    if (!error && !existing.image_url) {
+      await fillGeneratedPhoto(existing.id, fields.name, fields.category);
+    }
     return !error;
   }
 
+  const newId = slugify(fields.name);
   const { error } = await client.from("products").insert({
-    id: slugify(fields.name),
+    id: newId,
     name: fields.name,
     category: fields.category,
     price: fields.price,
@@ -252,8 +260,28 @@ export async function upsertProductFromCloverItem(item: CloverItem): Promise<boo
     blurb: "",
     clover_item_id: item.id,
   });
-  if (error) console.error("[clover] products insert failed", { itemId: item.id, fields, error });
-  return !error;
+  if (error) {
+    console.error("[clover] products insert failed", { itemId: item.id, fields, error });
+    return false;
+  }
+  await fillGeneratedPhoto(newId, fields.name, fields.category);
+  return true;
+}
+
+// Best-effort AI photo generation for a Clover-synced item — never fails
+// the sync itself. A missing/bad OPENAI_API_KEY, a flaky image API call,
+// or a storage error just leaves the item on its color-swatch placeholder,
+// same as before this existed; a staff member can still add a real photo
+// from the dashboard at any time, which always wins over a generated one.
+async function fillGeneratedPhoto(id: string, name: string, category: string): Promise<void> {
+  if (!isImageGenConfigured()) return;
+  const url = await generateProductPhoto(id, name, category);
+  if (!url) return;
+
+  const client = supabaseAdmin;
+  if (!client) return;
+  const { error } = await client.from("products").update({ image_url: url }).eq("id", id);
+  if (error) console.error("[clover] saving generated photo failed", { id, error });
 }
 
 export async function deleteProductByCloverItemId(cloverItemId: string): Promise<boolean> {
