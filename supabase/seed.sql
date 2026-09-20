@@ -353,11 +353,48 @@ create table if not exists clover_webhook_state (
 alter table clover_webhook_state enable row level security;
 
 -- ---------------------------------------------------------------------------
+-- gallery_images — one row per tile on the public Gallery page
+-- (app/gallery/page.tsx: Storefront, Hot food counter, Snack aisle, Coffee
+-- station, Drink cooler, Register). image_url starts empty, same as a
+-- product with no photo, and the page falls back to that tile's plain
+-- color block until it's filled in — either by the dashboard's "Generate
+-- gallery photos" button (an AI-generated placeholder scene, see
+-- lib/image-gen.ts) or, later, a real photo of the actual store.
+-- ---------------------------------------------------------------------------
+create table if not exists gallery_images (
+  key text primary key,
+  image_url text not null default ''
+);
+
+insert into gallery_images (key, image_url) values
+  ('storefront', ''),
+  ('hot-food-counter', ''),
+  ('snack-aisle', ''),
+  ('coffee-station', ''),
+  ('drink-cooler', ''),
+  ('register', '')
+on conflict (key) do nothing;
+
+alter table gallery_images enable row level security;
+
+drop policy if exists "Public can read gallery images" on gallery_images;
+create policy "Public can read gallery images"
+  on gallery_images for select
+  to anon
+  using (true);
+
+-- No public write policy here on purpose — unlike products, nothing in the
+-- browser ever writes to this table. Only the dashboard's "Generate
+-- gallery photos" button does, through /api/gallery/generate-photos, which
+-- uses the service-role key (see lib/supabase-admin.ts), not the anon key.
+
+-- ---------------------------------------------------------------------------
 -- product-photos (storage) — lets staff upload a real product photo from
 -- the dashboard (a phone camera roll or a saved file), instead of typing
--- in an image URL. The bucket is public so photos display on the site
--- without a login; the policies below only affect who can upload/replace
--- them, not who can view them.
+-- in an image URL, and also holds AI-generated gallery scene photos (under
+-- a gallery/ prefix) — one shared public bucket for both. The bucket is
+-- public so photos display on the site without a login; the policies
+-- below only affect who can upload/replace them, not who can view them.
 -- ---------------------------------------------------------------------------
 insert into storage.buckets (id, name, public)
 values ('product-photos', 'product-photos', true)

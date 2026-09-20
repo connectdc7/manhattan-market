@@ -271,7 +271,7 @@ before it expires, so this shouldn't need attention day to day — if the
 panel ever shows disconnected unexpectedly anyway, click Connect Clover
 again.
 
-## AI-generated product photos (optional)
+## AI-generated product & gallery photos (optional)
 
 Any product with no photo — a solid color tile instead of a picture — can
 get an AI-generated one instead of sitting there waiting for someone to
@@ -282,20 +282,35 @@ upload a real photo. This happens two ways:
   picture at all. The moment a new item arrives (from **Sync Now** or the
   live webhook), an AI image model generates a clean, generic product
   photo from its name and category and saves it as that item's photo.
-- **On demand, for everything else.** The Inventory tab has a **"Generate
-  N missing photos"** button (it only shows up when at least one product
-  has none) that sweeps the *entire* product list — including items that
-  were added by hand, or that predate Clover being connected, which the
-  automatic sync path above never sees at all — and generates a photo for
-  every one that's missing it. Use this any time you want to catch up a
-  gap, not just for Clover items.
+- **On demand, for everything else.** The Inventory tab has an **"AI
+  Photos"** panel with a **"Generate N missing product photos"** button (it
+  only shows up when at least one product has none) that sweeps the
+  *entire* product list — including items that were added by hand, or that
+  predate Clover being connected, which the automatic sync path above
+  never sees at all — and generates a photo for every one that's missing
+  it. Use this any time you want to catch up a gap, not just for Clover
+  items.
+
+The same panel also has a **"Generate gallery photos"** button for the
+public `/gallery` page's six scene tiles (Storefront, Hot food counter,
+Snack aisle, Coffee station, Drink cooler, Register), which otherwise show
+as plain color blocks. **This one is different in an important way: the
+Gallery page is supposed to show your actual store**, not a generic item —
+so an AI-generated "hot food counter" is a generic stock-photo-style scene,
+not a picture of Manhattan Market's real counter. Treat these as a
+better-looking placeholder than a color tile, not a finished Gallery page —
+swap in real photos of the actual storefront, counter, and shelves before
+launch (attach them to our chat any time and I'll place them, or upload
+them yourself once a real photo-upload flow exists for that page).
 
 A few things worth knowing:
 
 - **It only fills a gap, never overrides anything.** A product keeps its
   generated photo only until someone uploads a real one from the
   dashboard — a real photo always wins, permanently, and neither the
-  automatic Clover path nor the manual button ever touches it again.
+  automatic Clover path nor the manual button ever touches it again. Same
+  idea for a gallery tile: generating one only fills tiles that don't
+  already have a photo.
 - **The image is deliberately generic, not the real label.** The prompt
   asks the model to avoid reproducing a specific brand's actual logo or
   packaging (it has no way to know what a real "Lay's Classic Chips" bag
@@ -314,13 +329,19 @@ A few things worth knowing:
   request time limit) — the result message tells you how many actually
   got one versus failed.
 
-This is inert (Clover sync and the dashboard button both still work, they
+This is inert (Clover sync and both dashboard buttons still work, they
 just skip this step) until you add one more environment variable in
 Vercel:
 
 - `OPENAI_API_KEY` — get one from
   [platform.openai.com](https://platform.openai.com), under **API keys**.
   Redeploy after adding it.
+
+The Gallery button also needs the `gallery_images` table, which is new —
+re-run the latest `supabase/seed.sql` in your Supabase project's SQL
+Editor (safe to re-run any time; it won't touch your existing products,
+orders, or anything else) if the button's result says it couldn't read the
+gallery tile list.
 
 ## Connecting Stripe (when you're ready)
 

@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { getGalleryTiles } from "@/lib/gallery";
 
 export const metadata: Metadata = {
   title: "Gallery",
@@ -9,16 +10,14 @@ export const metadata: Metadata = {
   },
 };
 
-const TILES = [
-  { label: "Storefront", color: "#21594a" },
-  { label: "Hot food counter", color: "#c98b3a" },
-  { label: "Snack aisle", color: "#e0a938" },
-  { label: "Coffee station", color: "#6b4226" },
-  { label: "Drink cooler", color: "#3e6b4a" },
-  { label: "Register", color: "#163d33" },
-];
+// Photos come from Supabase and can change any time staff generate or
+// upload new ones from the dashboard, so this needs a fresh read on every
+// request rather than being baked in once at build time.
+export const dynamic = "force-dynamic";
 
-export default function GalleryPage() {
+export default async function GalleryPage() {
+  const tiles = await getGalleryTiles();
+
   return (
     <div className="mx-auto max-w-6xl px-5 py-16">
       <p className="eyebrow text-green">Gallery</p>
@@ -31,15 +30,25 @@ export default function GalleryPage() {
       </p>
 
       <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {TILES.map((tile) => (
-          <div
-            key={tile.label}
-            className="flex h-48 items-center justify-center rounded-lg font-mono text-xs uppercase tracking-widest text-white/80"
-            style={{ backgroundColor: tile.color }}
-          >
-            {tile.label} — sample
-          </div>
-        ))}
+        {tiles.map((tile) =>
+          tile.image_url ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              key={tile.key}
+              src={tile.image_url}
+              alt={tile.label}
+              className="h-48 w-full rounded-lg object-cover"
+            />
+          ) : (
+            <div
+              key={tile.key}
+              className="flex h-48 items-center justify-center rounded-lg font-mono text-xs uppercase tracking-widest text-white/80"
+              style={{ backgroundColor: tile.color }}
+            >
+              {tile.label} — sample
+            </div>
+          )
+        )}
       </div>
     </div>
   );

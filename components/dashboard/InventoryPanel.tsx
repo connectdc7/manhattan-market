@@ -95,6 +95,8 @@ export default function InventoryPanel({
   const [togglingHealthy, setTogglingHealthy] = useState<string | null>(null);
   const [generatingPhotos, setGeneratingPhotos] = useState(false);
   const [photoResult, setPhotoResult] = useState<string | null>(null);
+  const [generatingGalleryPhotos, setGeneratingGalleryPhotos] = useState(false);
+  const [galleryPhotoResult, setGalleryPhotoResult] = useState<string | null>(null);
 
   const missingPhotoCount = useMemo(() => products.filter((p) => !p.image_url).length, [products]);
 
@@ -126,6 +128,34 @@ export default function InventoryPanel({
       setPhotoResult("Couldn't generate photos — check your connection.");
     }
     setGeneratingPhotos(false);
+  };
+
+  // Same idea, for the public Gallery page's six scene tiles instead of
+  // products — see app/api/gallery/generate-photos/route.ts. These are
+  // deliberately generic placeholder scenes, not real photos of the
+  // actual store; swap in real ones before launch.
+  const handleGenerateGalleryPhotos = async () => {
+    setGeneratingGalleryPhotos(true);
+    setGalleryPhotoResult(null);
+    try {
+      const res = await fetch("/api/gallery/generate-photos", { method: "POST" });
+      const body = await res.json();
+      if (res.ok) {
+        if (body.eligible === 0) {
+          setGalleryPhotoResult("Every gallery tile already has a photo.");
+        } else {
+          let message = `${body.generated} of ${body.eligible} gallery photo${body.eligible === 1 ? "" : "s"} generated`;
+          if (body.failed > 0) message += `, ${body.failed} failed — check Vercel's function logs for why`;
+          message += ".";
+          setGalleryPhotoResult(message);
+        }
+      } else {
+        setGalleryPhotoResult(body.error || "Couldn't generate gallery photos.");
+      }
+    } catch {
+      setGalleryPhotoResult("Couldn't generate gallery photos — check your connection.");
+    }
+    setGeneratingGalleryPhotos(false);
   };
 
   const handleToggleSpecial = async (product: Product) => {
@@ -162,6 +192,41 @@ export default function InventoryPanel({
     <div>
       <CloverPanel onSynced={onRefresh} />
 
+      <div className="mb-4 flex flex-wrap items-center gap-3 rounded-lg border border-line bg-panel p-4">
+        <div>
+          <p className="font-mono text-[0.65rem] uppercase tracking-wide text-ink-soft">AI Photos</p>
+          <p className="mt-1 font-body text-sm text-ink-soft">
+            Fill in missing pictures with an AI-generated placeholder.
+          </p>
+        </div>
+        <div className="ml-auto flex flex-wrap items-center gap-2">
+          {missingPhotoCount > 0 && (
+            <button
+              onClick={handleGenerateMissingPhotos}
+              disabled={generatingPhotos}
+              className="rounded-full border border-line bg-paper px-3.5 py-1.5 font-mono text-xs font-semibold text-ink-soft transition hover:border-gold-ink hover:text-gold-ink disabled:opacity-60"
+            >
+              {generatingPhotos
+                ? "Generating…"
+                : `✦ Generate ${missingPhotoCount} missing product photo${missingPhotoCount === 1 ? "" : "s"}`}
+            </button>
+          )}
+          <button
+            onClick={handleGenerateGalleryPhotos}
+            disabled={generatingGalleryPhotos}
+            className="rounded-full border border-line bg-paper px-3.5 py-1.5 font-mono text-xs font-semibold text-ink-soft transition hover:border-gold-ink hover:text-gold-ink disabled:opacity-60"
+          >
+            {generatingGalleryPhotos ? "Generating…" : "✦ Generate gallery photos"}
+          </button>
+        </div>
+        {(photoResult || galleryPhotoResult) && (
+          <div className="w-full font-body text-xs text-ink-soft">
+            {photoResult && <p>{photoResult}</p>}
+            {galleryPhotoResult && <p>{galleryPhotoResult}</p>}
+          </div>
+        )}
+      </div>
+
       <div className="flex flex-wrap items-center gap-2">
         <input
           type="text"
@@ -195,17 +260,6 @@ export default function InventoryPanel({
               <option value="name">Name (A–Z)</option>
             </select>
           </div>
-          {missingPhotoCount > 0 && (
-            <button
-              onClick={handleGenerateMissingPhotos}
-              disabled={generatingPhotos}
-              className="rounded-full border border-line px-3.5 py-1.5 font-mono text-xs font-semibold text-ink-soft transition hover:border-gold-ink hover:text-gold-ink disabled:opacity-60"
-            >
-              {generatingPhotos
-                ? "Generating…"
-                : `✦ Generate ${missingPhotoCount} missing photo${missingPhotoCount === 1 ? "" : "s"}`}
-            </button>
-          )}
           <button
             onClick={() => setModal({ mode: "create" })}
             className="rounded-full bg-green px-3.5 py-1.5 font-mono text-xs font-semibold text-white transition hover:bg-green-deep"
@@ -214,8 +268,6 @@ export default function InventoryPanel({
           </button>
         </div>
       </div>
-
-      {photoResult && <p className="mt-2 font-body text-xs text-ink-soft">{photoResult}</p>}
 
       <div className="mt-4 overflow-x-auto rounded-lg border border-line">
         <table className="w-full min-w-[720px] border-collapse font-body text-sm">
