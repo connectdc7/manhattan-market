@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useCart } from "@/lib/cart-context";
 import { decrementStock } from "@/lib/products";
@@ -15,19 +15,30 @@ export default function CheckoutPage() {
   const [stage, setStage] = useState<Stage>("review");
   const [fulfillment, setFulfillment] = useState<"pickup" | "delivery">("pickup");
   const [phone, setPhone] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  // Only used to decide what the small print under "Place Order" says —
+  // the actual mock-vs-real decision happens server-side in placeOrder,
+  // this is purely so the page doesn't claim to be a preview once it isn't.
+  const [stripeConfigured, setStripeConfigured] = useState(false);
 
-  const placeOrder = () => {
-    setStage("processing");
+  useEffect(() => {
+    fetch("/api/checkout/status")
+      .then((r) => r.json())
+      .then((body) => setStripeConfigured(Boolean(body.stripeConfigured)))
+      .catch(() => {});
+  }, []);
+
+  // Runs the old instant mocked order — kept as the fallback for whenever
+  // Stripe isn't configured yet (see placeOrder below), the same
+  // graceful-degradation pattern the rest of this project uses for Clover,
+  // Twilio, and the AI photo reader.
+  const placeMockOrder = () => {
     const orderedLines = lines.map((l) => ({ id: l.id, qty: l.qty }));
     const orderItems = lines.map((l) => ({ id: l.id, name: l.name, price: l.price, qty: l.qty }));
     const orderFulfillment = fulfillment;
     const orderSubtotal = subtotal;
     const orderPhone = phone.trim() || null;
     setTimeout(async () => {
-      // Payment is mocked (Stripe goes here later), but the stock decrement
-      // and order record are real when Supabase is configured — so the
-      // menu and the employee dashboard reflect the order immediately, the
-      // same way they would once Clover is wired in.
       await decrementStock(orderedLines);
       await createOrder({
         fulfillment: orderFulfillment,
@@ -39,6 +50,43 @@ export default function CheckoutPage() {
       setStage("done");
       clear();
     }, 1400);
+  };
+
+  const placeOrder = async () => {
+    setStage("processing");
+    setError(null);
+
+    try {
+      const res = await fetch("/api/checkout/session", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          items: lines.map((l) => ({ id: l.id, qty: l.qty })),
+          fulfillment,
+          phone: phone.trim() || null,
+        }),
+      });
+      const body = await res.json();
+
+      if (!res.ok) {
+        setError(body.error || "Couldn't start checkout — try again.");
+        setStage("review");
+        return;
+      }
+      if (body.mock) {
+        // Stripe isn't configured yet — same instant preview flow as before.
+        placeMockOrder();
+        return;
+      }
+      // Full page navigation to Stripe's hosted Checkout page — the cart
+      // stays in localStorage untouched until payment actually succeeds
+      // (see app/checkout/success/page.tsx), so cancelling and coming back
+      // doesn't lose it.
+      window.location.href = body.url;
+    } catch {
+      setError("Couldn't start checkout — check your connection and try again.");
+      setStage("review");
+    }
   };
 
   if (lines.length === 0 && stage === "review") {
@@ -69,7 +117,7 @@ export default function CheckoutPage() {
             : "In the live site, stock updates automatically the moment an order comes in, and — for delivery orders — a courier is requested through Uber Direct right away."}
         </p>
         <p className="mt-4 font-mono text-[0.68rem] uppercase tracking-wide text-ink-soft">
-          Preview build — no payment was actually processed
+          Preview build — Stripe isn&apos;t connected yet, so no payment was actually processed
         </p>
         <Link
           href="/order"
@@ -144,16 +192,28 @@ export default function CheckoutPage() {
         />
       </label>
 
+      {error && (
+        <p className="mt-4 font-body text-sm text-[#a8461a]" role="alert">
+          {error}
+        </p>
+      )}
+
       <button
         onClick={placeOrder}
         disabled={stage === "processing"}
         className="mt-8 w-full rounded-full bg-green py-3.5 text-center font-mono text-sm font-semibold text-white transition-all hover:bg-green-deep active:scale-[0.98] disabled:opacity-60"
       >
-        {stage === "processing" ? "Processing…" : `Place Order — $${subtotal.toFixed(2)}`}
+        {stage === "processing"
+          ? stripeConfigured
+            ? "Redirecting to secure checkout…"
+            : "Processing…"
+          : `Place Order — $${subtotal.toFixed(2)}`}
       </button>
       <p className="mt-2 text-center font-mono text-[0.62rem] uppercase tracking-wide text-ink-soft">
-        Preview build — Stripe Checkout will replace this step
-        {isSupabaseConfigured ? " · stock will update live in Supabase" : ""}
+        {stripeConfigured
+          ? "Payment is handled securely by Stripe — you'll be redirected to complete it"
+          : "Preview build — Stripe isn't connected yet, so this places an instant test order"}
+        {isSupabaseConfigured ? " · stock updates live in Supabase" : ""}
       </p>
     </div>
   );

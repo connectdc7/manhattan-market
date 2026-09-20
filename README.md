@@ -69,11 +69,14 @@ Real, once Supabase is connected (see setup below):
 
   See the security note below before showing anyone this URL or using it
   with real customer data.
+- **Stripe Checkout** — once `STRIPE_SECRET_KEY` is set (see "Connecting
+  Stripe" below), "Place Order" creates a real Stripe Checkout session and
+  redirects there. A webhook (`/api/stripe/webhook`) confirms the payment
+  actually went through before the order is recorded and stock is
+  decremented — nothing is trusted from the browser. Until that key's set,
+  "Place Order" falls back to the old instant mocked order instead.
 
 Still mocked, on purpose, because the real credentials aren't available yet:
-- **Payments** (`app/checkout/page.tsx`) — "Place Order" simulates a 1.4s
-  processing delay and shows a success screen. No card is charged. This is
-  where Stripe Checkout will be wired in.
 - **Delivery dispatch** — the pickup/delivery toggle at checkout is there,
   but it doesn't yet call Uber Direct to request a courier.
 
@@ -125,6 +128,7 @@ Market's real inventory anyway. Two ways to add real ones:
   which product each one is, and I'll add them to the site for you (or, if
   you'd rather, I can wire in a stock-photo/AI-image step once you tell me
   which source you'd like to use).
+
 ## AI photo auto-fill for adding products (optional)
 
 Adding products one at a time — typing the name, picking a category, then
@@ -151,6 +155,7 @@ started typing one. Price and stock count are never guessed — a label
 rarely has the shelf price you're actually charging, and nothing but a
 physical count can know how many you have, so those stay exactly as
 manual as they are today.
+
 ## About the employee dashboard's security
 
 `/dashboard` has no login — that was a deliberate choice to keep this demo
@@ -258,10 +263,57 @@ yet: it's one-way (Clover → this site's product list — stock, price, name,
 category), not the other direction, so changes made from `/dashboard`
 itself won't push back to Clover. Clover doesn't have an equivalent to this
 site's product description or photo, so those stay managed here regardless
-of Clover sync. And the connection's access token doesn't currently
-auto-refresh before it expires (Clover's tokens are long-lived, so this is
-unlikely to bite you soon, but if the panel ever shows disconnected
-unexpectedly, click Connect Clover again).
+of Clover sync. The connection's access token refreshes itself
+automatically shortly before it expires, so this shouldn't need attention
+day to day — if the panel ever shows disconnected unexpectedly anyway,
+click Connect Clover again.
+
+## Connecting Stripe (when you're ready)
+
+Checkout is real once this is set up — a customer's card is actually
+charged, through Stripe's own hosted payment page, not this site's own
+form. Until then, "Place Order" just runs the old instant mocked order.
+
+1. Create a Stripe account (or, if you already use Stripe for another
+   business, create a **separate** account for this one under the same
+   login — Stripe's account switcher has a "Create" option for that. A
+   Stripe account is tied to one business's payouts and tax reporting, so
+   two unrelated businesses shouldn't share one).
+2. Start in your new account's **sandbox** (Stripe's term for test mode) —
+   no real money moves there, which is the safer way to build and test this
+   before ever touching a live card. From **Developers → API keys**, copy
+   the **Secret key** (`sk_test_...`) and **Publishable key**
+   (`pk_test_...`).
+3. In your Vercel project's environment variables, add:
+   - `STRIPE_SECRET_KEY` and `STRIPE_PUBLISHABLE_KEY` — from step 2.
+   - Redeploy so they take effect.
+4. In Supabase's SQL Editor, run the migration below if you haven't already
+   (it's also in `supabase/seed.sql`) — it adds the column the Stripe
+   webhook uses to avoid recording the same paid order twice:
+   ```sql
+   alter table orders add column if not exists stripe_session_id text;
+
+   create unique index if not exists orders_stripe_session_id_idx
+     on orders (stripe_session_id)
+     where stripe_session_id is not null;
+   ```
+5. In the Stripe Dashboard, go to **Developers → Webhooks → Add endpoint**.
+   Set the URL to `https://<your-vercel-domain>/api/stripe/webhook`, and
+   subscribe it to the `checkout.session.completed` event. After creating
+   it, click into the endpoint and copy its **Signing secret**
+   (`whsec_...`).
+6. Add that as `STRIPE_WEBHOOK_SECRET` in Vercel's environment variables,
+   and redeploy once more.
+7. Test it: add something to the cart, check out, and pay with Stripe's
+   test card `4242 4242 4242 4242`, any future expiry, any CVC, any ZIP.
+   You should land on an "Order placed" confirmation, and the order should
+   show up in `/dashboard` with stock already decremented — the same as a
+   real payment would, just with fake money.
+
+When you're ready to accept real cards, switch that same Stripe account
+from sandbox to live mode, swap in the live secret/publishable keys and a
+live-mode webhook (live and sandbox each need their own), and update those
+three Vercel env vars.
 
 ## Connecting order-ready texts (optional)
 
@@ -311,7 +363,8 @@ Same flow as True Doc Pros:
 
 1. Replace the seeded sample products in Supabase with the real menu — by
    hand for now, or by connecting Clover (see above) and clicking Sync.
-2. Add Stripe Checkout to `app/checkout/page.tsx`.
+2. Connect Stripe (see "Connecting Stripe" above) — the checkout code is
+   already built, this is just account setup and env vars.
 3. Wire the delivery toggle to the Uber Direct API.
 4. Replace placeholder copy — address, photos in `/gallery` — with the real
    thing, and the real hours in `lib/store-hours.ts` (one place that feeds

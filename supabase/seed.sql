@@ -242,6 +242,18 @@ end $$;
 -- section of the README for turning the actual texting on.
 alter table orders add column if not exists phone text;
 
+-- Which Stripe Checkout session paid for this order — null for any order
+-- placed before Stripe was connected (or via the mocked preview flow when
+-- it isn't). The unique index is what makes the webhook safe to receive
+-- twice: Stripe redelivers a webhook it didn't get a fast 200 for, and
+-- without this a retry would silently create a second order (and
+-- decrement stock twice) for the same payment. See lib/orders-admin.ts.
+alter table orders add column if not exists stripe_session_id text;
+
+create unique index if not exists orders_stripe_session_id_idx
+  on orders (stripe_session_id)
+  where stripe_session_id is not null;
+
 alter table orders enable row level security;
 
 drop policy if exists "Public can create orders" on orders;
