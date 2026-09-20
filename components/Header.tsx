@@ -21,11 +21,8 @@ export default function Header() {
       <div className="stripe-bar h-1.5" />
       <div className="border-b border-line bg-paper/95 backdrop-blur">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-5 py-4">
-          <Link href="/" className="flex items-center gap-3 text-ink">
+          <Link href="/" className="flex items-center text-ink">
             <SkylineWordmark className="h-11 w-auto shrink-0 sm:h-12" />
-            <span className="hidden font-mono text-[0.65rem] uppercase tracking-widest text-ink-soft md:inline">
-              Est. Corner Store
-            </span>
           </Link>
 
           <nav className="hidden items-center gap-7 md:flex">

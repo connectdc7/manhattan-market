@@ -21,6 +21,19 @@ function nextDelay() {
   return d;
 }
 
+// A lit window: gold, flickering on its own independent cycle (duration/
+// delay handed in per-window below) so the skyline doesn't pulse in
+// lockstep — closer to how a real skyline's lights flicker at night. The
+// delay is offset past the rise-in above so windows don't start twinkling
+// mid-entrance.
+function twinkle(durationS: number, delayS: number) {
+  return {
+    fill: "var(--gold)",
+    animationDuration: `${durationS}s`,
+    animationDelay: `${0.7 + delayS}s`,
+  };
+}
+
 export function SkylineWordmark({ className = "h-24 w-auto" }: { className?: string }) {
   _delayIndex = 0; // reset so re-renders stagger the same way every time
   return (
@@ -34,6 +47,7 @@ export function SkylineWordmark({ className = "h-24 w-auto" }: { className?: str
         <g className="skyline-bldg" style={nextDelay()}>
           <path d="M84 236 L84 196 L104 196 L104 236 Z" />
           <path d="M89 196 L89 130 L99 130 L99 196 Z" />
+          <rect className="skyline-window" x="91" y="155" width="6" height="12" style={twinkle(2.8, 0.3)} />
         </g>
 
         {/* ===== A (1) ===== */}
@@ -50,6 +64,7 @@ export function SkylineWordmark({ className = "h-24 w-auto" }: { className?: str
         <path d="M291 140 L321 140 L406 300 L376 300 Z" />
         <g className="skyline-bldg" style={nextDelay()}>
           <path d="M296 140 L296 118 L316 118 L316 140 Z" />
+          <rect className="skyline-window" x="302" y="124" width="8" height="10" style={twinkle(2.2, 0.9)} />
         </g>
 
         {/* ===== H — twin towers ===== */}
@@ -58,12 +73,16 @@ export function SkylineWordmark({ className = "h-24 w-auto" }: { className?: str
         <path d="M414 220 L414 190 L529 190 L529 220 Z" />
         <g className="skyline-bldg" style={nextDelay()}>
           <path d="M414 140 L414 40 L444 40 L444 140 Z" />
+          <rect className="skyline-window" x="422" y="65" width="8" height="12" style={twinkle(1.9, 0.2)} />
+          <rect className="skyline-window" x="422" y="100" width="8" height="12" style={twinkle(2.6, 1.1)} />
         </g>
         <g className="skyline-bldg" style={nextDelay()}>
           <path d="M425 40 L425 18 L433 18 L433 40 Z" />
         </g>
         <g className="skyline-bldg" style={nextDelay()}>
           <path d="M499 140 L499 70 L529 70 L529 140 Z" />
+          <rect className="skyline-window" x="507" y="90" width="8" height="12" style={twinkle(2.4, 0.6)} />
+          <rect className="skyline-window" x="507" y="115" width="8" height="12" style={twinkle(3.1, 1.4)} />
         </g>
         <g className="skyline-bldg" style={nextDelay()}>
           <path d="M510 70 L510 48 L518 48 L518 70 Z" />
@@ -75,9 +94,12 @@ export function SkylineWordmark({ className = "h-24 w-auto" }: { className?: str
         <path d="M549 235 L549 210 L630 210 L630 235 Z" />
         <g className="skyline-bldg" style={nextDelay()}>
           <path d="M565 190 L565 150 L614 150 L614 190 Z" />
+          <rect className="skyline-window" x="572" y="162" width="8" height="12" style={twinkle(2.1, 0.5)} />
+          <rect className="skyline-window" x="598" y="162" width="8" height="12" style={twinkle(2.9, 1.2)} />
         </g>
         <g className="skyline-bldg" style={nextDelay()}>
           <path d="M577 150 L577 100 L602 100 L602 150 Z" />
+          <rect className="skyline-window" x="584" y="115" width="7" height="11" style={twinkle(2.5, 0.8)} />
         </g>
         <g className="skyline-bldg" style={nextDelay()}>
           <path d="M582 100 L582 60 L597 60 L597 100 Z" />
@@ -91,9 +113,12 @@ export function SkylineWordmark({ className = "h-24 w-auto" }: { className?: str
         <path d="M682 170 L682 300 L713 300 L713 170 Z" />
         <g className="skyline-bldg" style={nextDelay()}>
           <path d="M670 140 L670 100 L725 100 L725 140 Z" />
+          <rect className="skyline-window" x="680" y="112" width="8" height="12" style={twinkle(2.3, 0.4)} />
+          <rect className="skyline-window" x="705" y="112" width="8" height="12" style={twinkle(3, 1.6)} />
         </g>
         <g className="skyline-bldg" style={nextDelay()}>
           <path d="M680 100 L715 100 L705 60 L690 60 Z" />
+          <rect className="skyline-window" x="693" y="75" width="7" height="10" style={twinkle(2, 1)} />
         </g>
         <g className="skyline-bldg" style={nextDelay()}>
           <path d="M695 60 L695 20 L700 20 L700 60 Z" />
