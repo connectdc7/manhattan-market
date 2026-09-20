@@ -3,14 +3,14 @@
 // import; the webhook (see /api/clover/webhook) is what keeps things
 // current after that without staff needing to click Sync again.
 import { NextResponse } from "next/server";
-import { fetchAllCloverItems, getCloverConnection, isCloverConfigured, upsertProductFromCloverItem } from "@/lib/clover";
+import { fetchAllCloverItems, getFreshCloverConnection, isCloverConfigured, upsertProductFromCloverItem } from "@/lib/clover";
 
 export async function POST() {
   if (!isCloverConfigured()) {
     return NextResponse.json({ error: "Clover isn't configured yet." }, { status: 501 });
   }
 
-  const connection = await getCloverConnection();
+  const connection = await getFreshCloverConnection();
   if (!connection) {
     return NextResponse.json({ error: "Not connected to Clover yet." }, { status: 409 });
   }
