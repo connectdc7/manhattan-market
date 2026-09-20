@@ -14,13 +14,13 @@ export type DayHours = { day: string; open: string; close: string };
 
 // Sunday = 0 .. Saturday = 6, matching Date#getDay().
 export const HOURS: DayHours[] = [
-  { day: "Sunday", open: "07:00", close: "22:00" },
-  { day: "Monday", open: "06:00", close: "23:00" },
-  { day: "Tuesday", open: "06:00", close: "23:00" },
-  { day: "Wednesday", open: "06:00", close: "23:00" },
-  { day: "Thursday", open: "06:00", close: "23:00" },
-  { day: "Friday", open: "06:00", close: "23:00" },
-  { day: "Saturday", open: "06:00", close: "23:00" },
+  { day: "Sunday", open: "10:00", close: "22:00" },
+  { day: "Monday", open: "09:00", close: "23:00" },
+  { day: "Tuesday", open: "09:00", close: "23:00" },
+  { day: "Wednesday", open: "09:00", close: "23:00" },
+  { day: "Thursday", open: "09:00", close: "23:00" },
+  { day: "Friday", open: "09:00", close: "23:00" },
+  { day: "Saturday", open: "10:00", close: "22:00" },
 ];
 
 function formatTime(hhmm: string): string {

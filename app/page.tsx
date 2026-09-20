@@ -293,9 +293,7 @@ export default async function Home() {
                 Open daily · 3706 Connecticut Ave NW
               </p>
               <p className="mt-1 font-body text-sm text-ink-soft">
-                Washington, DC 20008 · (202) 460-1405
-                <br />
-                <span className="text-ink-soft/70">(hours below are a placeholder, pending confirmation)</span>
+                Washington, DC 20008 · (202) 986-4774
               </p>
             </div>
             <Link

@@ -17,9 +17,6 @@ export default function LocationPage() {
       <h1 className="mt-2 font-display text-3xl font-bold text-ink sm:text-4xl">
         Find us
       </h1>
-      <p className="mt-2 font-body text-sm text-ink-soft">
-        Hours below are a placeholder until confirmed — the address and contact info are current.
-      </p>
 
       <div className="mt-8 grid gap-8 sm:grid-cols-2">
         <div>
@@ -29,7 +26,7 @@ export default function LocationPage() {
           <p className="mt-4 font-body text-sm text-ink">3706 Connecticut Ave NW</p>
           <p className="font-body text-sm text-ink-soft">Washington, DC 20008</p>
           <p className="mt-2 font-body text-sm text-ink-soft">
-            <a href="tel:+12024601405" className="hover:text-pink-deep">(202) 460-1405</a>
+            <a href="tel:+12029864774" className="hover:text-pink-deep">(202) 986-4774</a>
           </p>
           <p className="font-body text-sm text-ink-soft">
             <a href="mailto:partners@manhattanmarketdc.com" className="hover:text-pink-deep">

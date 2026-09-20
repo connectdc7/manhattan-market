@@ -15,8 +15,8 @@ export const SITE_DESCRIPTION =
   "Order ahead for pickup or delivery at Manhattan Market, Woodley Park's neighborhood corner store on Connecticut Ave NW in Washington, DC. Hot food, snacks, drinks, and everyday essentials.";
 
 export const BUSINESS = {
-  telephone: "+12024601405",
-  telephoneDisplay: "(202) 460-1405",
+  telephone: "+12029864774",
+  telephoneDisplay: "(202) 986-4774",
   email: "partners@manhattanmarketdc.com",
   streetAddress: "3706 Connecticut Ave NW",
   addressLocality: "Washington",

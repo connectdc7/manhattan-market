@@ -19,7 +19,7 @@ export default function Footer() {
               Washington, DC 20008
             </p>
             <p className="mt-3 font-body text-sm text-white/80">
-              <a href="tel:+12024601405" className="hover:text-gold">(202) 460-1405</a>
+              <a href="tel:+12029864774" className="hover:text-gold">(202) 986-4774</a>
               <br />
               <a href="mailto:partners@manhattanmarketdc.com" className="hover:text-gold">
                 partners@manhattanmarketdc.com
@@ -29,11 +29,9 @@ export default function Footer() {
           <div>
             <p className="eyebrow text-white/50">Hours</p>
             <p className="mt-2 font-body text-sm text-white/80">
-              Mon–Sat · 6:00am – 11:00pm
+              Mon–Fri · 9:00am – 11:00pm
               <br />
-              Sun · 7:00am – 10:00pm
-              <br />
-              <span className="text-white/50">(placeholder — confirm real hours)</span>
+              Sat–Sun · 10:00am – 10:00pm
             </p>
           </div>
           <div>
