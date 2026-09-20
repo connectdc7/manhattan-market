@@ -32,6 +32,7 @@ export default function CloverPanel({ onSynced }: { onSynced: () => void }) {
   const [syncResult, setSyncResult] = useState<string | null>(null);
   const [confirmDisconnect, setConfirmDisconnect] = useState(false);
   const [banner, setBanner] = useState<string | null>(null);
+  const [detailsOpen, setDetailsOpen] = useState(false);
 
   const loadStatus = () => {
     fetch("/api/clover/status")
@@ -171,23 +172,42 @@ export default function CloverPanel({ onSynced }: { onSynced: () => void }) {
 
       {status.connected && (
         <div className="mt-3 border-t border-line pt-3">
-          <p className="font-mono text-[0.62rem] uppercase tracking-wide text-ink-soft">
-            Webhook URL (paste into Clover&apos;s app settings for live updates, not just manual sync)
-          </p>
-          <p className="mt-1 select-all break-all font-mono text-xs text-ink">
-            {typeof window !== "undefined" ? `${window.location.origin}/api/clover/webhook` : ""}
-          </p>
-          {webhook?.lastVerificationCode && (
-            <p className="mt-2 font-body text-xs text-ink-soft">
-              Latest verification code from Clover:{" "}
-              <span className="select-all font-mono text-ink">{webhook.lastVerificationCode}</span> — paste
-              this into Clover&apos;s dashboard to finish verifying the webhook.
-            </p>
-          )}
-          {webhook?.lastEventAt && (
-            <p className="mt-1 font-body text-xs text-ink-soft">
-              Last webhook event received {new Date(webhook.lastEventAt).toLocaleString()}.
-            </p>
+          <button
+            type="button"
+            onClick={() => setDetailsOpen((open) => !open)}
+            aria-expanded={detailsOpen}
+            className="flex items-center gap-1.5 font-mono text-[0.62rem] uppercase tracking-wide text-ink-soft transition hover:text-ink"
+          >
+            <span
+              className={`inline-block text-[0.6rem] transition-transform ${detailsOpen ? "rotate-90" : ""}`}
+              aria-hidden="true"
+            >
+              ▸
+            </span>
+            {detailsOpen ? "Hide webhook details" : "Show webhook details"}
+          </button>
+
+          {detailsOpen && (
+            <div className="mt-2">
+              <p className="font-mono text-[0.62rem] uppercase tracking-wide text-ink-soft">
+                Webhook URL (paste into Clover&apos;s app settings for live updates, not just manual sync)
+              </p>
+              <p className="mt-1 select-all break-all font-mono text-xs text-ink">
+                {typeof window !== "undefined" ? `${window.location.origin}/api/clover/webhook` : ""}
+              </p>
+              {webhook?.lastVerificationCode && (
+                <p className="mt-2 font-body text-xs text-ink-soft">
+                  Latest verification code from Clover:{" "}
+                  <span className="select-all font-mono text-ink">{webhook.lastVerificationCode}</span> —
+                  paste this into Clover&apos;s dashboard to finish verifying the webhook.
+                </p>
+              )}
+              {webhook?.lastEventAt && (
+                <p className="mt-1 font-body text-xs text-ink-soft">
+                  Last webhook event received {new Date(webhook.lastEventAt).toLocaleString()}.
+                </p>
+              )}
+            </div>
           )}
         </div>
       )}
