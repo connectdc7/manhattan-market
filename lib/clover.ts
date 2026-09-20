@@ -236,11 +236,9 @@ export async function upsertProductFromCloverItem(item: CloverItem): Promise<boo
         stock: fields.stock,
       })
       .eq("id", existing.id);
-    // TEMP DEBUG: upsertProductFromCloverItem was reporting `true`/`saved:
-    // true` while the row apparently never showed up — this surfaces the
-    // real Postgres/Supabase error instead of swallowing it, so we can see
-    // exactly why a write silently fails (RLS, constraint, bad column,
-    // etc). Safe to remove once Clover sync is confirmed working end to end.
+    // Logged (not just swallowed) since a write failing here — RLS, a
+    // constraint, a schema mismatch — has no other visible symptom: the
+    // webhook/sync still responds 200 and the caller only sees `saved: false`.
     if (error) console.error("[clover] products update failed", { itemId: item.id, existingId: existing.id, error });
     return !error;
   }
@@ -277,11 +275,9 @@ export async function fetchCloverItem(
     { headers: { Authorization: `Bearer ${accessToken}` } }
   );
   if (!res.ok) {
-    // TEMP DEBUG: log why a fetch failed instead of swallowing it, so a
-    // failed webhook-triggered item lookup shows up in Vercel logs with
-    // enough detail to diagnose (401 = bad/expired token or missing
-    // scope, 404 = wrong item id, etc). Safe to remove once Clover sync
-    // is confirmed working end to end.
+    // Logged for the same reason as the upsert errors above: 401 usually
+    // means an expired/bad token, 404 usually means a stale item id — both
+    // otherwise look identical to a shopper-facing "nothing happened".
     const detail = await res.text().catch(() => "");
     console.error("[clover] fetchCloverItem failed", { itemId, status: res.status, detail });
     return null;
