@@ -9,7 +9,9 @@ export default function Footer() {
         <div className="grid gap-8 sm:grid-cols-3">
           <div>
             <Reveal>
-              <SkylineWordmark className="h-20 w-auto text-white sm:h-24" />
+              <span className="skyline-hover-zone inline-block">
+                <SkylineWordmark className="h-20 w-auto text-white sm:h-24" />
+              </span>
             </Reveal>
             <p className="mt-3 font-body text-sm text-white/70">
               3706 Connecticut Ave NW
