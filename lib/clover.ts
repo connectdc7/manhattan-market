@@ -8,7 +8,6 @@
 // (see README). Point of reference for the exact request/response shapes:
 // Clover's own developer docs at docs.clover.com/dev.
 import { supabaseAdmin } from "./supabase-admin";
-import { categories, ProductCategory } from "./products";
 
 export type CloverEnv = "sandbox" | "production";
 
@@ -165,14 +164,100 @@ export async function deleteCloverConnection(): Promise<boolean> {
   return !error;
 }
 
-// Clover doesn't have our fixed four categories, so map its category name
-// (if any) onto the closest match, case-insensitively, and fall back to
-// "Grocery" — a deliberately simple heuristic, easy to override by hand
-// afterward from the dashboard's own Edit form.
-export function mapCloverCategory(cloverCategoryName: string | undefined): ProductCategory {
-  if (!cloverCategoryName) return "Grocery";
-  const match = categories.find((c) => c.toLowerCase() === cloverCategoryName.trim().toLowerCase());
-  return match ?? "Grocery";
+// Category resolution for a synced Clover item. Categories aren't a fixed
+// list anymore (see lib/categories.ts) — Clover's own department names are
+// the source of truth, and this maps each one onto our `categories` table:
+//
+//   1. Already resolved before (an alias row exists, from either an earlier
+//      sync or a staffer's rename/merge) — reuse that, unchanged.
+//   2. Not aliased yet, but the name matches one of ours exactly
+//      (case-insensitively) — e.g. Clover literally calls it "Drinks".
+//      Link it up with no review needed; this is the common case once
+//      staff have been through the review queue once.
+//   3. Genuinely new — create the category now (so the item isn't stuck
+//      waiting on a human before it can be synced at all), flagged
+//      needs_review = true and show_on_storefront = false. It shows up in
+//      the dashboard's review queue (CategoryReviewPanel) for staff to
+//      confirm, rename, merge into an existing category, or show on the
+//      storefront.
+//
+// `CloverCategoryContext` is loaded once per sync run (a full "Sync Now"
+// pull, or one webhook delivery covering several item events) via
+// loadCloverCategoryContext(), then threaded through every
+// upsertProductFromCloverItem call in that run — so resolving each item's
+// category is an in-memory lookup, not a database round trip per item, and
+// two items in the same run introducing the same new department only
+// create one category row, not two.
+export type CloverCategoryContext = {
+  // normalized (trimmed, lowercased) Clover department name -> our
+  // category's actual name.
+  aliasToCategory: Map<string, string>;
+  // normalized (trimmed, lowercased) category name -> its actual name —
+  // for the case-insensitive exact-match check in step 2 above.
+  nameByLower: Map<string, string>;
+};
+
+function normalizeCategoryName(raw: string): string {
+  return raw.trim().toLowerCase();
+}
+
+export async function loadCloverCategoryContext(): Promise<CloverCategoryContext> {
+  const ctx: CloverCategoryContext = { aliasToCategory: new Map(), nameByLower: new Map() };
+  const client = supabaseAdmin;
+  if (!client) return ctx;
+
+  const [{ data: aliases }, { data: cats }] = await Promise.all([
+    client.from("category_aliases").select("clover_name, category_name"),
+    client.from("categories").select("name"),
+  ]);
+  for (const row of aliases ?? []) ctx.aliasToCategory.set(row.clover_name, row.category_name);
+  for (const row of cats ?? []) ctx.nameByLower.set(normalizeCategoryName(row.name), row.name);
+  return ctx;
+}
+
+export async function resolveCloverCategory(
+  cloverCategoryName: string | undefined,
+  ctx: CloverCategoryContext
+): Promise<string> {
+  const raw = (cloverCategoryName ?? "").trim();
+  if (!raw) return "Grocery";
+  const key = normalizeCategoryName(raw);
+
+  const aliased = ctx.aliasToCategory.get(key);
+  if (aliased) return aliased;
+
+  const client = supabaseAdmin;
+  if (!client) return "Grocery";
+
+  const exact = ctx.nameByLower.get(key);
+  if (exact) {
+    // Not previously aliased, but matches an existing category by name —
+    // link it up (ignoreDuplicates covers two items in this same run
+    // hitting this exact path at once) so future syncs skip straight to
+    // the fast path above.
+    const { error } = await client
+      .from("category_aliases")
+      .upsert({ clover_name: key, category_name: exact }, { onConflict: "clover_name", ignoreDuplicates: true });
+    if (error) console.error("[clover] category alias link failed", { raw, exact, error });
+    ctx.aliasToCategory.set(key, exact);
+    return exact;
+  }
+
+  // Genuinely new — create it (hidden + flagged for review) and remember
+  // the alias so a rename later doesn't make this look new again.
+  const { error: categoryError } = await client
+    .from("categories")
+    .upsert({ name: raw, needs_review: true, show_on_storefront: false }, { onConflict: "name", ignoreDuplicates: true });
+  if (categoryError) console.error("[clover] category create failed", { raw, categoryError });
+
+  const { error: aliasError } = await client
+    .from("category_aliases")
+    .upsert({ clover_name: key, category_name: raw }, { onConflict: "clover_name", ignoreDuplicates: true });
+  if (aliasError) console.error("[clover] category alias create failed", { raw, aliasError });
+
+  ctx.aliasToCategory.set(key, raw);
+  ctx.nameByLower.set(key, raw);
+  return raw;
 }
 
 // Raw shape of the bits of a Clover item we actually use. Clover's real
@@ -187,11 +272,11 @@ export type CloverItem = {
   itemStock?: { quantity?: number };
 };
 
-export function mapCloverItemToProductFields(item: CloverItem) {
+export async function mapCloverItemToProductFields(item: CloverItem, ctx: CloverCategoryContext) {
   const categoryName = item.categories?.elements?.[0]?.name;
   return {
     name: item.name?.trim() || "Untitled item",
-    category: mapCloverCategory(categoryName),
+    category: await resolveCloverCategory(categoryName, ctx),
     price: typeof item.price === "number" ? Math.max(0, item.price) / 100 : 0,
     stock: typeof item.itemStock?.quantity === "number" ? Math.max(0, item.itemStock.quantity) : 0,
   };
@@ -228,9 +313,12 @@ export type CloverUpsertResult = {
 // by clover_item_id, not name — so a rename in Clover doesn't create a
 // duplicate). Never touches blurb or a manually-uploaded photo, since
 // Clover has no equivalent fields for either.
-export async function upsertProductFromCloverItem(item: CloverItem): Promise<CloverUpsertResult> {
+export async function upsertProductFromCloverItem(
+  item: CloverItem,
+  ctx: CloverCategoryContext
+): Promise<CloverUpsertResult> {
   const client = supabaseAdmin;
-  const fields = mapCloverItemToProductFields(item);
+  const fields = await mapCloverItemToProductFields(item, ctx);
   const empty: CloverUpsertResult = { ok: false, id: null, name: fields.name, category: fields.category, needsPhoto: false };
   if (!client) return empty;
 

@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { getProducts, Product } from "@/lib/products";
+import { getCategories, Category } from "@/lib/categories";
 import { getOrders, updateOrderStatus, notifyOrderReady, Order, OrderStatus } from "@/lib/orders";
 import { getRewardsSignups, RewardsSignup } from "@/lib/rewards";
 import { isSupabaseConfigured } from "@/lib/supabase";
@@ -25,14 +26,16 @@ function isToday(iso: string) {
 export default function DashboardPage() {
   const [tab, setTab] = useState<Tab>("orders");
   const [products, setProducts] = useState<Product[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
   const [signups, setSignups] = useState<RewardsSignup[]>([]);
   const [loading, setLoading] = useState(true);
   const [live, setLive] = useState(false);
 
   const loadAll = () => {
-    Promise.all([getProducts(), getOrders(), getRewardsSignups()]).then(([p, o, s]) => {
+    Promise.all([getProducts(), getCategories(), getOrders(), getRewardsSignups()]).then(([p, c, o, s]) => {
       setProducts(p);
+      setCategories(c);
       setOrders(o);
       setSignups(s);
       setLoading(false);
@@ -192,6 +195,7 @@ export default function DashboardPage() {
             {tab === "inventory" && (
               <InventoryPanel
                 products={products}
+                categories={categories}
                 onStockSaved={handleStockSaved}
                 onProductSaved={handleProductSaved}
                 onProductRemoved={handleProductRemoved}

@@ -17,6 +17,7 @@ import {
   deleteProductByCloverItemId,
   fetchCloverItem,
   getFreshCloverConnection,
+  loadCloverCategoryContext,
   recordWebhookEvent,
   recordWebhookVerification,
   upsertProductFromCloverItem,
@@ -56,6 +57,9 @@ export async function POST(request: Request) {
   const connection = await getFreshCloverConnection();
   if (connection && body.merchants) {
     const events = body.merchants[connection.merchant_id] ?? [];
+    // Loaded once per delivery, same reasoning as /api/clover/sync — see
+    // loadCloverCategoryContext's comment in lib/clover.ts.
+    const categoryContext = await loadCloverCategoryContext();
 
     for (const event of events) {
       if (!event.objectId?.startsWith("I:")) continue;
@@ -69,7 +73,7 @@ export async function POST(request: Request) {
       const item = await fetchCloverItem(connection.merchant_id, connection.access_token, itemId);
       if (!item) continue;
 
-      const result = await upsertProductFromCloverItem(item);
+      const result = await upsertProductFromCloverItem(item, categoryContext);
       if (result.ok && result.needsPhoto && result.id && isImageGenConfigured()) {
         await generateAndSavePhoto(result.id, result.name, result.category);
       }

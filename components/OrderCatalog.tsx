@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { categories, Product } from "@/lib/products";
+import { Product } from "@/lib/products";
 import ProductCard from "@/components/ProductCard";
 import CategoryPills from "@/components/CategoryPills";
 import Reveal from "@/components/Reveal";
@@ -13,9 +13,11 @@ import Reveal from "@/components/Reveal";
 // list itself needs to be present in the server-rendered HTML — for SEO,
 // and so it shows up instantly instead of only after a client-side fetch —
 // while this filtering/highlighting behavior still needs to run in the
-// browser.
-export default function OrderCatalog({ products }: { products: Product[] }) {
-  const [active, setActive] = useState<(typeof categories)[number] | "All">("All");
+// browser. `categories` is the storefront-visible list resolved server-side
+// (see lib/categories.ts's getStorefrontCategoryNames) — not every category
+// staff track internally is meant for customers to browse.
+export default function OrderCatalog({ products, categories }: { products: Product[]; categories: string[] }) {
+  const [active, setActive] = useState<string>("All");
   const [highlightId, setHighlightId] = useState<string | null>(null);
 
   useEffect(() => {

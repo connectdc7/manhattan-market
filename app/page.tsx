@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { CSSProperties } from "react";
-import { getProducts } from "@/lib/products";
+import { getStorefrontProducts } from "@/lib/products";
 import { getActiveOrderCount } from "@/lib/orders";
 import { isSupabaseConfigured } from "@/lib/supabase";
 import { getStoreStatus } from "@/lib/store-hours";
@@ -53,7 +53,7 @@ function Petal({ colorA, colorB, className, style }: { colorA: string; colorB: s
 }
 
 export default async function Home() {
-  const [products, activeOrders] = await Promise.all([getProducts(), getActiveOrderCount()]);
+  const [products, activeOrders] = await Promise.all([getStorefrontProducts(), getActiveOrderCount()]);
   const status = getStoreStatus();
 
   // Only ever promote what's actually sellable right now — a special banner

@@ -1,21 +1,24 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import {
-  categories,
-  createProduct,
-  deleteProduct,
-  updateProduct,
-  Product,
-  ProductCategory,
-} from "@/lib/products";
+import { createProduct, deleteProduct, updateProduct, Product, ProductCategory } from "@/lib/products";
+import { Category, createCategory } from "@/lib/categories";
+
+// Sentinel <option> value for "+ Add new category" — never a real category
+// name, so it's safe to compare `category === NEW_CATEGORY` directly.
+const NEW_CATEGORY = "__new_category__";
 
 type Props = {
   mode: "create" | "edit";
   product?: Product;
+  categories: Category[];
   onClose: () => void;
   onSaved: (product: Product) => void;
   onDeleted?: (id: string) => void;
+  // Called after successfully hand-adding a brand-new category from this
+  // form, so the parent can refetch and this new category shows up
+  // everywhere else (filter pills, future Add/Edit forms) too.
+  onCategoryCreated?: () => void;
 };
 
 // Downscales a photo client-side before it's sent off for AI reading —
@@ -39,9 +42,18 @@ async function downscaleForExtraction(file: File): Promise<{ base64: string; med
 
 type ExtractStatus = "idle" | "reading" | "filled" | "unclear" | "failed";
 
-export default function ProductFormModal({ mode, product, onClose, onSaved, onDeleted }: Props) {
+export default function ProductFormModal({
+  mode,
+  product,
+  categories,
+  onClose,
+  onSaved,
+  onDeleted,
+  onCategoryCreated,
+}: Props) {
   const [name, setName] = useState(product?.name ?? "");
-  const [category, setCategory] = useState<ProductCategory>(product?.category ?? categories[0]);
+  const [category, setCategory] = useState<ProductCategory>(product?.category ?? categories[0]?.name ?? "");
+  const [newCategoryName, setNewCategoryName] = useState("");
   const [price, setPrice] = useState(product ? String(product.price) : "");
   const [stock, setStock] = useState("0");
   const [blurb, setBlurb] = useState(product?.blurb ?? "");
@@ -121,13 +133,34 @@ export default function ProductFormModal({ mode, product, onClose, onSaved, onDe
       setError("Enter a valid price.");
       return;
     }
+    if (category === NEW_CATEGORY && !newCategoryName.trim()) {
+      setError("Name the new category, or pick an existing one.");
+      return;
+    }
 
     setSaving(true);
+
+    // Resolve "+ Add new category" into a real category before saving the
+    // product itself — the product needs an actual category name to save
+    // against (products.category is a foreign key into the categories
+    // table), not the placeholder sentinel value.
+    let resolvedCategory = category;
+    if (category === NEW_CATEGORY) {
+      const createdCategory = await createCategory(newCategoryName);
+      if (!createdCategory) {
+        setSaving(false);
+        setError("Couldn't add that category — try again.");
+        return;
+      }
+      resolvedCategory = createdCategory.name;
+      onCategoryCreated?.();
+    }
+
     if (mode === "create") {
       const stockNum = Math.max(0, Math.floor(Number(stock) || 0));
       const created = await createProduct({
         name: name.trim(),
-        category,
+        category: resolvedCategory,
         price: priceNum,
         stock: stockNum,
         blurb: blurb.trim(),
@@ -143,7 +176,7 @@ export default function ProductFormModal({ mode, product, onClose, onSaved, onDe
     } else if (product) {
       const updated = await updateProduct(product.id, {
         name: name.trim(),
-        category,
+        category: resolvedCategory,
         price: priceNum,
         blurb: blurb.trim(),
         photoFile,
@@ -272,10 +305,11 @@ export default function ProductFormModal({ mode, product, onClose, onSaved, onDe
                   className="rounded border border-line bg-paper px-3 py-2 font-body text-sm text-ink outline-none focus:border-green"
                 >
                   {categories.map((c) => (
-                    <option key={c} value={c}>
-                      {c}
+                    <option key={c.name} value={c.name}>
+                      {c.name}
                     </option>
                   ))}
+                  <option value={NEW_CATEGORY}>+ Add new category…</option>
                 </select>
               </label>
 
@@ -292,6 +326,21 @@ export default function ProductFormModal({ mode, product, onClose, onSaved, onDe
                 />
               </label>
             </div>
+
+            {category === NEW_CATEGORY && (
+              <label className="flex flex-col gap-1">
+                <span className="font-mono text-[0.65rem] uppercase tracking-wide text-ink-soft">
+                  New category name
+                </span>
+                <input
+                  type="text"
+                  value={newCategoryName}
+                  onChange={(e) => setNewCategoryName(e.target.value)}
+                  placeholder="e.g. Frozen"
+                  className="rounded border border-line bg-paper px-3 py-2 font-body text-sm text-ink outline-none focus:border-green"
+                />
+              </label>
+            )}
 
             {mode === "create" && (
               <label className="flex flex-col gap-1">

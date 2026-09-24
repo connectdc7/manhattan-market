@@ -23,17 +23,124 @@
 create extension if not exists "pgcrypto";
 
 -- ---------------------------------------------------------------------------
+-- categories — the department list products.category is drawn from. Starts
+-- with the same four departments this build always had (seeded below), but
+-- isn't locked to just those: Clover sync creates a new row here the first
+-- time it sees a department name it doesn't recognize (see lib/clover.ts's
+-- resolveCloverCategory), flagged needs_review = true and
+-- show_on_storefront = false until a staffer confirms/renames/merges/shows
+-- it from the dashboard's Inventory tab. Defined before `products` below
+-- since products.category is a foreign key into this table.
+-- ---------------------------------------------------------------------------
+create table if not exists categories (
+  name text primary key,
+  sort_order integer not null default 0,
+  show_on_storefront boolean not null default true,
+  needs_review boolean not null default false,
+  created_at timestamptz not null default now()
+);
+
+alter table categories enable row level security;
+
+drop policy if exists "Public can read categories" on categories;
+create policy "Public can read categories"
+  on categories for select
+  to anon
+  using (true);
+
+-- Lets the dashboard's Inventory tab rename, hide/show, or hand-add a
+-- category without a login. Same no-login tradeoff noted at the top of
+-- this file. No delete policy on purpose — removing a category only ever
+-- happens through merge_category() below, which runs as the function
+-- owner (security definer) and does the delete itself after moving that
+-- category's products somewhere else, so a direct anon delete can't leave
+-- products pointed at a category that no longer exists.
+drop policy if exists "Public can add categories" on categories;
+create policy "Public can add categories"
+  on categories for insert
+  to anon
+  with check (true);
+
+drop policy if exists "Public can update categories" on categories;
+create policy "Public can update categories"
+  on categories for update
+  to anon
+  using (true)
+  with check (true);
+
+insert into categories (name, sort_order, show_on_storefront, needs_review) values
+  ('Hot Food', 0, true, false),
+  ('Snacks', 1, true, false),
+  ('Drinks', 2, true, false),
+  ('Grocery', 3, true, false)
+on conflict (name) do nothing;
+
+-- Remembers which raw Clover department name maps to which row above, so
+-- renaming or merging a category here doesn't make the next Clover sync
+-- think that department is "new" again (it would otherwise recreate the
+-- old name under a fresh row — see resolveCloverCategory's comment in
+-- lib/clover.ts). Server-only, like clover_connections further down:
+-- nothing in the browser reads or writes this table directly, so it gets
+-- no anon policies at all.
+create table if not exists category_aliases (
+  clover_name text primary key,
+  category_name text not null references categories (name) on update cascade on delete cascade,
+  created_at timestamptz not null default now()
+);
+
+alter table category_aliases enable row level security;
+
+-- Atomically folds one category into another — moves every product and
+-- repoints every Clover alias from p_from to p_into, then removes the
+-- now-empty p_from row. Used by the dashboard's "merge into" action (see
+-- lib/categories.ts's mergeCategoryInto) instead of three separate writes
+-- from the browser, where a dropped connection partway through could leave
+-- products pointed at a category that no longer exists. Mirrors the
+-- decrement_stock function below in spirit — the read-then-write-from-the-
+-- browser risk, just for a rename/merge instead of a stock count.
+create or replace function merge_category(p_from text, p_into text)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if p_from = p_into then
+    return;
+  end if;
+  update products set category = p_into where category = p_from;
+  update category_aliases set category_name = p_into where category_name = p_from;
+  delete from categories where name = p_from;
+end;
+$$;
+
+grant execute on function merge_category(text, text) to anon;
+
+-- ---------------------------------------------------------------------------
 -- products
 -- ---------------------------------------------------------------------------
 create table if not exists products (
   id text primary key,
   name text not null,
-  category text not null check (category in ('Hot Food', 'Snacks', 'Drinks', 'Grocery')),
+  category text not null references categories (name) on update cascade,
   price numeric(10, 2) not null,
   stock integer not null default 0 check (stock >= 0),
   blurb text not null default '',
   swatch text not null default '#21594a'
 );
+
+-- Upgrades a table created before categories existed, where `category` was
+-- just a free-text column locked to the original four names by a CHECK
+-- constraint. Safe to re-run: both guards no-op once already applied.
+alter table products drop constraint if exists products_category_check;
+
+do $$
+begin
+  if not exists (select 1 from pg_constraint where conname = 'products_category_fkey') then
+    alter table products add constraint products_category_fkey
+      foreign key (category) references categories (name) on update cascade;
+  end if;
+end $$;
 
 -- Real product photo, uploaded from the dashboard (see the storage bucket
 -- below). Empty string until staff add one, and the site falls back to the
@@ -433,6 +540,15 @@ begin
     where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'products'
   ) then
     alter publication supabase_realtime add table products;
+  end if;
+
+  -- So a category Clover's sync creates mid-session (flagged needs_review)
+  -- shows up in the dashboard's review queue without a manual refresh.
+  if not exists (
+    select 1 from pg_publication_tables
+    where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'categories'
+  ) then
+    alter publication supabase_realtime add table categories;
   end if;
 
   if not exists (

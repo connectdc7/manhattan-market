@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
-import { getProducts } from "@/lib/products";
+import { getStorefrontProducts } from "@/lib/products";
+import { getStorefrontCategoryNames } from "@/lib/categories";
 import OrderCatalog from "@/components/OrderCatalog";
 
 export const metadata: Metadata = {
@@ -17,7 +18,7 @@ export const metadata: Metadata = {
 export const dynamic = "force-dynamic";
 
 export default async function OrderPage() {
-  const products = await getProducts();
+  const [products, categories] = await Promise.all([getStorefrontProducts(), getStorefrontCategoryNames()]);
 
   // Only ever show what's actually in stock — the site should always match
   // the live inventory, so a sold-out item just isn't on the menu rather
@@ -35,7 +36,7 @@ export default async function OrderPage() {
         launch.
       </p>
 
-      <OrderCatalog products={inStock} />
+      <OrderCatalog products={inStock} categories={categories} />
     </div>
   );
 }

@@ -1,9 +1,11 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { categories, updateProductStock, setProductSpecial, setProductHealthy, Product } from "@/lib/products";
+import { updateProductStock, setProductSpecial, setProductHealthy, Product } from "@/lib/products";
+import { Category } from "@/lib/categories";
 import ProductFormModal from "./ProductFormModal";
 import CloverPanel from "./CloverPanel";
+import CategoryReviewPanel from "./CategoryReviewPanel";
 
 function StockStepper({
   product,
@@ -74,6 +76,7 @@ type ModalState = { mode: "create" } | { mode: "edit"; product: Product } | null
 
 export default function InventoryPanel({
   products,
+  categories,
   onStockSaved,
   onProductSaved,
   onProductRemoved,
@@ -81,6 +84,7 @@ export default function InventoryPanel({
   salesVelocity,
 }: {
   products: Product[];
+  categories: Category[];
   onStockSaved: (id: string, stock: number) => void;
   onProductSaved: (product: Product) => void;
   onProductRemoved: (id: string) => void;
@@ -88,7 +92,8 @@ export default function InventoryPanel({
   salesVelocity: Record<string, number>;
 }) {
   const [search, setSearch] = useState("");
-  const [category, setCategory] = useState<(typeof categories)[number] | "All">("All");
+  const [category, setCategory] = useState<string>("All");
+  const categoryNames = useMemo(() => categories.map((c) => c.name), [categories]);
   const [sort, setSort] = useState<SortMode>("low-stock");
   const [modal, setModal] = useState<ModalState>(null);
   const [togglingSpecial, setTogglingSpecial] = useState<string | null>(null);
@@ -192,6 +197,8 @@ export default function InventoryPanel({
     <div>
       <CloverPanel onSynced={onRefresh} />
 
+      <CategoryReviewPanel categories={categories} onResolved={onRefresh} />
+
       <div className="mb-4 flex flex-wrap items-center gap-3 rounded-lg border border-line bg-panel p-4">
         <div>
           <p className="font-mono text-[0.65rem] uppercase tracking-wide text-ink-soft">AI Photos</p>
@@ -235,7 +242,7 @@ export default function InventoryPanel({
           placeholder="Search products…"
           className="rounded-full border border-line bg-paper px-4 py-1.5 font-body text-sm text-ink outline-none focus:border-green"
         />
-        {(["All", ...categories] as const).map((c) => (
+        {["All", ...categoryNames].map((c) => (
           <button
             key={c}
             onClick={() => setCategory(c)}
@@ -488,9 +495,11 @@ export default function InventoryPanel({
         <ProductFormModal
           mode={modal.mode}
           product={modal.mode === "edit" ? modal.product : undefined}
+          categories={categories}
           onClose={() => setModal(null)}
           onSaved={onProductSaved}
           onDeleted={onProductRemoved}
+          onCategoryCreated={onRefresh}
         />
       )}
     </div>

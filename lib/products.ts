@@ -9,8 +9,14 @@
 // table is seeded once from supabase/seed.sql with the same numbers below,
 // standing in for a live count mirrored from the Clover terminal.
 import { supabase } from "./supabase";
+import { getStorefrontCategoryNames } from "./categories";
 
-export type ProductCategory = "Snacks" | "Drinks" | "Hot Food" | "Grocery";
+// Used to be a fixed 4-value union ("Snacks" | "Drinks" | "Hot Food" |
+// "Grocery"). Categories are data now, kept in Supabase's `categories`
+// table (see lib/categories.ts) so a Clover sync can introduce a
+// department the dashboard doesn't already have — so this is just a plain
+// string, matching whatever's in that table's `name` column.
+export type ProductCategory = string;
 
 export type Product = {
   id: string;
@@ -47,8 +53,6 @@ export const fallbackProducts: Product[] = [
   { id: "bread-loaf", name: "White Bread Loaf", category: "Grocery", price: 3.0, stock: 8, blurb: "Fresh delivery every other day.", swatch: "#d9b978", is_healthy: false, created_at: daysAgo(150) },
 ];
 
-export const categories = ["Hot Food", "Snacks", "Drinks", "Grocery"] as const;
-
 const PRODUCT_COLUMNS =
   "id, name, category, price, stock, blurb, swatch, image_url, restocked_at, is_special, is_healthy, created_at";
 
@@ -66,6 +70,21 @@ export async function getProducts(): Promise<Product[]> {
   }
 
   return data.map((row) => ({ ...row, price: Number(row.price) })) as Product[];
+}
+
+// Same as getProducts(), but filtered down to categories staff have
+// actually confirmed customers should see (see lib/categories.ts) — what
+// every customer-facing page (homepage, /order) should use instead of the
+// raw list, so a Clover department still awaiting review (or one staff
+// deliberately keep off the storefront, like Lottery or Tobacco) never
+// shows up to a shopper, even under an "All" filter. Server-side routes
+// that look a product up by id regardless of category — checkout, the
+// Stripe webhook — use plain getProducts() instead: by the time an item is
+// in a cart it already passed through a storefront page that filtered it.
+export async function getStorefrontProducts(): Promise<Product[]> {
+  const [products, visibleCategories] = await Promise.all([getProducts(), getStorefrontCategoryNames()]);
+  const visible = new Set(visibleCategories);
+  return products.filter((p) => visible.has(p.category));
 }
 
 // Best-effort stock decrement after a (mocked) order is placed. Calls a

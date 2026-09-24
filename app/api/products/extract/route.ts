@@ -8,7 +8,7 @@
 // Inert (returns 501) until ANTHROPIC_API_KEY is set as an environment
 // variable. See README's "AI photo auto-fill" section.
 import { NextResponse } from "next/server";
-import { categories } from "@/lib/products";
+import { getCategories } from "@/lib/categories";
 
 export const runtime = "nodejs";
 
@@ -49,14 +49,19 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Missing photo data." }, { status: 400 });
   }
 
-  const prompt = `You're looking at a photo of a single retail product from a small convenience store (categories used here: ${categories.join(", ")}).
+  // Fetched live rather than a fixed list — categories are data now (see
+  // lib/categories.ts), and staff may have renamed or added to them since
+  // this route last ran.
+  const categoryNames = (await getCategories()).map((c) => c.name);
+
+  const prompt = `You're looking at a photo of a single retail product from a small convenience store (categories used here: ${categoryNames.join(", ")}).
 
 Respond with ONLY a JSON object, no other text, in exactly this shape:
 {"name": string, "category": string, "confident": boolean}
 
 Rules:
 - "name" is a short, clean product name the way it would read on a shelf label or receipt — brand plus product, include size/variant if visible (example: "Lay's Classic Chips 2.5oz").
-- "category" must be exactly one of: ${categories.join(", ")}. Pick your best guess based on what the product actually is.
+- "category" must be exactly one of: ${categoryNames.join(", ")}. Pick your best guess based on what the product actually is.
 - Set "confident" to false if the photo is blurry, doesn't clearly show a single product, or you can't read enough to be sure — still give your best-guess name, just flag it.`;
 
   try {
@@ -99,7 +104,7 @@ Rules:
     const match = text.match(/\{[\s\S]*\}/);
     const parsed: unknown = match ? JSON.parse(match[0]) : null;
 
-    if (!isExtractResult(parsed) || !(categories as readonly string[]).includes(parsed.category)) {
+    if (!isExtractResult(parsed) || !categoryNames.includes(parsed.category)) {
       return NextResponse.json(
         { error: "Couldn't make sense of that photo — fill it in by hand." },
         { status: 502 }

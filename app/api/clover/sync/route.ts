@@ -7,6 +7,7 @@ import {
   fetchAllCloverItems,
   getFreshCloverConnection,
   isCloverConfigured,
+  loadCloverCategoryContext,
   upsertProductFromCloverItem,
 } from "@/lib/clover";
 import { generatePhotosForItems, isImageGenConfigured } from "@/lib/image-gen";
@@ -31,6 +32,11 @@ export async function POST() {
 
   const items = await fetchAllCloverItems(connection.merchant_id, connection.access_token);
 
+  // Loaded once for the whole run — see loadCloverCategoryContext's
+  // comment in lib/clover.ts for why (avoids a per-item DB round trip and
+  // duplicate category rows when several items share one new department).
+  const categoryContext = await loadCloverCategoryContext();
+
   let succeeded = 0;
   let failed = 0;
   // Collected as items are upserted, then generated afterward as its own
@@ -42,7 +48,7 @@ export async function POST() {
   const needsPhoto: { id: string; name: string; category: string }[] = [];
 
   for (const item of items) {
-    const result = await upsertProductFromCloverItem(item);
+    const result = await upsertProductFromCloverItem(item, categoryContext);
     if (result.ok) succeeded++;
     else failed++;
     if (result.ok && result.needsPhoto && result.id) {

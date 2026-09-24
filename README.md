@@ -271,6 +271,22 @@ before it expires, so this shouldn't need attention day to day — if the
 panel ever shows disconnected unexpectedly anyway, click Connect Clover
 again.
 
+**Categories aren't fixed to Hot Food/Snacks/Drinks/Grocery.** The first
+sync pulls in whatever department names actually exist in your friend's
+Clover account. One that already matches one of the four above links up
+automatically with no action needed. A genuinely new one (say, "Beverages,"
+"Candy," "Lottery," "Tobacco") gets created right away too — so the item is
+correctly categorized immediately, never dumped into the wrong bucket — but
+it starts hidden from the public order page and shows up in a **"categories
+from Clover need a quick look"** box at the top of the Inventory tab. From
+there you can rename it (e.g. "Beverages" → "Drinks," to match naming
+you're already using elsewhere), merge it into an existing category instead
+of keeping it separate, or confirm it as its own category and choose
+whether it belongs on the online order page — a "Lottery" or "Tobacco"
+department is a good example of something you'd likely want tracked in
+inventory but never orderable online. This only asks once per new
+department name; after that, it's remembered for every future sync.
+
 ## AI-generated product & gallery photos (optional)
 
 Any product with no photo — a solid color tile instead of a picture — can
