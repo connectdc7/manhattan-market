@@ -32,9 +32,16 @@ export async function getHeroEffect(): Promise<HeroEffect> {
 
 export async function setHeroEffect(effect: HeroEffect): Promise<boolean> {
   if (!supabase) return false;
+  // A plain update, not an upsert — the singleton row always exists
+  // (seed.sql inserts it), and an upsert is treated by Postgres as an
+  // INSERT ... ON CONFLICT, which checks the table's INSERT policy even
+  // when the row already exists and the statement ends up updating it.
+  // hero_settings only grants anon SELECT + UPDATE (there's never a
+  // reason to insert a second row), so an upsert here fails RLS.
   const { error } = await supabase
     .from("hero_settings")
-    .upsert({ id: "singleton", effect, updated_at: new Date().toISOString() }, { onConflict: "id" });
+    .update({ effect, updated_at: new Date().toISOString() })
+    .eq("id", "singleton");
   if (error) {
     console.error("setHeroEffect:", error.message);
     return false;
