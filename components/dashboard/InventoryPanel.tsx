@@ -291,15 +291,26 @@ export default function InventoryPanel({
               return (
                 <tr key={p.id} className="border-b border-line last:border-none">
                   <td className="px-4 py-2.5">
-                    {p.image_url ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={p.image_url} alt="" className="h-9 w-9 rounded object-cover" />
-                    ) : (
-                      <div
-                        className="h-9 w-9 rounded"
-                        style={{ backgroundColor: p.swatch }}
-                      />
-                    )}
+                    <button
+                      type="button"
+                      onClick={() => setModal({ mode: "edit", product: p })}
+                      aria-label={`Edit ${p.name}`}
+                      className="block shrink-0 rounded transition hover:opacity-80 focus:outline-none focus:ring-2 focus:ring-green"
+                    >
+                      {p.image_url ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={p.image_url}
+                          alt=""
+                          className="h-16 w-16 rounded object-cover sm:h-14 sm:w-14"
+                        />
+                      ) : (
+                        <div
+                          className="h-16 w-16 rounded sm:h-14 sm:w-14"
+                          style={{ backgroundColor: p.swatch }}
+                        />
+                      )}
+                    </button>
                   </td>
                   <td className="px-4 py-2.5 text-ink">
                     {p.name}
