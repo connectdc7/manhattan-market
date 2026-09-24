@@ -248,13 +248,19 @@ h1, h2, h3, h4 {
   animation: snow-sway var(--sway-dur, 4s) ease-in-out infinite;
   animation-delay: var(--sway-delay, 0s);
 }
+/* Pale ice-blue, not pure white — the hero's own background (--paper) is
+   pure white, so a plain white dot with only a white glow was
+   essentially invisible against it. A cool blue-white fill plus a soft
+   blue shadow and a faint matching outline is what actually reads as
+   "snow" here, while still staying light. */
 .snowflake {
   display: block;
   width: 100%;
   height: 100%;
   border-radius: 50%;
-  background: #ffffff;
-  box-shadow: 0 0 3px rgba(255, 255, 255, 0.8);
+  background: #eef6ff;
+  border: 1px solid rgba(147, 186, 224, 0.45);
+  box-shadow: 0 0 4px rgba(120, 170, 220, 0.55);
 }
 @keyframes snow-fall-y {
   0% { transform: translateY(0); }

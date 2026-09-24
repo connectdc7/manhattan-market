@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   HERO_EFFECTS,
   HeroEffect,
@@ -83,17 +83,41 @@ export default function HeroPanel({
   media: HeroMedia[];
   onRefresh: () => void;
 }) {
+  // Clicking a card only stages a choice locally — it doesn't touch the
+  // database until Save is pressed. `effect` (the prop) is what's
+  // actually live on the homepage right now; `selected` is what's
+  // highlighted in the picker, which starts out matching `effect` but
+  // can drift from it while staff are deciding.
+  const [selected, setSelected] = useState<HeroEffect>(effect);
+  const liveRef = useRef(effect);
   const [savingEffect, setSavingEffect] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const handlePick = async (value: HeroEffect) => {
-    if (value === effect || savingEffect) return;
+  // Follows the server's live effect — but only when staff don't have an
+  // unsaved pick of their own. Without that guard, an unrelated realtime
+  // update (a new order coming in, a stock edit from someone else) would
+  // silently discard whatever they'd just clicked, before they got to
+  // press Save.
+  useEffect(() => {
+    if (selected === liveRef.current) {
+      setSelected(effect);
+    }
+    liveRef.current = effect;
+    // `selected` intentionally isn't a dependency — this effect only
+    // reacts to the live value changing, not to the user's own picks.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [effect]);
+
+  const dirty = selected !== effect;
+
+  const handleSave = async () => {
+    if (!dirty || savingEffect) return;
     setError(null);
     setSavingEffect(true);
-    const ok = await setHeroEffect(value);
+    const ok = await setHeroEffect(selected);
     setSavingEffect(false);
     if (ok) onRefresh();
     else setError("Couldn't save that — try again.");
@@ -148,37 +172,56 @@ export default function HeroPanel({
         </p>
         <p className="mt-1 font-body text-sm text-ink-soft">
           Controls what&apos;s behind &quot;Order ahead. Skip the line.&quot; on the storefront homepage.
-          Changes go live right away.
+          Pick one below, then hit Save to make it live.
         </p>
 
         <div className="mt-3 grid grid-cols-1 gap-2.5 sm:grid-cols-2">
-          {HERO_EFFECTS.map((opt) => (
-            <button
-              key={opt.value}
-              type="button"
-              onClick={() => handlePick(opt.value)}
-              disabled={savingEffect}
-              className={`rounded-lg border p-3 text-left transition disabled:opacity-60 ${
-                effect === opt.value
-                  ? "border-green bg-green-tint"
-                  : "border-line bg-paper hover:border-green/60"
-              }`}
-            >
-              <span className="flex items-center justify-between gap-2">
-                <span className="font-body text-sm font-semibold text-ink">{opt.label}</span>
-                {effect === opt.value && (
-                  <span className="font-mono text-[0.55rem] font-semibold uppercase tracking-wide text-green-deep">
-                    Active
-                  </span>
-                )}
-              </span>
-              <span className="mt-0.5 block font-body text-xs text-ink-soft">{opt.description}</span>
-            </button>
-          ))}
+          {HERO_EFFECTS.map((opt) => {
+            const isSelected = selected === opt.value;
+            const isLive = effect === opt.value;
+            return (
+              <button
+                key={opt.value}
+                type="button"
+                onClick={() => setSelected(opt.value)}
+                disabled={savingEffect}
+                className={`rounded-lg border p-3 text-left transition disabled:opacity-60 ${
+                  isSelected ? "border-green bg-green-tint" : "border-line bg-paper hover:border-green/60"
+                }`}
+              >
+                <span className="flex items-center justify-between gap-2">
+                  <span className="font-body text-sm font-semibold text-ink">{opt.label}</span>
+                  {isLive && (
+                    <span className="font-mono text-[0.55rem] font-semibold uppercase tracking-wide text-green-deep">
+                      Live
+                    </span>
+                  )}
+                </span>
+                <span className="mt-0.5 block font-body text-xs text-ink-soft">{opt.description}</span>
+              </button>
+            );
+          })}
+        </div>
+
+        <div className="mt-3 flex items-center gap-3">
+          <button
+            type="button"
+            onClick={handleSave}
+            disabled={!dirty || savingEffect}
+            className="rounded-full bg-green px-4 py-1.5 font-mono text-xs font-semibold text-white transition hover:bg-green-deep disabled:opacity-50"
+          >
+            {savingEffect ? "Saving…" : "Save"}
+          </button>
+          {dirty && !savingEffect && (
+            <span className="font-mono text-[0.65rem] uppercase tracking-wide text-gold-ink">
+              Unsaved change — the homepage still shows{" "}
+              {HERO_EFFECTS.find((o) => o.value === effect)?.label ?? effect}
+            </span>
+          )}
         </div>
       </div>
 
-      {effect === "custom" && (
+      {selected === "custom" && (
         <div className="rounded-lg border border-line bg-panel p-4">
           <p className="font-mono text-[0.65rem] uppercase tracking-wide text-ink-soft">
             Photo &amp; Video Library
@@ -186,7 +229,8 @@ export default function HeroPanel({
           <p className="mt-1 font-body text-sm text-ink-soft">
             Upload as many photos and videos as you want, then pick which one is live. A video
             plays muted and on a loop; up to 60MB per file, straight from your phone&apos;s camera
-            or your photo library.
+            or your photo library. Setting one live here works right away — it doesn&apos;t need
+            the Save button above, only choosing &quot;Your Photo / Video&quot; as the background does.
           </p>
 
           <label className="mt-3 inline-block w-fit cursor-pointer rounded-full border border-line px-3.5 py-1.5 font-mono text-xs font-semibold text-ink-soft transition hover:border-green hover:text-green">
