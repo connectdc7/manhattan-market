@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { useCart } from "@/lib/cart-context";
 import { SkylineWordmark } from "@/components/Logo";
@@ -15,6 +16,17 @@ const NAV = [
 export default function Header() {
   const { count, openDrawer } = useCart();
   const [menuOpen, setMenuOpen] = useState(false);
+  // This Header renders on every page, including /dashboard itself — so
+  // without this check, a staffer already on the dashboard would still see
+  // a "Dashboard ↗" link up top. Clicking it opens ANOTHER dashboard tab
+  // (target="_blank" is deliberate everywhere else, so a customer browsing
+  // the storefront never loses their place) rather than doing anything
+  // useful, and it visually competes with the dashboard's own Orders /
+  // Inventory / Rewards / Analytics tabs just below — which are the actual,
+  // working way to move between sections. Hiding it here removes that
+  // confusing dead end and leaves the real tab bar as the obvious way back.
+  const pathname = usePathname();
+  const onDashboard = pathname === "/dashboard";
 
   return (
     <header className="sticky top-0 z-40">
@@ -39,14 +51,16 @@ export default function Header() {
           </nav>
 
           <div className="flex items-center gap-3">
-            <a
-              href="/dashboard"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="hidden rounded-full border border-line bg-paper px-4 py-2 font-mono text-xs font-semibold text-ink-soft transition hover:border-green hover:text-green md:inline-block"
-            >
-              Dashboard ↗
-            </a>
+            {!onDashboard && (
+              <a
+                href="/dashboard"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hidden rounded-full border border-line bg-paper px-4 py-2 font-mono text-xs font-semibold text-ink-soft transition hover:border-green hover:text-green md:inline-block"
+              >
+                Dashboard ↗
+              </a>
+            )}
             <button
               onClick={openDrawer}
               className="relative rounded-full border border-line bg-paper px-4 py-2 font-mono text-xs font-semibold text-ink transition-all hover:border-green hover:text-green active:scale-95"
@@ -85,15 +99,17 @@ export default function Header() {
                 {item.label}
               </Link>
             ))}
-            <a
-              href="/dashboard"
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={() => setMenuOpen(false)}
-              className="rounded-md px-2 py-2 font-mono text-xs font-semibold uppercase tracking-wide text-ink-soft hover:bg-panel"
-            >
-              Dashboard ↗
-            </a>
+            {!onDashboard && (
+              <a
+                href="/dashboard"
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={() => setMenuOpen(false)}
+                className="rounded-md px-2 py-2 font-mono text-xs font-semibold uppercase tracking-wide text-ink-soft hover:bg-panel"
+              >
+                Dashboard ↗
+              </a>
+            )}
           </nav>
         )}
       </div>
