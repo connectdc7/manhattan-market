@@ -496,6 +496,101 @@ create policy "Public can read gallery images"
 -- uses the service-role key (see lib/supabase-admin.ts), not the anon key.
 
 -- ---------------------------------------------------------------------------
+-- hero_settings / hero_media — lets staff swap the homepage hero's
+-- background from the dashboard's Homepage tab: one of the built-in
+-- ambient effects (Pink Petals, Falling Snow, Golden Autumn Leaves, Warm
+-- Coffee Steam, City Bokeh Lights), their own uploaded photo(s)/video, or a
+-- plain background with none of the above. hero_settings is a singleton
+-- row (same pattern as clover_webhook_state above); hero_media is the
+-- uploaded photo/video library, of which at most one is ever "active" (the
+-- one actually shown when effect = 'custom') — see set_active_hero_media()
+-- below. Defaults to 'petals' so an existing site's homepage looks exactly
+-- the same as before this table existed, until staff actively change it.
+-- ---------------------------------------------------------------------------
+create table if not exists hero_settings (
+  id text primary key default 'singleton',
+  effect text not null default 'petals'
+    check (effect in ('petals', 'snow', 'leaves', 'steam', 'bokeh', 'custom', 'plain')),
+  updated_at timestamptz not null default now()
+);
+
+insert into hero_settings (id, effect) values ('singleton', 'petals')
+on conflict (id) do nothing;
+
+alter table hero_settings enable row level security;
+
+drop policy if exists "Public can read hero settings" on hero_settings;
+create policy "Public can read hero settings"
+  on hero_settings for select
+  to anon
+  using (true);
+
+-- Lets the dashboard's Homepage tab change the hero effect without a
+-- login. Same no-login tradeoff noted at the top of this file.
+drop policy if exists "Public can update hero settings" on hero_settings;
+create policy "Public can update hero settings"
+  on hero_settings for update
+  to anon
+  using (true)
+  with check (true);
+
+create table if not exists hero_media (
+  id uuid primary key default gen_random_uuid(),
+  kind text not null check (kind in ('photo', 'video')),
+  url text not null,
+  -- The storage object's own path (distinct from `url`, its public URL) —
+  -- kept so deleting a row can also remove the underlying file with a
+  -- direct storage call, instead of having to parse a path back out of a
+  -- public URL.
+  storage_path text not null,
+  is_active boolean not null default false,
+  sort_order integer not null default 0,
+  created_at timestamptz not null default now()
+);
+
+alter table hero_media enable row level security;
+
+drop policy if exists "Public can read hero media" on hero_media;
+create policy "Public can read hero media"
+  on hero_media for select
+  to anon
+  using (true);
+
+drop policy if exists "Public can add hero media" on hero_media;
+create policy "Public can add hero media"
+  on hero_media for insert
+  to anon
+  with check (true);
+
+drop policy if exists "Public can update hero media" on hero_media;
+create policy "Public can update hero media"
+  on hero_media for update
+  to anon
+  using (true)
+  with check (true);
+
+drop policy if exists "Public can delete hero media" on hero_media;
+create policy "Public can delete hero media"
+  on hero_media for delete
+  to anon
+  using (true);
+
+-- Marks exactly one hero_media row active in a single statement, instead
+-- of an unset-everything-then-set-one pair of writes from the browser,
+-- where a dropped connection between the two could briefly leave zero (or
+-- two) rows active. Mirrors merge_category's reasoning above.
+create or replace function set_active_hero_media(p_id uuid)
+returns void
+language sql
+security definer
+set search_path = public
+as $$
+  update hero_media set is_active = (id = p_id);
+$$;
+
+grant execute on function set_active_hero_media(uuid) to anon;
+
+-- ---------------------------------------------------------------------------
 -- product-photos (storage) — lets staff upload a real product photo from
 -- the dashboard (a phone camera roll or a saved file), instead of typing
 -- in an image URL, and also holds AI-generated gallery scene photos (under
@@ -527,6 +622,38 @@ create policy "Public can update product photos"
   to anon
   using (bucket_id = 'product-photos')
   with check (bucket_id = 'product-photos');
+
+-- ---------------------------------------------------------------------------
+-- hero-media (storage) — the client's own uploaded homepage hero
+-- photo(s)/video, staged from the dashboard's Homepage tab (a phone camera
+-- roll works directly, same as product photos). Separate bucket from
+-- product-photos since a hero video can run much bigger than a product
+-- shot. Public so the homepage can display them without a login; the
+-- policies below only affect who can upload/remove them. Capped at 60MB
+-- per file — mainly a guard on video uploads; a hero background loop
+-- should be a few seconds, not a full-length clip.
+-- ---------------------------------------------------------------------------
+insert into storage.buckets (id, name, public, file_size_limit)
+values ('hero-media', 'hero-media', true, 62914560)
+on conflict (id) do nothing;
+
+drop policy if exists "Public can read hero media files" on storage.objects;
+create policy "Public can read hero media files"
+  on storage.objects for select
+  to anon
+  using (bucket_id = 'hero-media');
+
+drop policy if exists "Public can upload hero media files" on storage.objects;
+create policy "Public can upload hero media files"
+  on storage.objects for insert
+  to anon
+  with check (bucket_id = 'hero-media');
+
+drop policy if exists "Public can delete hero media files" on storage.objects;
+create policy "Public can delete hero media files"
+  on storage.objects for delete
+  to anon
+  using (bucket_id = 'hero-media');
 
 -- ---------------------------------------------------------------------------
 -- Realtime — lets the dashboard update the moment an order comes in or
@@ -570,5 +697,19 @@ begin
     where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'restock_requests'
   ) then
     alter publication supabase_realtime add table restock_requests;
+  end if;
+
+  if not exists (
+    select 1 from pg_publication_tables
+    where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'hero_settings'
+  ) then
+    alter publication supabase_realtime add table hero_settings;
+  end if;
+
+  if not exists (
+    select 1 from pg_publication_tables
+    where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'hero_media'
+  ) then
+    alter publication supabase_realtime add table hero_media;
   end if;
 end $$;

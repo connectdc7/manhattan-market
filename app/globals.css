@@ -219,6 +219,204 @@ h1, h2, h3, h4 {
   }
 }
 
+/* ------------------------------------------------------------------ */
+/* Falling snow — an alternate hero effect (see components/hero/        */
+/* SnowField.tsx). Same fall+sway, wrap/inner split as petals, but a    */
+/* plain soft dot instead of an SVG shape — snow doesn't tumble/flip    */
+/* the way a flat petal or leaf does, just drifts side to side.         */
+/* ------------------------------------------------------------------ */
+.snow-field {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+.snow-fall-wrap {
+  position: absolute;
+  top: -8%;
+  left: var(--x, 10%);
+  opacity: var(--o, 0.7);
+  width: var(--size, 8px);
+  height: var(--size, 8px);
+  animation: snow-fall-y var(--fall-dur, 14s) linear infinite;
+  animation-delay: var(--fall-delay, 0s);
+}
+.snow-fall-inner {
+  display: block;
+  width: 100%;
+  height: 100%;
+  animation: snow-sway var(--sway-dur, 4s) ease-in-out infinite;
+  animation-delay: var(--sway-delay, 0s);
+}
+.snowflake {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background: #ffffff;
+  box-shadow: 0 0 3px rgba(255, 255, 255, 0.8);
+}
+@keyframes snow-fall-y {
+  0% { transform: translateY(0); }
+  100% { transform: translateY(130vh); }
+}
+@keyframes snow-sway {
+  0%, 100% { transform: translateX(0); }
+  50% { transform: translateX(14px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .snow-fall-wrap {
+    animation: none;
+    top: 104%;
+    opacity: 0;
+  }
+  .snow-fall-inner {
+    animation: none;
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Falling autumn leaves — an alternate hero effect (see                */
+/* components/hero/LeafField.tsx). Same fall+flutter, wrap/inner split  */
+/* as petals, just a wider rotation range and faster tumble so a leaf   */
+/* reads as heavier/more chaotic than a petal, with no settled ground   */
+/* drift (leaves just keep falling and looping).                        */
+/* ------------------------------------------------------------------ */
+.leaf-field {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+.leaf {
+  position: absolute;
+  width: var(--size, 16px);
+  height: var(--size, 16px);
+  display: block;
+  filter: drop-shadow(0 1px 1.5px rgba(90, 50, 10, 0.18));
+}
+.leaf-fall-wrap {
+  position: absolute;
+  top: -10%;
+  left: var(--x, 10%);
+  opacity: var(--o, 0.8);
+  width: var(--size, 16px);
+  height: var(--size, 16px);
+  filter: drop-shadow(0 1px 1.5px rgba(90, 50, 10, 0.18));
+  animation: leaf-fall-y var(--fall-dur, 12s) linear infinite;
+  animation-delay: var(--fall-delay, 0s);
+}
+.leaf-fall-inner {
+  position: static;
+  width: 100%;
+  height: 100%;
+  animation: leaf-flutter var(--flutter-dur, 3s) ease-in-out infinite;
+  animation-delay: var(--flutter-delay, 0s);
+}
+@keyframes leaf-fall-y {
+  0% { transform: translateY(0); }
+  100% { transform: translateY(130vh); }
+}
+@keyframes leaf-flutter {
+  0%   { transform: translateX(0)     rotate(0deg)   scaleX(1); }
+  20%  { transform: translateX(14px)  rotate(110deg) scaleX(0.3); }
+  40%  { transform: translateX(-12px) rotate(200deg) scaleX(1); }
+  60%  { transform: translateX(16px)  rotate(300deg) scaleX(0.3); }
+  80%  { transform: translateX(-10px) rotate(420deg) scaleX(1); }
+  100% { transform: translateX(0)     rotate(480deg) scaleX(1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .leaf-fall-wrap {
+    animation: none;
+    top: 104%;
+    opacity: 0;
+  }
+  .leaf-fall-inner {
+    animation: none;
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Rising coffee steam — an alternate hero effect (see                  */
+/* components/hero/SteamField.tsx). Soft blurred wisps drift up from    */
+/* near the bottom, swaying, growing, and fading as they rise — a       */
+/* single element/single keyframe set is enough since nothing else      */
+/* animates `transform` on it (see the comment in lib/hero-effects.ts). */
+/* ------------------------------------------------------------------ */
+.steam-field {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+.steam-wisp {
+  position: absolute;
+  bottom: -10%;
+  left: var(--x, 50%);
+  width: var(--size, 60px);
+  height: var(--size, 60px);
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(230, 190, 140, 0.9) 0%, rgba(230, 190, 140, 0) 70%);
+  filter: blur(6px);
+  opacity: 0;
+  animation: steam-rise var(--rise-dur, 9s) ease-out infinite;
+  animation-delay: var(--rise-delay, 0s);
+}
+@keyframes steam-rise {
+  0% { transform: translate(0, 0) scale(0.6); opacity: 0; }
+  15% { opacity: var(--peak-o, 0.3); }
+  70% { opacity: var(--peak-o, 0.3); }
+  100% { transform: translate(var(--drift, 12px), -115vh) scale(1.6); opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .steam-wisp {
+    animation: none;
+    opacity: 0;
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* City bokeh lights — an alternate hero effect (see                    */
+/* components/hero/BokehField.tsx). Soft glowing dots scattered across  */
+/* the whole hero, each independently drifting (transform) and          */
+/* twinkling (opacity) — two comma-separated animations on one element  */
+/* is fine here since they target different properties, unlike the      */
+/* fall+flutter/fall+sway pairs above which both need `transform`.      */
+/* ------------------------------------------------------------------ */
+.bokeh-field {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+.bokeh-light {
+  position: absolute;
+  top: var(--y, 50%);
+  left: var(--x, 50%);
+  width: var(--size, 20px);
+  height: var(--size, 20px);
+  border-radius: 50%;
+  filter: blur(3px);
+  animation:
+    bokeh-drift var(--drift-dur, 14s) ease-in-out infinite,
+    bokeh-twinkle var(--twinkle-dur, 5s) ease-in-out infinite;
+  animation-delay: var(--drift-delay, 0s), var(--twinkle-delay, 0s);
+}
+@keyframes bokeh-drift {
+  0%, 100% { transform: translate(0, 0); }
+  50% { transform: translate(var(--dx, 10px), var(--dy, 10px)); }
+}
+@keyframes bokeh-twinkle {
+  0%, 100% { opacity: var(--o-min, 0.15); }
+  50% { opacity: var(--o-max, 0.5); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .bokeh-light {
+    animation: none;
+    opacity: var(--o-min, 0.15);
+  }
+}
+
 /* A torn/perforated receipt edge — a row of little punched dots,
    dividing a "ticket" section from what's below it. */
 .receipt-perforation {

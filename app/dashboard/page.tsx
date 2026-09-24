@@ -6,6 +6,7 @@ import { getProducts, Product } from "@/lib/products";
 import { getCategories, Category } from "@/lib/categories";
 import { getOrders, updateOrderStatus, notifyOrderReady, Order, OrderStatus } from "@/lib/orders";
 import { getRewardsSignups, RewardsSignup } from "@/lib/rewards";
+import { getHeroEffect, getHeroMedia, HeroEffect, HeroMedia } from "@/lib/hero";
 import { isSupabaseConfigured } from "@/lib/supabase";
 import { subscribeToDashboardChanges } from "@/lib/realtime";
 import StatTile from "@/components/dashboard/StatTile";
@@ -13,8 +14,9 @@ import InventoryPanel from "@/components/dashboard/InventoryPanel";
 import OrdersPanel from "@/components/dashboard/OrdersPanel";
 import RewardsPanel from "@/components/dashboard/RewardsPanel";
 import AnalyticsPanel from "@/components/dashboard/AnalyticsPanel";
+import HeroPanel from "@/components/dashboard/HeroPanel";
 
-type Tab = "orders" | "inventory" | "rewards" | "analytics";
+type Tab = "orders" | "inventory" | "rewards" | "analytics" | "homepage";
 
 function isToday(iso: string) {
   const d = new Date(iso);
@@ -30,15 +32,26 @@ export default function DashboardPage() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
   const [signups, setSignups] = useState<RewardsSignup[]>([]);
+  const [heroEffect, setHeroEffectState] = useState<HeroEffect>("petals");
+  const [heroMedia, setHeroMedia] = useState<HeroMedia[]>([]);
   const [loading, setLoading] = useState(true);
   const [live, setLive] = useState(false);
 
   const loadAll = () => {
-    Promise.all([getProducts(), getCategories(), getOrders(), getRewardsSignups()]).then(([p, c, o, s]) => {
+    Promise.all([
+      getProducts(),
+      getCategories(),
+      getOrders(),
+      getRewardsSignups(),
+      getHeroEffect(),
+      getHeroMedia(),
+    ]).then(([p, c, o, s, he, hm]) => {
       setProducts(p);
       setCategories(c);
       setOrders(o);
       setSignups(s);
+      setHeroEffectState(he);
+      setHeroMedia(hm);
       setLoading(false);
     });
   };
@@ -179,6 +192,7 @@ export default function DashboardPage() {
                 ["inventory", "Inventory"],
                 ["rewards", "Rewards"],
                 ["analytics", "Analytics"],
+                ["homepage", "Homepage"],
               ] as const
             ).map(([key, label]) => (
               <button
@@ -208,6 +222,7 @@ export default function DashboardPage() {
             )}
             {tab === "rewards" && <RewardsPanel signups={signups} />}
             {tab === "analytics" && <AnalyticsPanel orders={orders} />}
+            {tab === "homepage" && <HeroPanel effect={heroEffect} media={heroMedia} onRefresh={loadAll} />}
           </div>
         </>
       )}

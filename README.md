@@ -189,6 +189,33 @@ everything else in this database. Only the server-side `/api/clover/*`
 routes, using a separate Supabase key that never reaches the browser, can
 touch them. See "Connecting Clover" below.
 
+## Customizing the homepage background
+
+The "Order ahead. Skip the line." hero section on the homepage isn't fixed
+to one look — from the dashboard's **Homepage** tab, staff can pick one of
+six built-in ambient effects (Pink Petals — the original look — Falling
+Snow, Golden Autumn Leaves, Warm Coffee Steam, City Bokeh Lights), a plain
+background with no animation, or their own uploaded photo or video. The
+choice takes effect on the live site immediately, no redeploy needed.
+
+Uploading a photo or video works straight from a phone (the file picker
+opens the camera as an option, same as adding a product photo) or from a
+computer. Multiple photos and videos can be uploaded into a library, and
+whichever one is marked **Set live** is what shows on the homepage; the
+rest just sit in the library until picked. A video plays muted and on a
+loop, so it works like a moving background rather than something visitors
+have to press play on. There's a 60MB size limit per file. When "Your
+Photo / Video" is selected but nothing's been uploaded (or set live) yet,
+the homepage falls back to a plain background rather than showing
+nothing meaningful.
+
+This is stored in two new tables (`hero_settings`, `hero_media`) and a
+public `hero-media` storage bucket — see the `hero_settings`/`hero_media`
+block in `supabase/seed.sql`. Like the rest of the dashboard, write access
+to these is open to anyone holding the anon key (see the security note
+above), so this carries the same "put a real login in front of `/dashboard`
+before this is customer-facing for real" caveat as everything else here.
+
 ## Setting up Supabase (no coding required)
 
 1. Go to supabase.com, sign up / log in, and create a new project (any name,
