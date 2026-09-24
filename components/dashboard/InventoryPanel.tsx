@@ -269,7 +269,104 @@ export default function InventoryPanel({
         </div>
       </div>
 
-      <div className="mt-4 overflow-x-auto rounded-lg border border-line">
+      {/* Mobile: stacked cards with a large tappable photo. The table below
+          is fine on wider screens, but forcing a 720px-wide table onto a
+          ~375px phone shrinks everything (including the photo) down to fit,
+          which is what made photos hard to see on mobile — a bigger fixed
+          pixel size alone didn't fix that, since the table's own layout was
+          still squeezing the column. This layout sidesteps that entirely. */}
+      <div className="mt-4 flex flex-col gap-2.5 sm:hidden">
+        {shown.map((p) => {
+          const outOfStock = p.stock === 0;
+          const lowStock = p.stock > 0 && p.stock <= 3;
+          const velocity = salesVelocity[p.id] ?? 0;
+          const daysLeft = velocity > 0 ? p.stock / velocity : null;
+          const urgentPace = !outOfStock && daysLeft !== null && daysLeft <= 5;
+          return (
+            <div key={p.id} className="flex gap-3 rounded-lg border border-line bg-panel p-3">
+              <button
+                type="button"
+                onClick={() => setModal({ mode: "edit", product: p })}
+                aria-label={`Edit ${p.name}`}
+                className="block h-24 w-24 shrink-0 overflow-hidden rounded-lg transition active:opacity-80"
+              >
+                {p.image_url ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={p.image_url} alt="" className="h-full w-full object-cover" />
+                ) : (
+                  <div className="h-full w-full" style={{ backgroundColor: p.swatch }} />
+                )}
+              </button>
+              <div className="min-w-0 flex-1">
+                <p className="font-body text-sm text-ink">
+                  {p.name}
+                  {p.is_special && (
+                    <span className="ml-2 rounded-full bg-gold-tint px-2 py-0.5 font-mono text-[0.6rem] font-semibold uppercase tracking-wide text-gold-ink">
+                      Special
+                    </span>
+                  )}
+                  {p.is_healthy && (
+                    <span className="ml-2 rounded-full bg-green-tint px-2 py-0.5 font-mono text-[0.6rem] font-semibold uppercase tracking-wide text-green-deep">
+                      Healthy Pick
+                    </span>
+                  )}
+                </p>
+                <p className="mt-0.5 font-mono text-xs text-ink-soft">
+                  {p.category} · ${p.price.toFixed(2)}
+                </p>
+                <div className="mt-2 flex items-center gap-2">
+                  <StockStepper product={p} onSaved={onStockSaved} />
+                  {outOfStock && (
+                    <span className="font-mono text-[0.62rem] font-semibold uppercase tracking-wide text-[#a8461a]">
+                      Out
+                    </span>
+                  )}
+                  {lowStock && (
+                    <span className="font-mono text-[0.62rem] font-semibold uppercase tracking-wide text-[#a8461a]">
+                      Low
+                    </span>
+                  )}
+                </div>
+                {urgentPace && (
+                  <p className="mt-1 font-mono text-[0.62rem] text-[#a8461a]">
+                    Selling ~{velocity.toFixed(1)}/day — ~{Math.max(1, Math.round(daysLeft!))}d left at this pace
+                  </p>
+                )}
+                <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1">
+                  <button
+                    onClick={() => setModal({ mode: "edit", product: p })}
+                    className="font-mono text-[0.65rem] uppercase tracking-wide text-ink-soft hover:text-green"
+                  >
+                    Edit
+                  </button>
+                  <button
+                    onClick={() => handleToggleSpecial(p)}
+                    disabled={togglingSpecial === p.id}
+                    className="font-mono text-[0.6rem] uppercase tracking-wide text-ink-soft hover:text-gold-ink disabled:opacity-60"
+                  >
+                    {p.is_special ? "Unset Special" : "Make Special"}
+                  </button>
+                  <button
+                    onClick={() => handleToggleHealthy(p)}
+                    disabled={togglingHealthy === p.id}
+                    className="font-mono text-[0.6rem] uppercase tracking-wide text-ink-soft hover:text-green disabled:opacity-60"
+                  >
+                    {p.is_healthy ? "Unset Healthy Pick" : "Mark Healthy Pick"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+        {shown.length === 0 && (
+          <p className="rounded-lg border border-line bg-panel px-4 py-6 text-center font-body text-sm text-ink-soft">
+            No products match.
+          </p>
+        )}
+      </div>
+
+      {/* Tablet/desktop: the original table. */}
+      <div className="mt-4 hidden overflow-x-auto rounded-lg border border-line sm:block">
         <table className="w-full min-w-[720px] border-collapse font-body text-sm">
           <thead>
             <tr className="border-b border-line bg-panel text-left">
@@ -302,11 +399,11 @@ export default function InventoryPanel({
                         <img
                           src={p.image_url}
                           alt=""
-                          className="h-16 w-16 rounded object-cover sm:h-14 sm:w-14"
+                          className="h-14 w-14 rounded object-cover"
                         />
                       ) : (
                         <div
-                          className="h-16 w-16 rounded sm:h-14 sm:w-14"
+                          className="h-14 w-14 rounded"
                           style={{ backgroundColor: p.swatch }}
                         />
                       )}
