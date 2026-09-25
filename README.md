@@ -36,11 +36,14 @@ Real, once Supabase is connected (see setup below):
     account required
   - an optional phone number at checkout to get a text the moment staff mark
     the order Ready — see "Connecting order-ready texts" below
-- **An employee dashboard** at `/dashboard` — linked from a "Dashboard" button
-  in the site header for now, so it's one click to jump back and forth during
-  a demo. There's no login yet (see the security note below), so that button
-  is meant to be temporary — swap it for a real login gate before this goes
-  live for real. Updates live with no manual refresh
+- **An employee dashboard** at `/dashboard` — not linked anywhere in the site
+  nav, so a customer browsing the storefront has no way to find or click into
+  it; staff reach it directly by URL (bookmark it). The dashboard itself has
+  a "View Storefront" link back to the homepage, so staff can check what
+  customers see without leaving the dashboard in a second tab. There's no
+  login yet (see the security note below) — that's what actually keeps
+  `/dashboard` staff-only long-term; not being linked just keeps a customer
+  from stumbling onto it by accident. Updates live with no manual refresh
   (new orders and stock changes just appear), and has:
   - a stat row (today's sales, orders, low-stock count, new signups)
   - a **"View Storefront"** button that opens the live site in a new tab,
@@ -159,10 +162,12 @@ manual as they are today.
 ## About the employee dashboard's security
 
 `/dashboard` has no login — that was a deliberate choice to keep this demo
-quick to set up, and it's now also linked right from the site header (a
-"Dashboard" button) so it's easy to jump to during a walkthrough. Once a real
-login is in place, swap that header link/button for one that requires signing
-in first — see the fix below. To make it work without one, `supabase/seed.sql` opens up
+quick to set up. It also isn't linked anywhere in the site's own navigation
+(customers browsing the storefront never see a way to it), so reaching it
+means typing or bookmarking the URL directly — that's a speed bump, not real
+security, since the URL isn't a secret. Once a real login is in place, that's
+what actually makes `/dashboard` staff-only — see the fix below. To make it
+work without one, `supabase/seed.sql` opens up
 read access to orders and rewards signups, and write access to products
 (stock, name, price, description, photos, the Special and Healthy Pick
 flags — add, edit, and delete), to anyone holding the public "anon" key —
