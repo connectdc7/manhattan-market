@@ -13,6 +13,8 @@ import Stripe from "stripe";
 import { stripe, isStripeConfigured } from "@/lib/stripe";
 import { getProducts } from "@/lib/products";
 import { createOrderAdmin, decrementStockAdmin } from "@/lib/orders-admin";
+import { pushOrderToClover } from "@/lib/clover-orders";
+import { isCloverConfigured } from "@/lib/clover";
 
 export const runtime = "nodejs";
 
@@ -46,7 +48,7 @@ async function fulfillCheckoutSession(session: Stripe.Checkout.Session) {
       ? session.amount_total / 100
       : items.reduce((sum, item) => sum + item.price * item.qty, 0);
 
-  const created = await createOrderAdmin({
+  const createdId = await createOrderAdmin({
     fulfillment: meta.fulfillment === "delivery" ? "delivery" : "pickup",
     items,
     subtotal,
@@ -57,8 +59,21 @@ async function fulfillCheckoutSession(session: Stripe.Checkout.Session) {
   // Only touch stock the first time this session is fulfilled — createOrderAdmin
   // returns false on a Stripe retry for a session already recorded (see its
   // own comment), which keeps a redelivered webhook from double-decrementing.
-  if (created) {
+  if (createdId) {
     await decrementStockAdmin(cartLines);
+
+    // Send it to the Clover device/printer and lower Clover's stock. Best-
+    // effort: a Clover hiccup must never fail the webhook (the order is
+    // already saved and paid) — staff can retry with "Send to Clover" on
+    // the dashboard, which shows the error.
+    if (isCloverConfigured()) {
+      try {
+        const result = await pushOrderToClover(createdId);
+        if (!result.ok) console.error("[stripe webhook] Clover push failed", { orderId: createdId, error: result.error });
+      } catch (err) {
+        console.error("[stripe webhook] Clover push threw", err);
+      }
+    }
   }
 }
 

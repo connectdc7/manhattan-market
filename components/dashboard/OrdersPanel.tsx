@@ -1,7 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Order, OrderStatus } from "@/lib/orders";
+import { staffFetch } from "@/lib/staff-auth";
 
 const STATUS_LABEL: Record<OrderStatus, string> = {
   new: "New",
@@ -55,6 +56,39 @@ export default function OrdersPanel({
   onStatusChange: (id: string, status: OrderStatus) => void;
 }) {
   const [view, setView] = useState<"active" | "completed" | "all">("active");
+  const [cloverConnected, setCloverConnected] = useState(false);
+  const [sending, setSending] = useState<string | null>(null);
+  const [sendResult, setSendResult] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    fetch("/api/clover/status")
+      .then((r) => r.json())
+      .then((s) => setCloverConnected(Boolean(s.connected)))
+      .catch(() => {});
+  }, []);
+
+  // Paid online orders go to Clover automatically; this is for retries and
+  // for orders placed before Clover was connected.
+  const sendToClover = async (orderId: string) => {
+    setSending(orderId);
+    try {
+      const res = await staffFetch("/api/clover/push-order", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ orderId }),
+      });
+      const body = await res.json();
+      setSendResult((prev) => ({
+        ...prev,
+        [orderId]: body.ok
+          ? `Sent to Clover${body.printed ? " and printed" : " (printer didn't respond)"}.`
+          : body.error || "Couldn't send to Clover.",
+      }));
+    } catch {
+      setSendResult((prev) => ({ ...prev, [orderId]: "Couldn't send to Clover — check your connection." }));
+    }
+    setSending(null);
+  };
 
   const shown = useMemo(() => {
     let list = orders;
@@ -126,6 +160,11 @@ export default function OrdersPanel({
                       {o.fulfillment}
                     </span>
                     <span className="font-mono text-xs text-ink-soft">{timeAgo(o.created_at)}</span>
+                    {o.clover_order_id && (
+                      <span className="rounded-full border border-line px-2.5 py-0.5 font-mono text-[0.6rem] font-semibold uppercase tracking-wide text-ink-soft">
+                        On Clover
+                      </span>
+                    )}
                   </div>
                   <span className="font-mono text-sm font-semibold text-ink">${o.subtotal.toFixed(2)}</span>
                 </div>
@@ -137,13 +176,26 @@ export default function OrdersPanel({
                     {o.phone} — texted when marked Ready
                   </p>
                 )}
-                <div className="mt-3 flex items-center gap-3">
+                {cloverConnected && !o.clover_order_id && o.clover_push_error && !sendResult[o.id] && (
+                  <p className="mt-1 font-body text-xs text-[#a8461a]">Clover: {o.clover_push_error}</p>
+                )}
+                {sendResult[o.id] && <p className="mt-1 font-body text-xs text-ink-soft">{sendResult[o.id]}</p>}
+                <div className="mt-3 flex flex-wrap items-center gap-3">
                   {next && (
                     <button
                       onClick={() => onStatusChange(o.id, next)}
                       className="rounded-full bg-green px-3.5 py-1.5 font-mono text-xs font-semibold text-white transition hover:bg-green-deep"
                     >
                       {NEXT_LABEL[o.status]}
+                    </button>
+                  )}
+                  {cloverConnected && !o.clover_order_id && o.status !== "completed" && (
+                    <button
+                      onClick={() => sendToClover(o.id)}
+                      disabled={sending === o.id}
+                      className="rounded-full border border-line px-3.5 py-1.5 font-mono text-xs font-semibold text-ink-soft transition hover:border-green hover:text-green disabled:opacity-60"
+                    >
+                      {sending === o.id ? "Sending…" : "Send to Clover"}
                     </button>
                   )}
                   {prev && (

@@ -8,7 +8,8 @@
 import { supabaseAdmin } from "./supabase-admin";
 import { OrderItem } from "./orders";
 
-// Returns true only if this call actually inserted a new row. Stripe
+// Returns the new order id only if this call actually inserted a new row
+// (null otherwise). Stripe
 // redelivers a webhook it didn't get a fast 200 for, and "just insert
 // again" would double the order (and double-decrement stock) on every
 // retry — so `orders.stripe_session_id` has a unique index (see
@@ -20,18 +21,18 @@ export async function createOrderAdmin(order: {
   subtotal: number;
   phone?: string | null;
   stripe_session_id: string;
-}): Promise<boolean> {
+}): Promise<string | null> {
   const client = supabaseAdmin;
-  if (!client) return false;
+  if (!client) return null;
 
   const { data, error } = await client.from("orders").insert(order).select("id").maybeSingle();
   if (error) {
     if (error.code !== "23505") {
       console.error("createOrderAdmin:", error.message);
     }
-    return false;
+    return null;
   }
-  return Boolean(data);
+  return data?.id ?? null;
 }
 
 export async function decrementStockAdmin(lines: { id: string; qty: number }[]): Promise<void> {

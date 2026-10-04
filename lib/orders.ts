@@ -19,6 +19,8 @@ export type Order = {
   subtotal: number;
   status: OrderStatus;
   phone?: string | null;
+  clover_order_id?: string | null;
+  clover_push_error?: string | null;
 };
 
 export async function createOrder(order: {
@@ -40,7 +42,7 @@ export async function getOrders(limit = 300): Promise<Order[]> {
 
   const { data, error } = await supabase
     .from("orders")
-    .select("id, created_at, fulfillment, items, subtotal, status, phone")
+    .select("id, created_at, fulfillment, items, subtotal, status, phone, clover_order_id, clover_push_error")
     .order("created_at", { ascending: false })
     .limit(limit);
 
