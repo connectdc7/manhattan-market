@@ -1,14 +1,21 @@
-// Starts the Clover OAuth handshake: redirects the browser to Clover's own
-// login/consent screen. Clover redirects back to /api/clover/callback with
+// Starts the Clover OAuth handshake. Called by the dashboard's "Connect
+// Clover" button (POST, with the staffer's sign-in token) and answers with
+// Clover's login/consent URL, which the button then sends the browser to.
+// Staff-only, so a stranger can't link their own Clover account to the
+// store. (Used to be a plain GET link before the staff login existed.) Clover redirects back to /api/clover/callback with
 // an authorization code once the merchant approves.
 //
 // Inert (returns 501) until CLOVER_APP_ID is set as an environment
 // variable — see README's Clover section.
 import { NextResponse } from "next/server";
+import { requireStaff } from "@/lib/require-staff";
 import { cookies } from "next/headers";
 import { cloverUrls, isCloverConfigured } from "@/lib/clover";
 
-export async function GET(request: Request) {
+export async function POST(request: Request) {
+  const staffCheck = await requireStaff(request);
+  if (!staffCheck.ok) return staffCheck.response;
+
   if (!isCloverConfigured()) {
     return NextResponse.json(
       { error: "Clover isn't configured yet. Set CLOVER_APP_ID and CLOVER_APP_SECRET first." },
@@ -38,5 +45,5 @@ export async function GET(request: Request) {
   authorizeUrl.searchParams.set("response_type", "code");
   authorizeUrl.searchParams.set("state", state);
 
-  return NextResponse.redirect(authorizeUrl.toString());
+  return NextResponse.json({ url: authorizeUrl.toString() });
 }

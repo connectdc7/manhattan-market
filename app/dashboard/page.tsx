@@ -15,8 +15,11 @@ import OrdersPanel from "@/components/dashboard/OrdersPanel";
 import RewardsPanel from "@/components/dashboard/RewardsPanel";
 import AnalyticsPanel from "@/components/dashboard/AnalyticsPanel";
 import HeroPanel from "@/components/dashboard/HeroPanel";
+import StaffPanel from "@/components/dashboard/StaffPanel";
+import StaffGate from "@/components/dashboard/StaffGate";
+import { signOutStaff, StaffMember } from "@/lib/staff-auth";
 
-type Tab = "orders" | "inventory" | "rewards" | "analytics" | "homepage";
+type Tab = "orders" | "inventory" | "rewards" | "analytics" | "homepage" | "staff";
 
 function isToday(iso: string) {
   const d = new Date(iso);
@@ -26,7 +29,14 @@ function isToday(iso: string) {
   );
 }
 
+// /dashboard requires a staff sign-in (see components/dashboard/StaffGate.tsx
+// and supabase/staff-login.sql). Everything below only renders once a
+// signed-in account on the staff list is confirmed.
 export default function DashboardPage() {
+  return <StaffGate>{(staff) => <Dashboard staff={staff} />}</StaffGate>;
+}
+
+function Dashboard({ staff }: { staff: StaffMember }) {
   const [tab, setTab] = useState<Tab>("orders");
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -146,6 +156,12 @@ export default function DashboardPage() {
               dashboard should hand staff a second window to keep track of.
               The browser's own Back button is the way back here, same as
               every other link on this page. */}
+          <button
+            onClick={() => signOutStaff()}
+            className="rounded-full border border-line px-3.5 py-1.5 font-mono text-xs font-semibold text-ink-soft transition hover:border-green hover:text-green"
+          >
+            Sign out
+          </button>
           <Link
             href="/"
             className="rounded-full border border-line px-3.5 py-1.5 font-mono text-xs font-semibold text-ink-soft transition hover:border-green hover:text-green"
@@ -154,11 +170,9 @@ export default function DashboardPage() {
           </Link>
         </div>
       </div>
-      <p className="mt-2 max-w-2xl font-body text-sm text-ink-soft">
-        Not linked anywhere in the site nav — this page is reachable only if you have the
-        URL. It has no login yet, so treat it as a demo, not a place for real customer
-        data. See the note at the top of <code className="font-mono text-xs">supabase/seed.sql</code> before
-        this goes live.
+      <p className="mt-2 font-body text-sm text-ink-soft">
+        Signed in as <span className="font-semibold text-ink">{staff.name || staff.email}</span>
+        {staff.role === "owner" ? " · Owner" : ""}
       </p>
 
       {!isSupabaseConfigured ? (
@@ -193,6 +207,7 @@ export default function DashboardPage() {
                 ["rewards", "Rewards"],
                 ["analytics", "Analytics"],
                 ["homepage", "Homepage"],
+                ...(staff.role === "owner" ? ([["staff", "Staff"]] as const) : []),
               ] as const
             ).map(([key, label]) => (
               <button
@@ -223,6 +238,7 @@ export default function DashboardPage() {
             {tab === "rewards" && <RewardsPanel signups={signups} />}
             {tab === "analytics" && <AnalyticsPanel orders={orders} />}
             {tab === "homepage" && <HeroPanel effect={heroEffect} media={heroMedia} onRefresh={loadAll} />}
+            {tab === "staff" && staff.role === "owner" && <StaffPanel me={staff} />}
           </div>
         </>
       )}

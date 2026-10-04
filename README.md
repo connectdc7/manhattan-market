@@ -159,40 +159,53 @@ rarely has the shelf price you're actually charging, and nothing but a
 physical count can know how many you have, so those stay exactly as
 manual as they are today.
 
-## About the employee dashboard's security
+## Staff login & dashboard security
 
-`/dashboard` has no login — that was a deliberate choice to keep this demo
-quick to set up. It also isn't linked anywhere in the site's own navigation
-(customers browsing the storefront never see a way to it), so reaching it
-means typing or bookmarking the URL directly — that's a speed bump, not real
-security, since the URL isn't a secret. Once a real login is in place, that's
-what actually makes `/dashboard` staff-only — see the fix below. To make it
-work without one, `supabase/seed.sql` opens up
-read access to orders and rewards signups, and write access to products
-(stock, name, price, description, photos, the Special and Healthy Pick
-flags — add, edit, and delete), to anyone holding the public "anon" key —
-which ships inside the site's own JavaScript, so in practice that means
-anyone who finds the page. The `product-photos` storage bucket used for
-photo uploads is public for the same reason: anyone can view (and, with the
-anon key, upload) a photo there.
+`/dashboard` requires a sign-in (Supabase Auth, email + password). Only
+accounts on the `staff` list get in, and the database itself enforces it:
+`supabase/staff-login.sql` replaces the old "anyone with the public key can
+read/write" policies with "signed-in staff only" for orders, rewards
+signups, products, categories, the homepage settings, and photo uploads.
+Customers can still browse, order, and join rewards exactly as before.
 
-That's a fine tradeoff while everything in these tables is placeholder demo
-data. It stops being fine the moment real customer phone numbers or emails
-are in the rewards or orders tables, or someone could deface the menu.
-Before that happens, put a real login in front of
-`/dashboard` (Supabase Auth is a natural fit, and mirrors the auth you
-already built for True Doc Pros) and tighten the RLS/storage policies in
-`supabase/seed.sql` to require it. The same file also opens up update access
-on orders (so staff can change an order's status) — same tradeoff, same fix
-later.
+The dashboard's own API routes (Clover connect/sync/disconnect, AI photos,
+product auto-fill, order-ready texts) also check the sign-in now — see
+`lib/require-staff.ts`.
 
-The two Clover tables (`clover_connections`, `clover_webhook_state`) are the
-one deliberate exception — they're locked down, not opened up. No policy
-grants the anon key any access to them at all, so the dashboard's own
-JavaScript can't read the Clover access token even though it can read
-everything else in this database. Only the server-side `/api/clover/*`
-routes, using a separate Supabase key that never reaches the browser, can
-touch them. See "Connecting Clover" below.
+**Roles.** *Owner* can do everything, plus the **Staff** tab: add a staff
+member (with a temporary password to hand them), set a new password for
+someone, make someone an owner, or remove them. *Staff* gets everything
+except the Staff tab. There's always at least one owner.
+
+### One-time setup (in this order)
+
+1. **Run the SQL.** Supabase → SQL Editor → New query → paste all of
+   `supabase/staff-login.sql` → Run.
+2. **Turn off public sign-ups.** Supabase → Authentication → Sign In /
+   Providers → turn off "Allow new users to sign up". (Owners add people
+   from the Staff tab; nobody should be able to make their own account.)
+3. **Create the first owner.** Authentication → Users → Add user → Create
+   new user (tick Auto Confirm). Then in the SQL Editor:
+   ```sql
+   insert into staff (user_id, email, name, role)
+   select id, email, 'Owner', 'owner' from auth.users
+   where email = 'owner@example.com'
+   on conflict (user_id) do update set role = 'owner';
+   ```
+4. **Allow the password-reset link.** Authentication → URL Configuration:
+   set Site URL to `https://manhattan-market.vercel.app` and add
+   `https://manhattan-market.vercel.app/dashboard/reset-password` under
+   Redirect URLs.
+5. **Make sure `SUPABASE_SERVICE_ROLE_KEY` is set in Vercel** (it already
+   is if Clover/AI photos work). The Staff tab needs it.
+6. **Email for "Forgot password?"** Supabase's built-in email only delivers
+   to members of your Supabase team and is heavily rate-limited, so for
+   real staff set up custom SMTP: Authentication → Emails → SMTP Settings
+   (Resend's free tier works; you already have a Resend section below).
+   Until then, the owner can reset anyone's password from the Staff tab.
+
+The Clover tables (`clover_connections`, `clover_webhook_state`) and
+`category_aliases` stay server-only, as before.
 
 ## Customizing the homepage background
 

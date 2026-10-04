@@ -3,6 +3,7 @@
 // but the order record — including its status — is real once Supabase is
 // configured.
 import { supabase } from "./supabase";
+import { staffFetch } from "./staff-auth";
 
 export type OrderItem = { id: string; name: string; price: number; qty: number };
 
@@ -70,15 +71,15 @@ export async function updateOrderStatus(id: string, status: OrderStatus): Promis
 // about what's actually in those orders.
 export async function getActiveOrderCount(): Promise<number> {
   if (!supabase) return 0;
-  const { count, error } = await supabase
-    .from("orders")
-    .select("id", { count: "exact", head: true })
-    .neq("status", "completed");
+  // Customers can't read the orders table itself (it holds phone numbers),
+  // so this asks a database function for just the count — see
+  // active_order_count() in supabase/staff-login.sql.
+  const { data, error } = await supabase.rpc("active_order_count");
   if (error) {
     console.error("getActiveOrderCount:", error.message);
     return 0;
   }
-  return count ?? 0;
+  return Number(data ?? 0);
 }
 
 // Best-effort text to the customer when their order's marked Ready. Only
@@ -88,7 +89,7 @@ export async function getActiveOrderCount(): Promise<number> {
 export async function notifyOrderReady(orderId: string, phone?: string | null) {
   if (!phone) return;
   try {
-    await fetch("/api/notify/order-ready", {
+    await staffFetch("/api/notify/order-ready", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ orderId, phone }),

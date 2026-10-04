@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { staffFetch } from "@/lib/staff-auth";
 
 type Status = {
   configured: boolean;
@@ -67,7 +68,7 @@ export default function CloverPanel({ onSynced }: { onSynced: () => void }) {
 
   useEffect(() => {
     if (!status?.connected) return;
-    fetch("/api/clover/webhook-code")
+    staffFetch("/api/clover/webhook-code")
       .then((r) => r.json())
       .then(setWebhook)
       .catch(() => {});
@@ -83,7 +84,7 @@ export default function CloverPanel({ onSynced }: { onSynced: () => void }) {
     setSyncing(true);
     setSyncResult(null);
     try {
-      const res = await fetch("/api/clover/sync", { method: "POST" });
+      const res = await staffFetch("/api/clover/sync", { method: "POST" });
       const body = await res.json();
       if (res.ok) {
         let message = `Synced ${body.succeeded} of ${body.total} items.`;
@@ -113,9 +114,24 @@ export default function CloverPanel({ onSynced }: { onSynced: () => void }) {
       setConfirmDisconnect(true);
       return;
     }
-    await fetch("/api/clover/disconnect", { method: "POST" });
+    await staffFetch("/api/clover/disconnect", { method: "POST" });
     setConfirmDisconnect(false);
     loadStatus();
+  };
+
+  const handleConnect = async () => {
+    setBanner(null);
+    try {
+      const res = await staffFetch("/api/clover/connect", { method: "POST" });
+      const body = await res.json();
+      if (res.ok && body.url) {
+        window.location.href = body.url;
+      } else {
+        setBanner(body.error || "Couldn't start the Clover connection.");
+      }
+    } catch {
+      setBanner("Couldn't start the Clover connection — check your connection.");
+    }
   };
 
   if (!status) return null;
@@ -168,12 +184,13 @@ export default function CloverPanel({ onSynced }: { onSynced: () => void }) {
                 </button>
               </>
             ) : (
-              <a
-                href="/api/clover/connect"
+              <button
+                type="button"
+                onClick={handleConnect}
                 className="rounded-full bg-green px-3.5 py-1.5 font-mono text-xs font-semibold text-white transition hover:bg-green-deep"
               >
                 Connect Clover
-              </a>
+              </button>
             )}
           </div>
         )}

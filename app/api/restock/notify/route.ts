@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { supabase, isSupabaseConfigured } from "@/lib/supabase";
+import { requireStaff } from "@/lib/require-staff";
+import { supabaseAdmin } from "@/lib/supabase-admin";
 import { isEmailConfigured, sendEmail } from "@/lib/notify";
 
 // Called from the dashboard's Inventory tab when staff click "Notify" on a
@@ -7,7 +8,12 @@ import { isEmailConfigured, sendEmail } from "@/lib/notify";
 // still marks the requests handled and hands back the raw contact list so
 // staff can reach out by hand — it never just silently does nothing.
 export async function POST(request: Request) {
-  if (!isSupabaseConfigured || !supabase) {
+  // Dashboard-only: must come from a signed-in staffer (lib/require-staff.ts).
+  const staffCheck = await requireStaff(request);
+  if (!staffCheck.ok) return staffCheck.response;
+
+  const supabase = supabaseAdmin;
+  if (!supabase) {
     return NextResponse.json({ error: "not-configured" }, { status: 501 });
   }
 

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { createProduct, deleteProduct, updateProduct, Product, ProductCategory } from "@/lib/products";
 import { Category, createCategory } from "@/lib/categories";
+import { staffFetch } from "@/lib/staff-auth";
 
 // Sentinel <option> value for "+ Add new category" — never a real category
 // name, so it's safe to compare `category === NEW_CATEGORY` directly.
@@ -96,7 +97,7 @@ export default function ProductFormModal({
     setExtractStatus("reading");
     try {
       const { base64, mediaType } = await downscaleForExtraction(file);
-      const res = await fetch("/api/products/extract", {
+      const res = await staffFetch("/api/products/extract", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ imageBase64: base64, mediaType }),

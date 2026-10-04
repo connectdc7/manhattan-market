@@ -11,6 +11,7 @@
 // Wired to the "Generate missing photos" button in the dashboard's
 // Inventory panel. See README's "AI-generated product photos" section.
 import { NextResponse } from "next/server";
+import { requireStaff } from "@/lib/require-staff";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { generatePhotosForItems, isImageGenConfigured } from "@/lib/image-gen";
 
@@ -19,7 +20,11 @@ import { generatePhotosForItems, isImageGenConfigured } from "@/lib/image-gen";
 // case with the most images to generate in one request.
 export const maxDuration = 300;
 
-export async function POST() {
+export async function POST(request: Request) {
+  // Dashboard-only: must come from a signed-in staffer (lib/require-staff.ts).
+  const staffCheck = await requireStaff(request);
+  if (!staffCheck.ok) return staffCheck.response;
+
   if (!isImageGenConfigured()) {
     return NextResponse.json(
       { error: "AI photo generation isn't configured yet. Set OPENAI_API_KEY first." },

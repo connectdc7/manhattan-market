@@ -5,6 +5,7 @@
 // "AI-generated product photos" section. Wired to the "Generate gallery
 // photos" button in the dashboard's Inventory panel.
 import { NextResponse } from "next/server";
+import { requireStaff } from "@/lib/require-staff";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { GALLERY_TILE_DEFS } from "@/lib/gallery";
 import { generatePhotosForGalleryTiles, isImageGenConfigured } from "@/lib/image-gen";
@@ -12,7 +13,11 @@ import { generatePhotosForGalleryTiles, isImageGenConfigured } from "@/lib/image
 // See app/api/clover/sync/route.ts for why this is pinned explicitly.
 export const maxDuration = 300;
 
-export async function POST() {
+export async function POST(request: Request) {
+  // Dashboard-only: must come from a signed-in staffer (lib/require-staff.ts).
+  const staffCheck = await requireStaff(request);
+  if (!staffCheck.ok) return staffCheck.response;
+
   if (!isImageGenConfigured()) {
     return NextResponse.json(
       { error: "AI photo generation isn't configured yet. Set OPENAI_API_KEY first." },

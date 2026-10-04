@@ -8,6 +8,7 @@
 // Inert (returns 501) until ANTHROPIC_API_KEY is set as an environment
 // variable. See README's "AI photo auto-fill" section.
 import { NextResponse } from "next/server";
+import { requireStaff } from "@/lib/require-staff";
 import { getCategories } from "@/lib/categories";
 
 export const runtime = "nodejs";
@@ -29,6 +30,10 @@ function isExtractResult(value: unknown): value is ExtractResult {
 }
 
 export async function POST(request: Request) {
+  // Dashboard-only: must come from a signed-in staffer (lib/require-staff.ts).
+  const staffCheck = await requireStaff(request);
+  if (!staffCheck.ok) return staffCheck.response;
+
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
     return NextResponse.json(

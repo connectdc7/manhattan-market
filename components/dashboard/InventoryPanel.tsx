@@ -6,6 +6,7 @@ import { Category } from "@/lib/categories";
 import ProductFormModal from "./ProductFormModal";
 import CloverPanel from "./CloverPanel";
 import CategoryReviewPanel from "./CategoryReviewPanel";
+import { staffFetch } from "@/lib/staff-auth";
 
 function StockStepper({
   product,
@@ -114,7 +115,7 @@ export default function InventoryPanel({
     setGeneratingPhotos(true);
     setPhotoResult(null);
     try {
-      const res = await fetch("/api/products/generate-missing-photos", { method: "POST" });
+      const res = await staffFetch("/api/products/generate-missing-photos", { method: "POST" });
       const body = await res.json();
       if (res.ok) {
         if (body.eligible === 0) {
@@ -143,7 +144,7 @@ export default function InventoryPanel({
     setGeneratingGalleryPhotos(true);
     setGalleryPhotoResult(null);
     try {
-      const res = await fetch("/api/gallery/generate-photos", { method: "POST" });
+      const res = await staffFetch("/api/gallery/generate-photos", { method: "POST" });
       const body = await res.json();
       if (res.ok) {
         if (body.eligible === 0) {

@@ -3,6 +3,7 @@
 // import; the webhook (see /api/clover/webhook) is what keeps things
 // current after that without staff needing to click Sync again.
 import { NextResponse } from "next/server";
+import { requireStaff } from "@/lib/require-staff";
 import {
   fetchAllCloverItems,
   getFreshCloverConnection,
@@ -20,7 +21,11 @@ import { generatePhotosForItems, isImageGenConfigured } from "@/lib/image-gen";
 // Pro — see README's "AI-generated product photos" section.
 export const maxDuration = 300;
 
-export async function POST() {
+export async function POST(request: Request) {
+  // Dashboard-only: must come from a signed-in staffer (lib/require-staff.ts).
+  const staffCheck = await requireStaff(request);
+  if (!staffCheck.ok) return staffCheck.response;
+
   if (!isCloverConfigured()) {
     return NextResponse.json({ error: "Clover isn't configured yet." }, { status: 501 });
   }
