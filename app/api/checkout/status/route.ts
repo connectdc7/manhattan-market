@@ -1,9 +1,17 @@
-// Lets the (client-side) checkout page know whether real Stripe payments
-// are wired up yet, without exposing anything sensitive — mirrors
-// /api/clover/status's role for the Clover panel.
 import { NextResponse } from "next/server";
 import { isStripeConfigured } from "@/lib/stripe";
 
+export const dynamic = "force-dynamic";
+
 export async function GET() {
-  return NextResponse.json({ stripeConfigured: isStripeConfigured() });
+  return NextResponse.json({
+    stripeConfigured: isStripeConfigured(),
+    uber: {
+      UBER_CUSTOMER_ID: Boolean(process.env.UBER_CUSTOMER_ID?.trim()),
+      UBER_CLIENT_ID: Boolean(process.env.UBER_CLIENT_ID?.trim()),
+      UBER_CLIENT_SECRET: Boolean(process.env.UBER_CLIENT_SECRET?.trim()),
+      UBER_WEBHOOK_SIGNING_KEY: Boolean(process.env.UBER_WEBHOOK_SIGNING_KEY?.trim()),
+      UBER_ROBO_COURIER: process.env.UBER_ROBO_COURIER === "true",
+    },
+  });
 }
