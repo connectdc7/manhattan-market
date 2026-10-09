@@ -13,6 +13,7 @@
 import { NextResponse } from "next/server";
 import { stripe, isStripeConfigured } from "@/lib/stripe";
 import { getProducts } from "@/lib/products";
+import { getDeliveryQuote, isUberConfigured, toE164, validateDeliveryAddress, DeliveryAddress } from "@/lib/uber";
 
 type RequestLine = { id: string; qty: number };
 
@@ -21,7 +22,12 @@ export async function POST(request: Request) {
     return NextResponse.json({ mock: true });
   }
 
-  let body: { items?: RequestLine[]; fulfillment?: "pickup" | "delivery"; phone?: string | null };
+  let body: {
+    items?: RequestLine[];
+    fulfillment?: "pickup" | "delivery";
+    phone?: string | null;
+    delivery?: Partial<DeliveryAddress> | null;
+  };
   try {
     body = await request.json();
   } catch {
@@ -53,19 +59,64 @@ export async function POST(request: Request) {
     lineItems.push({ name: product.name, unitAmount: Math.round(product.price * 100), qty: line.qty });
   }
 
+  // Delivery: check the address and take Uber's fee from Uber directly
+  // (never from the browser). Without Uber set up, delivery still works
+  // with no fee and staff arrange it themselves.
+  let deliveryFee = 0;
+  let deliveryMeta = "";
+  if (fulfillment === "delivery") {
+    const invalid = validateDeliveryAddress(body.delivery);
+    if (invalid) return NextResponse.json({ error: invalid }, { status: 400 });
+    const address = body.delivery as DeliveryAddress;
+    if (isUberConfigured()) {
+      if (!toE164(body.phone)) {
+        return NextResponse.json({ error: "Enter a phone number so the courier can reach you." }, { status: 400 });
+      }
+      const quote = await getDeliveryQuote(address, body.phone ?? null);
+      if (!quote.ok) {
+        return NextResponse.json({ error: quote.message, undeliverable: quote.undeliverable }, { status: 409 });
+      }
+      deliveryFee = quote.quote.fee;
+    }
+    deliveryMeta = JSON.stringify({
+      name: address.name.trim().slice(0, 60),
+      street: address.street.trim().slice(0, 100),
+      apt: (address.apt ?? "").trim().slice(0, 30),
+      city: address.city.trim().slice(0, 40),
+      state: address.state.trim().slice(0, 20),
+      zip: address.zip.trim().slice(0, 10),
+      notes: (address.notes ?? "").trim().slice(0, 150),
+      fee: deliveryFee,
+    });
+  }
+
   const origin = request.headers.get("origin") ?? new URL(request.url).origin;
 
   try {
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
-      line_items: lineItems.map((item) => ({
-        quantity: item.qty,
-        price_data: {
-          currency: "usd",
-          unit_amount: item.unitAmount,
-          product_data: { name: item.name },
-        },
-      })),
+      line_items: [
+        ...lineItems.map((item) => ({
+          quantity: item.qty,
+          price_data: {
+            currency: "usd",
+            unit_amount: item.unitAmount,
+            product_data: { name: item.name },
+          },
+        })),
+        ...(deliveryFee > 0
+          ? [
+              {
+                quantity: 1,
+                price_data: {
+                  currency: "usd",
+                  unit_amount: Math.round(deliveryFee * 100),
+                  product_data: { name: "Delivery (Uber)" },
+                },
+              },
+            ]
+          : []),
+      ],
       success_url: `${origin}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${origin}/checkout`,
       metadata: {
@@ -75,6 +126,7 @@ export async function POST(request: Request) {
         // metadata value limit — the webhook re-looks-up name/price from
         // the product list at fulfillment time rather than trusting this.
         cart: JSON.stringify(requestedLines.map((l) => ({ id: l.id, qty: l.qty }))),
+        ...(deliveryMeta ? { delivery: deliveryMeta } : {}),
       },
     });
 
