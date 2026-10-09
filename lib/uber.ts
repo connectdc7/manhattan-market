@@ -216,7 +216,9 @@ export async function createUberDelivery(params: {
   if (!res.ok) {
     console.error("[uber] create delivery failed", res.status, res.body);
     const msg = String(res.body.message ?? "");
-    return { ok: false, message: `Uber rejected the delivery (HTTP ${res.status})${msg ? `: ${msg}` : "."}` };
+    // Uber names the offending field(s) here, e.g. {"dropoff_phone_number": "invalid"}.
+    const meta = res.body.metadata ? ` Details: ${JSON.stringify(res.body.metadata).slice(0, 300)}` : "";
+    return { ok: false, message: `Uber rejected the delivery (HTTP ${res.status})${msg ? `: ${msg}` : "."}${meta}` };
   }
   return { ok: true, delivery: res.body as unknown as UberDelivery };
 }
