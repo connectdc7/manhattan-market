@@ -21,6 +21,8 @@ export async function createOrderAdmin(order: {
   subtotal: number;
   phone?: string | null;
   stripe_session_id: string;
+  delivery_address?: Record<string, string> | null;
+  delivery_fee?: number | null;
 }): Promise<string | null> {
   const client = supabaseAdmin;
   if (!client) return null;

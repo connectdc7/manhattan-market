@@ -21,6 +21,23 @@ export type Order = {
   phone?: string | null;
   clover_order_id?: string | null;
   clover_push_error?: string | null;
+  delivery_address?: DeliveryAddressFields | null;
+  delivery_fee?: number | null;
+  uber_delivery_id?: string | null;
+  uber_status?: string | null;
+  uber_tracking_url?: string | null;
+  uber_courier?: { name?: string; vehicle_type?: string; phone_number?: string } | null;
+  uber_error?: string | null;
+};
+
+export type DeliveryAddressFields = {
+  name: string;
+  street: string;
+  apt?: string;
+  city: string;
+  state: string;
+  zip: string;
+  notes?: string;
 };
 
 export async function createOrder(order: {
@@ -28,6 +45,8 @@ export async function createOrder(order: {
   items: OrderItem[];
   subtotal: number;
   phone?: string | null;
+  delivery_address?: DeliveryAddressFields | null;
+  delivery_fee?: number | null;
 }) {
   if (!supabase) return;
   const { error } = await supabase.from("orders").insert(order);
@@ -42,7 +61,9 @@ export async function getOrders(limit = 300): Promise<Order[]> {
 
   const { data, error } = await supabase
     .from("orders")
-    .select("id, created_at, fulfillment, items, subtotal, status, phone, clover_order_id, clover_push_error")
+    .select(
+      "id, created_at, fulfillment, items, subtotal, status, phone, clover_order_id, clover_push_error, delivery_address, delivery_fee, uber_delivery_id, uber_status, uber_tracking_url, uber_courier, uber_error"
+    )
     .order("created_at", { ascending: false })
     .limit(limit);
 
@@ -54,6 +75,7 @@ export async function getOrders(limit = 300): Promise<Order[]> {
   return data.map((row) => ({
     ...row,
     subtotal: Number(row.subtotal),
+    delivery_fee: row.delivery_fee === null || row.delivery_fee === undefined ? null : Number(row.delivery_fee),
     status: (row.status ?? "new") as OrderStatus,
   })) as Order[];
 }

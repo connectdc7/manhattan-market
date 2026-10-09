@@ -281,10 +281,15 @@ Market thing, so it involves more than pasting keys into Vercel:
    a free Clover Developer account.
 3. In the Developer Dashboard, create a new App (any name). Under its
    settings you'll find an **App ID** and an **App Secret** — these are
-   what this project calls `CLOVER_APP_ID` and `CLOVER_APP_SECRET`. In that
-   same settings screen, add your deployed site's callback address as an
-   allowed redirect URL — `https://<your-vercel-domain>/api/clover/callback`
-   — Clover refuses to redirect back anywhere that isn't listed there.
+   what this project calls `CLOVER_APP_ID` and `CLOVER_APP_SECRET`. Then:
+   - **App Settings → Edit REST Configuration:** Site URL
+     `https://manhattan-market.vercel.app`, CORS domain the same, and Alternate
+     Launch Path `https://manhattan-market.vercel.app/dashboard`. Clover only
+     redirects back to addresses under the Site URL
+     (`/api/clover/callback` is).
+   - **Requested Permissions:** Read + Write **Inventory**, Read + Write
+     **Orders**, Read **Merchant**. (Changing these later needs a
+     Disconnect + Connect Clover in the dashboard to take effect.)
 4. In your Vercel project's environment variables, add:
    - `CLOVER_APP_ID` and `CLOVER_APP_SECRET` — from step 3.
    - `CLOVER_ENV` — `sandbox` while testing, `production` once you're
@@ -303,10 +308,23 @@ Market thing, so it involves more than pasting keys into Vercel:
    will send a one-time verification code as part of that setup, which
    also shows up in the panel for you to copy back into Clover's screen.
 
-A few things worth knowing about what this integration does and doesn't do
-yet: it's one-way (Clover → this site's product list — stock, price, name,
-category), not the other direction, so changes made from `/dashboard`
-itself won't push back to Clover. Clover doesn't have an equivalent to this
+**What syncs which way:**
+- **Clover → website:** items, prices, stock and categories (Sync Now +
+  the webhook). Edits made to those fields from `/dashboard` don't push
+  back to Clover — make them in Clover.
+- **Website → Clover (orders):** once an online order is paid (Stripe), it's
+  created on Clover as an open order titled `WEB #ABC123 · PICKUP`, with a
+  note saying it's already paid online, and printed on the store's default
+  order printer. Clover's stock for those items is lowered to match, and
+  Clover's webhook then keeps the website's count in step. Run
+  `supabase/clover-orders.sql` once before using this. Each order card on
+  the Orders tab shows **On Clover** once sent, or a **Send to Clover**
+  button (with the error) if it wasn't — e.g. orders from before Clover
+  was connected, or the mock checkout used when Stripe isn't set up.
+  The payment itself stays in Stripe; Clover shows the order as unpaid
+  with the "PAID ONLINE" note, so staff shouldn't ring it up again.
+
+Clover doesn't have an equivalent to this
 site's product description, so that stays managed here regardless of
 Clover sync. Photos are a little different — see the next section — Clover
 has no photo field either, but a synced item with no photo yet can get an
@@ -450,6 +468,43 @@ When you're ready to accept real cards, switch that same Stripe account
 from sandbox to live mode, swap in the live secret/publishable keys and a
 live-mode webhook (live and sandbox each need their own), and update those
 three Vercel env vars.
+
+## Uber delivery (Uber Direct)
+
+When a customer picks **Delivery** at checkout they enter their address and
+tap **Get delivery fee**; the site asks Uber for a live quote and adds that
+fee to the order total (Stripe charges it as a "Delivery (Uber)" line). If
+Uber can't deliver there, checkout says so and offers pickup.
+
+The courier is booked when staff tap **Mark Ready** on a delivery order
+(`app/api/delivery/dispatch`). The order card then shows the Uber status,
+courier name and a **Track** link, and the customer gets a text with the
+tracking link (if Twilio is set up). **Request courier** retries a failed
+booking; **Cancel courier** works until the courier picks up. Uber's status
+updates arrive at `/api/uber/webhook`; "Delivered" moves the order to
+Completed automatically. The fee the customer paid is Uber's quote at
+checkout; a fresh quote is taken when the courier is booked, and if Uber's
+price moved slightly in between, the store covers the difference.
+
+Until Uber is set up, delivery orders still go through (no fee, no address
+check against Uber) and staff arrange delivery themselves.
+
+### Setup
+1. Run `supabase/uber-delivery.sql` in the Supabase SQL Editor **before**
+   uploading this code (it adds the delivery columns the Orders tab reads).
+2. Sign up at **direct.uber.com** with the store's business details. In the
+   dashboard: **Developer** tab → copy **Customer ID**, **Client ID**,
+   **Client Secret** (test mode first — a blue banner means test mode).
+3. Vercel → Environment Variables: `UBER_CUSTOMER_ID`, `UBER_CLIENT_ID`,
+   `UBER_CLIENT_SECRET`, and while testing `UBER_ROBO_COURIER=true` (a
+   simulated courier that walks each delivery through every status).
+4. Uber Direct dashboard → **Developer → Webhooks → Create Webhook**: URL
+   `https://manhattan-market.vercel.app/api/uber/webhook`, type **Delivery
+   Status**. Open it (⋯ → Edit), copy its **signing key** into Vercel as
+   `UBER_WEBHOOK_SIGNING_KEY`. Redeploy.
+5. Going live: add billing in Uber Direct, get production access, swap in
+   the production credentials, remove `UBER_ROBO_COURIER`, update the
+   webhook signing key, redeploy.
 
 ## Connecting order-ready texts (optional)
 

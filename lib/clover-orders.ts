@@ -27,6 +27,7 @@ type OrderRow = {
   phone: string | null;
   stripe_session_id: string | null;
   clover_order_id: string | null;
+  delivery_address: { name?: string; street?: string; apt?: string; city?: string } | null;
 };
 
 async function cloverFetch(path: string, token: string, init: RequestInit = {}) {
@@ -55,7 +56,7 @@ export async function pushOrderToClover(orderId: string): Promise<CloverPushResu
 
   const { data: order, error: orderError } = await admin
     .from("orders")
-    .select("id, fulfillment, items, subtotal, phone, stripe_session_id, clover_order_id")
+    .select("id, fulfillment, items, subtotal, phone, stripe_session_id, clover_order_id, delivery_address")
     .eq("id", orderId)
     .maybeSingle<OrderRow>();
   if (orderError || !order) return { ok: false, error: "Order not found." };
@@ -89,6 +90,9 @@ export async function pushOrderToClover(orderId: string): Promise<CloverPushResu
       note: [
         paid ? "PAID ONLINE (website / Stripe) — do NOT charge again." : "Website order — NOT paid online, collect payment.",
         order.phone ? `Customer phone: ${order.phone}` : null,
+        order.delivery_address
+          ? `Deliver to: ${order.delivery_address.name ?? ""}, ${order.delivery_address.street ?? ""}${order.delivery_address.apt ? ` ${order.delivery_address.apt}` : ""} (Uber courier)`
+          : null,
         `Website total: $${Number(order.subtotal).toFixed(2)}`,
       ]
         .filter(Boolean)

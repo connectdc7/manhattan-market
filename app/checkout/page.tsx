@@ -10,12 +10,57 @@ import { saveLastOrder } from "@/components/ReorderCard";
 
 type Stage = "review" | "processing" | "done";
 
+const fieldClass =
+  "rounded border border-line bg-paper px-3 py-2 font-body text-sm text-ink outline-none focus:border-green";
+
 export default function CheckoutPage() {
   const { lines, subtotal, clear } = useCart();
   const [stage, setStage] = useState<Stage>("review");
   const [fulfillment, setFulfillment] = useState<"pickup" | "delivery">("pickup");
   const [phone, setPhone] = useState("");
   const [error, setError] = useState<string | null>(null);
+
+  // Delivery address + Uber quote. `uberReady` is null until we know
+  // whether Uber is set up; when it isn't, delivery works without a fee.
+  const [addr, setAddr] = useState({ name: "", street: "", apt: "", city: "Washington", state: "DC", zip: "", notes: "" });
+  const [uberReady, setUberReady] = useState<boolean | null>(null);
+  const [quote, setQuote] = useState<{ fee: number; durationMin: number | null } | null>(null);
+  const [quoting, setQuoting] = useState(false);
+  const [quoteError, setQuoteError] = useState<string | null>(null);
+
+  const setField = (key: keyof typeof addr, value: string) => {
+    setAddr((prev) => ({ ...prev, [key]: value }));
+    // Any address change invalidates the fee shown.
+    setQuote(null);
+    setQuoteError(null);
+  };
+
+  const deliveryFee = fulfillment === "delivery" && quote ? quote.fee : 0;
+  const total = subtotal + deliveryFee;
+  const needsQuote = fulfillment === "delivery" && uberReady !== false && !quote;
+
+  const getQuote = async () => {
+    setQuoting(true);
+    setQuoteError(null);
+    try {
+      const res = await fetch("/api/delivery/quote", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ address: addr, phone: phone.trim() || null }),
+      });
+      const body = await res.json();
+      if (body.configured === false) {
+        setUberReady(false);
+      } else {
+        setUberReady(true);
+        if (res.ok) setQuote({ fee: Number(body.fee), durationMin: body.durationMin ?? null });
+        else setQuoteError(body.error || "Couldn't get a delivery quote — try again.");
+      }
+    } catch {
+      setQuoteError("Couldn't get a delivery quote — check your connection.");
+    }
+    setQuoting(false);
+  };
   // Only used to decide what the small print under "Place Order" says —
   // the actual mock-vs-real decision happens server-side in placeOrder,
   // this is purely so the page doesn't claim to be a preview once it isn't.
@@ -38,6 +83,8 @@ export default function CheckoutPage() {
     const orderFulfillment = fulfillment;
     const orderSubtotal = subtotal;
     const orderPhone = phone.trim() || null;
+    const orderDelivery = orderFulfillment === "delivery" ? { ...addr } : null;
+    const orderDeliveryFee = orderFulfillment === "delivery" ? deliveryFee : null;
     setTimeout(async () => {
       await decrementStock(orderedLines);
       await createOrder({
@@ -45,6 +92,8 @@ export default function CheckoutPage() {
         items: orderItems,
         subtotal: orderSubtotal,
         phone: orderPhone,
+        delivery_address: orderDelivery,
+        delivery_fee: orderDeliveryFee,
       });
       saveLastOrder(orderItems);
       setStage("done");
@@ -53,8 +102,22 @@ export default function CheckoutPage() {
   };
 
   const placeOrder = async () => {
-    setStage("processing");
     setError(null);
+    if (fulfillment === "delivery") {
+      if (!addr.name.trim() || !addr.street.trim() || !addr.zip.trim()) {
+        setError("Enter your name, street address and ZIP for delivery.");
+        return;
+      }
+      if (!phone.trim()) {
+        setError("Enter a phone number so the courier can reach you.");
+        return;
+      }
+      if (needsQuote) {
+        setError("Tap \"Get delivery fee\" first so we can confirm Uber delivers to you.");
+        return;
+      }
+    }
+    setStage("processing");
 
     try {
       const res = await fetch("/api/checkout/session", {
@@ -64,12 +127,18 @@ export default function CheckoutPage() {
           items: lines.map((l) => ({ id: l.id, qty: l.qty })),
           fulfillment,
           phone: phone.trim() || null,
+          delivery: fulfillment === "delivery" ? addr : null,
         }),
       });
       const body = await res.json();
 
       if (!res.ok) {
-        setError(body.error || "Couldn't start checkout — try again.");
+        setError(
+          body.undeliverable
+            ? `${body.error || "We can't deliver there."} Switch to pickup to continue.`
+            : body.error || "Couldn't start checkout — try again."
+        );
+        if (body.undeliverable) setQuote(null);
         setStage("review");
         return;
       }
@@ -147,10 +216,24 @@ export default function CheckoutPage() {
           ))}
         </div>
         <div className="receipt-perforation -mx-5 mt-4 w-[calc(100%+2.5rem)]" />
-        <div className="receipt-line mt-4 font-body text-sm font-semibold text-ink">
+        <div className="receipt-line mt-4 font-body text-sm text-ink">
           <span>Subtotal</span>
           <span className="receipt-fill" />
-          <span className="price-tag font-mono">${subtotal.toFixed(2)}</span>
+          <span className="font-mono">${subtotal.toFixed(2)}</span>
+        </div>
+        {fulfillment === "delivery" && (
+          <div className="receipt-line mt-2 font-body text-sm text-ink">
+            <span>Delivery (Uber)</span>
+            <span className="receipt-fill" />
+            <span className="font-mono">
+              {quote ? `$${quote.fee.toFixed(2)}` : uberReady === false ? "—" : "enter address"}
+            </span>
+          </div>
+        )}
+        <div className="receipt-line mt-2 font-body text-sm font-semibold text-ink">
+          <span>Total</span>
+          <span className="receipt-fill" />
+          <span className="price-tag font-mono">${total.toFixed(2)}</span>
         </div>
       </div>
 
@@ -172,16 +255,78 @@ export default function CheckoutPage() {
           ))}
         </div>
         {fulfillment === "delivery" && (
-          <p className="mt-2 font-body text-xs text-ink-soft">
-            Dispatched through Uber Direct once the site is fully wired up — delivery fee
-            calculated by distance at checkout.
-          </p>
+          <div className="mt-4 rounded-lg border border-line bg-paper p-4">
+            <p className="font-body text-xs text-ink-soft">
+              Delivered by an Uber courier. The fee is Uber&apos;s live price for your address.
+            </p>
+            <div className="mt-3 grid gap-3 sm:grid-cols-2">
+              <label className="flex flex-col gap-1 sm:col-span-2">
+                <span className="font-body text-xs font-semibold text-ink">Name</span>
+                <input value={addr.name} onChange={(e) => setField("name", e.target.value)} autoComplete="name" className={fieldClass} />
+              </label>
+              <label className="flex flex-col gap-1">
+                <span className="font-body text-xs font-semibold text-ink">Street address</span>
+                <input value={addr.street} onChange={(e) => setField("street", e.target.value)} autoComplete="address-line1" className={fieldClass} />
+              </label>
+              <label className="flex flex-col gap-1">
+                <span className="font-body text-xs font-semibold text-ink">Apt / unit (optional)</span>
+                <input value={addr.apt} onChange={(e) => setField("apt", e.target.value)} autoComplete="address-line2" className={fieldClass} />
+              </label>
+              <label className="flex flex-col gap-1">
+                <span className="font-body text-xs font-semibold text-ink">City</span>
+                <input value={addr.city} onChange={(e) => setField("city", e.target.value)} autoComplete="address-level2" className={fieldClass} />
+              </label>
+              <div className="grid grid-cols-2 gap-3">
+                <label className="flex flex-col gap-1">
+                  <span className="font-body text-xs font-semibold text-ink">State</span>
+                  <input value={addr.state} onChange={(e) => setField("state", e.target.value)} autoComplete="address-level1" className={fieldClass} />
+                </label>
+                <label className="flex flex-col gap-1">
+                  <span className="font-body text-xs font-semibold text-ink">ZIP</span>
+                  <input value={addr.zip} onChange={(e) => setField("zip", e.target.value)} inputMode="numeric" autoComplete="postal-code" className={fieldClass} />
+                </label>
+              </div>
+              <label className="flex flex-col gap-1 sm:col-span-2">
+                <span className="font-body text-xs font-semibold text-ink">Instructions for the courier (optional)</span>
+                <input value={addr.notes} onChange={(e) => setField("notes", e.target.value)} placeholder="Buzz 4B, leave with front desk…" className={fieldClass} />
+              </label>
+            </div>
+            {uberReady !== false && (
+              <div className="mt-3 flex flex-wrap items-center gap-3">
+                <button
+                  type="button"
+                  onClick={getQuote}
+                  disabled={quoting}
+                  className="rounded-full border border-green px-4 py-1.5 font-mono text-xs font-semibold text-green transition hover:bg-green hover:text-white disabled:opacity-60"
+                >
+                  {quoting ? "Checking…" : quote ? "Refresh fee" : "Get delivery fee"}
+                </button>
+                {quote && (
+                  <span className="font-body text-sm text-ink">
+                    ${quote.fee.toFixed(2)} delivery
+                    {quote.durationMin ? ` · about ${quote.durationMin} min once it's ready` : ""}
+                  </span>
+                )}
+              </div>
+            )}
+            {quoteError && (
+              <p className="mt-2 font-body text-sm text-[#a8461a]" role="alert">
+                {quoteError}{" "}
+                <button type="button" onClick={() => setFulfillment("pickup")} className="underline">
+                  Switch to pickup
+                </button>
+              </p>
+            )}
+          </div>
         )}
       </div>
 
       <label className="mt-6 flex flex-col gap-1">
         <span className="font-body text-sm font-semibold text-ink">
-          Phone <span className="font-normal text-ink-soft">(optional — get a text when it's ready)</span>
+          Phone{" "}
+          <span className="font-normal text-ink-soft">
+            {fulfillment === "delivery" ? "(required — the courier may call you)" : "(optional — get a text when it's ready)"}
+          </span>
         </span>
         <input
           type="tel"
@@ -207,7 +352,7 @@ export default function CheckoutPage() {
           ? stripeConfigured
             ? "Redirecting to secure checkout…"
             : "Processing…"
-          : `Place Order — $${subtotal.toFixed(2)}`}
+          : `Place Order — $${total.toFixed(2)}`}
       </button>
       <p className="mt-2 text-center font-mono text-[0.62rem] uppercase tracking-wide text-ink-soft">
         {stripeConfigured

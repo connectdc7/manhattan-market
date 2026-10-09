@@ -107,8 +107,11 @@ function Dashboard({ staff }: { staff: StaffMember }) {
   const handleStatusChange = async (id: string, status: OrderStatus) => {
     setOrders((prev) => prev.map((o) => (o.id === id ? { ...o, status } : o)));
     await updateOrderStatus(id, status);
-    if (status === "ready") {
-      const order = orders.find((o) => o.id === id);
+    const order = orders.find((o) => o.id === id);
+    // Pickup orders get the "come pick it up" text. Delivery orders get a
+    // tracking-link text instead, sent when the Uber courier is booked
+    // (OrdersPanel requests the courier right after this).
+    if (status === "ready" && order?.fulfillment !== "delivery") {
       notifyOrderReady(id, order?.phone);
     }
   };
