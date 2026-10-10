@@ -1130,3 +1130,6 @@ alter table orders add column if not exists service_fee numeric(10, 2);
 
 -- Clover API-token auto-sync (also in supabase/clover-token.sql)
 alter table clover_webhook_state add column if not exists last_auto_sync_at timestamptz;
+
+-- Storefront aisles (supabase/category-aisles.sql)
+alter table categories add column if not exists group_name text;
