@@ -99,6 +99,9 @@ export default function InventoryPanel({
 }) {
   const [search, setSearch] = useState(initialSearch);
   const [showCategories, setShowCategories] = useState(false);
+  // The product list starts folded away (thousands of rows) — it opens when
+  // staff search, pick a category, or tap "Show all products".
+  const [showList, setShowList] = useState(false);
   const [category, setCategory] = useState<string>("All");
   const categoryNames = useMemo(() => categories.map((c) => c.name), [categories]);
   const [sort, setSort] = useState<SortMode>("low-stock");
@@ -228,6 +231,7 @@ export default function InventoryPanel({
     return list;
   }, [products, category, search, sort]);
   const shown = matching.slice(0, rowLimit);
+  const listOpen = showList || Boolean(search.trim()) || category !== "All";
 
   return (
     <div>
@@ -364,6 +368,38 @@ export default function InventoryPanel({
         </div>
       )}
 
+      {(() => {
+        const filtered = Boolean(search.trim()) || category !== "All";
+        return (
+          <button
+            type="button"
+            onClick={() => {
+              if (filtered && listOpen) {
+                setSearch("");
+                setCategory("All");
+                setShowList(false);
+              } else {
+                setShowList((v) => !v);
+              }
+            }}
+            aria-expanded={listOpen}
+            className="mt-4 flex w-full items-center justify-between rounded-lg border border-line bg-panel px-4 py-3 text-left transition hover:border-green/50"
+          >
+            <span className="font-mono text-[0.65rem] uppercase tracking-wide text-ink-soft">
+              {filtered
+                ? `${matching.length.toLocaleString()} matching product${matching.length === 1 ? "" : "s"}`
+                : `All products · ${products.length.toLocaleString()}`}
+            </span>
+            <span className="flex items-center gap-1.5 font-mono text-xs font-semibold text-green">
+              {listOpen ? (filtered ? "Clear & hide" : "Hide list") : "Show all products"}
+              <span aria-hidden className={`transition-transform ${listOpen ? "rotate-180" : ""}`}>▾</span>
+            </span>
+          </button>
+        );
+      })()}
+
+      {listOpen && (
+        <>
       {/* Mobile: stacked cards with a large tappable photo. The table below
           is fine on wider screens, but forcing a 720px-wide table onto a
           ~375px phone shrinks everything (including the photo) down to fit,
@@ -592,6 +628,9 @@ export default function InventoryPanel({
             Showing {shown.length} of {matching.length} — search or pick a category to narrow it down
           </p>
         </div>
+      )}
+
+        </>
       )}
 
       {modal && (
