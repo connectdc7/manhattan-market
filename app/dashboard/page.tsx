@@ -9,6 +9,8 @@ import { getHeroEffect, getHeroMedia, HeroEffect, HeroMedia } from "@/lib/hero";
 import { isSupabaseConfigured } from "@/lib/supabase";
 import { subscribeToDashboardChanges } from "@/lib/realtime";
 import StatTile from "@/components/dashboard/StatTile";
+import TileDetails, { TileKey } from "@/components/dashboard/TileDetails";
+import type { CloverSale } from "@/lib/clover-stats";
 import InventoryPanel from "@/components/dashboard/InventoryPanel";
 import OrdersPanel from "@/components/dashboard/OrdersPanel";
 import RewardsPanel from "@/components/dashboard/RewardsPanel";
@@ -17,7 +19,8 @@ import HeroPanel from "@/components/dashboard/HeroPanel";
 import StaffPanel from "@/components/dashboard/StaffPanel";
 import SettingsPanel from "@/components/dashboard/SettingsPanel";
 import StaffGate from "@/components/dashboard/StaffGate";
-import { signOutStaff, StaffMember } from "@/lib/staff-auth";
+import { signOutStaff, staffFetch, StaffMember } from "@/lib/staff-auth";
+import type { CloverStats } from "@/lib/clover-stats";
 
 type Tab = "orders" | "inventory" | "rewards" | "analytics" | "homepage" | "staff" | "settings";
 
@@ -46,6 +49,40 @@ function Dashboard({ staff }: { staff: StaffMember }) {
   const [heroMedia, setHeroMedia] = useState<HeroMedia[]>([]);
   const [loading, setLoading] = useState(true);
   const [live, setLive] = useState(false);
+  // Sales stats from Clover (register + online), when Clover is connected —
+  // see app/api/clover/stats. null = not loaded / not connected, in which
+  // case the tiles fall back to the website's own orders.
+  const [cloverStats, setCloverStats] = useState<CloverStats | null>(null);
+  const [cloverStatsError, setCloverStatsError] = useState<string | null>(null);
+  // Which stat tile's drop-down is open, if any.
+  const [openTile, setOpenTile] = useState<TileKey | null>(null);
+  // Set when "Open in Inventory" is clicked from the Low Stock drop-down.
+  const [inventorySearch, setInventorySearch] = useState("");
+
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      try {
+        const res = await staffFetch("/api/clover/stats");
+        const body = await res.json();
+        if (cancelled) return;
+        if (body.stats) {
+          setCloverStats(body.stats);
+          setCloverStatsError(null);
+        } else if (body.error) {
+          setCloverStatsError(body.error);
+        }
+      } catch {
+        // offline for a moment — keep showing the last numbers
+      }
+    };
+    load();
+    const timer = setInterval(load, 2 * 60_000);
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+    };
+  }, []);
 
   const loadAll = () => {
     Promise.all([
@@ -136,9 +173,28 @@ function Dashboard({ staff }: { staff: StaffMember }) {
   }, [orders]);
 
   const ordersToday = orders.filter((o) => isToday(o.created_at));
-  const salesToday = ordersToday.reduce((sum, o) => sum + o.subtotal, 0);
-  const lowStockCount = products.filter((p) => p.stock > 0 && p.stock <= 3).length;
-  const signupsToday = signups.filter((s) => isToday(s.created_at)).length;
+  const websiteSalesToday = ordersToday.reduce((sum, o) => sum + o.subtotal, 0);
+  const salesToday = cloverStats ? cloverStats.salesToday : websiteSalesToday;
+  const ordersTodayCount = cloverStats ? cloverStats.ordersToday : ordersToday.length;
+  const lowStockProducts = products.filter((p) => p.stock > 0 && p.stock <= 3);
+  const lowStockCount = lowStockProducts.length;
+  const signupsTodayList = signups.filter((s) => isToday(s.created_at));
+  const signupsToday = signupsTodayList.length;
+
+  // What the Sales/Orders Today drop-down lists: Clover's sales when
+  // connected, otherwise today's website orders in the same shape.
+  const todaysSales: CloverSale[] = cloverStats
+    ? cloverStats.todaysSales
+    : ordersToday.map((o) => ({
+        id: o.id,
+        time: o.created_at,
+        total: o.subtotal + (o.delivery_fee ?? 0) + (o.service_fee ?? 0),
+        source: "online" as const,
+        title: `WEB #${o.id.slice(0, 6).toUpperCase()}`,
+        note: null,
+        items: o.items.map((i) => ({ name: i.name, qty: i.qty, price: Number(i.price), refunded: false })),
+      }));
+  const toggleTile = (key: TileKey) => setOpenTile((cur) => (cur === key ? null : key));
   const activeOrderCount = orders.filter((o) => o.status !== "completed").length;
 
   return (
@@ -182,15 +238,59 @@ function Dashboard({ staff }: { staff: StaffMember }) {
       ) : (
         <>
           <div className="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-4">
-            <StatTile label="Sales Today" value={`$${salesToday.toFixed(2)}`} />
-            <StatTile label="Orders Today" value={String(ordersToday.length)} />
+            <StatTile
+              label="Sales Today"
+              value={`$${salesToday.toFixed(2)}`}
+              onClick={() => toggleTile("sales")}
+              active={openTile === "sales"}
+            />
+            <StatTile
+              label="Orders Today"
+              value={String(ordersTodayCount)}
+              onClick={() => toggleTile("orders")}
+              active={openTile === "orders"}
+            />
             <StatTile
               label="Low Stock"
               value={String(lowStockCount)}
               tone={lowStockCount > 0 ? "warning" : "default"}
+              onClick={() => toggleTile("lowstock")}
+              active={openTile === "lowstock"}
             />
-            <StatTile label="New Signups Today" value={String(signupsToday)} />
+            <StatTile
+              label="New Signups Today"
+              value={String(signupsToday)}
+              onClick={() => toggleTile("signups")}
+              active={openTile === "signups"}
+            />
           </div>
+
+          {openTile && (
+            <TileDetails
+              which={openTile}
+              sales={todaysSales}
+              salesSource={
+                cloverStats
+                  ? "From Clover — register and online sales. Tap a sale to see what was in it."
+                  : "From website orders only — Clover sales couldn't be loaded."
+              }
+              lowStock={lowStockProducts}
+              signupsToday={signupsTodayList}
+              onOpenInInventory={(name) => {
+                setInventorySearch(name);
+                setTab("inventory");
+                setOpenTile(null);
+              }}
+              onClose={() => setOpenTile(null)}
+            />
+          )}
+          <p className="mt-2 font-mono text-[0.6rem] uppercase tracking-wide text-ink-soft">
+            {cloverStats
+              ? `Sales & orders from Clover — register + online · updated ${new Date(cloverStats.generatedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}`
+              : cloverStatsError
+                ? `Couldn't load Clover sales (${cloverStatsError}) — showing website orders only`
+                : "Sales & orders from website orders"}
+          </p>
 
           <div className="mt-10 flex flex-wrap gap-2 border-b border-line pb-4">
             {(
@@ -224,6 +324,8 @@ function Dashboard({ staff }: { staff: StaffMember }) {
             {tab === "orders" && <OrdersPanel orders={orders} onStatusChange={handleStatusChange} />}
             {tab === "inventory" && (
               <InventoryPanel
+                key={inventorySearch}
+                initialSearch={inventorySearch}
                 products={products}
                 categories={categories}
                 onStockSaved={handleStockSaved}
@@ -234,7 +336,7 @@ function Dashboard({ staff }: { staff: StaffMember }) {
               />
             )}
             {tab === "rewards" && <RewardsPanel signups={signups} />}
-            {tab === "analytics" && <AnalyticsPanel orders={orders} />}
+            {tab === "analytics" && <AnalyticsPanel orders={orders} cloverStats={cloverStats} cloverError={cloverStatsError} />}
             {tab === "homepage" && <HeroPanel effect={heroEffect} media={heroMedia} onRefresh={loadAll} />}
             {tab === "staff" && staff.role === "owner" && <StaffPanel me={staff} />}
             {tab === "settings" && staff.role === "owner" && <SettingsPanel />}
