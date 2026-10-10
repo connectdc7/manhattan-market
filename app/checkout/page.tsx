@@ -7,6 +7,7 @@ import { decrementStock } from "@/lib/products";
 import { createOrder } from "@/lib/orders";
 import { isSupabaseConfigured } from "@/lib/supabase";
 import { saveLastOrder } from "@/components/ReorderCard";
+import { getStoreSettings } from "@/lib/settings";
 
 type Stage = "review" | "processing" | "done";
 
@@ -25,6 +26,12 @@ export default function CheckoutPage() {
   const [addr, setAddr] = useState({ name: "", street: "", apt: "", city: "Washington", state: "DC", zip: "", notes: "" });
   const [uberReady, setUberReady] = useState<boolean | null>(null);
   const [quote, setQuote] = useState<{ fee: number; durationMin: number | null } | null>(null);
+  // Owner-set flat service fee on delivery orders (dashboard → Settings).
+  const [serviceFee, setServiceFee] = useState(0);
+
+  useEffect(() => {
+    getStoreSettings().then((s) => setServiceFee(s.deliveryServiceFee));
+  }, []);
   const [quoting, setQuoting] = useState(false);
   const [quoteError, setQuoteError] = useState<string | null>(null);
 
@@ -36,7 +43,8 @@ export default function CheckoutPage() {
   };
 
   const deliveryFee = fulfillment === "delivery" && quote ? quote.fee : 0;
-  const total = subtotal + deliveryFee;
+  const appliedServiceFee = fulfillment === "delivery" ? serviceFee : 0;
+  const total = subtotal + deliveryFee + appliedServiceFee;
   const needsQuote = fulfillment === "delivery" && uberReady !== false && !quote;
 
   const getQuote = async () => {
@@ -49,6 +57,7 @@ export default function CheckoutPage() {
         body: JSON.stringify({ address: addr, phone: phone.trim() || null }),
       });
       const body = await res.json();
+      if (typeof body.serviceFee === "number") setServiceFee(body.serviceFee);
       if (body.configured === false) {
         setUberReady(false);
       } else {
@@ -85,6 +94,7 @@ export default function CheckoutPage() {
     const orderPhone = phone.trim() || null;
     const orderDelivery = orderFulfillment === "delivery" ? { ...addr } : null;
     const orderDeliveryFee = orderFulfillment === "delivery" ? deliveryFee : null;
+    const orderServiceFee = orderFulfillment === "delivery" && appliedServiceFee > 0 ? appliedServiceFee : null;
     setTimeout(async () => {
       await decrementStock(orderedLines);
       await createOrder({
@@ -94,6 +104,7 @@ export default function CheckoutPage() {
         phone: orderPhone,
         delivery_address: orderDelivery,
         delivery_fee: orderDeliveryFee,
+        service_fee: orderServiceFee,
       });
       saveLastOrder(orderItems);
       setStage("done");
@@ -228,6 +239,13 @@ export default function CheckoutPage() {
             <span className="font-mono">
               {quote ? `$${quote.fee.toFixed(2)}` : uberReady === false ? "—" : "enter address"}
             </span>
+          </div>
+        )}
+        {fulfillment === "delivery" && appliedServiceFee > 0 && (
+          <div className="receipt-line mt-2 font-body text-sm text-ink">
+            <span>Service fee</span>
+            <span className="receipt-fill" />
+            <span className="font-mono">${appliedServiceFee.toFixed(2)}</span>
           </div>
         )}
         <div className="receipt-line mt-2 font-body text-sm font-semibold text-ink">
