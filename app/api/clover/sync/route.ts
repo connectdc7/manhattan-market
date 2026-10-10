@@ -6,6 +6,7 @@ import { NextResponse } from "next/server";
 import { requireStaff } from "@/lib/require-staff";
 import { getFreshCloverConnection, isCloverConfigured } from "@/lib/clover";
 import { syncAllCloverItems } from "@/lib/clover-sync";
+import { supabaseAdmin } from "@/lib/supabase-admin";
 import { generatePhotosForItems, isImageGenConfigured } from "@/lib/image-gen";
 
 // 300s is the ceiling on Vercel's Hobby plan. The bulk sync itself takes
@@ -27,6 +28,12 @@ export async function POST(request: Request) {
   if (!(await getFreshCloverConnection())) {
     return NextResponse.json({ error: "Not connected to Clover yet." }, { status: 409 });
   }
+
+  // Push back the next background auto-sync so it doesn't run alongside
+  // this one and trip Clover's rate limit.
+  await supabaseAdmin
+    ?.from("clover_webhook_state")
+    .upsert({ id: "singleton", last_auto_sync_at: new Date().toISOString() });
 
   const result = await syncAllCloverItems();
   if (!result.ok && result.succeeded === 0) {
