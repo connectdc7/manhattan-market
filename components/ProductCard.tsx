@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Product } from "@/lib/products";
 import { useCart } from "@/lib/cart-context";
+import ProductPlaceholder from "@/components/ProductPlaceholder";
 
 export default function ProductCard({
   product,
@@ -47,14 +48,13 @@ export default function ProductCard({
           }`}
         />
       ) : (
-        <div
-          className={`flex h-32 items-center justify-center font-mono text-[0.65rem] uppercase tracking-widest text-white/70 transition-transform duration-500 group-hover:scale-105 ${
-            outOfStock ? "grayscale" : ""
-          }`}
-          style={{ backgroundColor: product.swatch }}
-        >
-          sample photo
-        </div>
+        <ProductPlaceholder
+          name={product.name}
+          category={product.category}
+          swatch={product.swatch}
+          grayscale={outOfStock}
+          className="h-32 w-full transition-transform duration-500 group-hover:scale-105"
+        />
       )}
       <div className="flex flex-1 flex-col gap-2 p-4">
         <div className="flex items-start justify-between gap-2">
