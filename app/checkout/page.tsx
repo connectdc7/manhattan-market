@@ -376,7 +376,6 @@ export default function CheckoutPage() {
         {stripeConfigured
           ? "Payment is handled securely by Stripe — you'll be redirected to complete it"
           : "Preview build — Stripe isn't connected yet, so this places an instant test order"}
-        {isSupabaseConfigured ? " · stock updates live in Supabase" : ""}
       </p>
     </div>
   );
