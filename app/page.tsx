@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { after } from "next/server";
+import { maybeAutoSyncClover } from "@/lib/clover-autosync";
 import { getStorefrontProducts } from "@/lib/products";
 import { getActiveOrderCount } from "@/lib/orders";
 import { isSupabaseConfigured } from "@/lib/supabase";
@@ -19,6 +21,9 @@ function estimateWaitMinutes(activeOrders: number): number {
 }
 
 export default async function Home() {
+  // Keep the menu in step with Clover (API-token mode) — runs after the
+  // page is sent, at most every few minutes. See lib/clover-autosync.ts.
+  after(maybeAutoSyncClover);
   const [products, activeOrders, heroEffect, activeHeroMedia] = await Promise.all([
     getStorefrontProducts(),
     getActiveOrderCount(),
