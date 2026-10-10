@@ -56,35 +56,82 @@ export const fallbackProducts: Product[] = [
 const PRODUCT_COLUMNS =
   "id, name, category, price, stock, blurb, swatch, image_url, restocked_at, is_special, is_healthy, created_at";
 
-export async function getProducts(): Promise<Product[]> {
-  if (!supabase) return fallbackProducts;
+// Supabase returns at most 1,000 rows per request, and the store's real
+// Clover catalog is several thousand items — so read it in pages.
+const PAGE = 1000;
 
-  const { data, error } = await supabase
-    .from("products")
-    .select(PRODUCT_COLUMNS)
-    .order("name");
-
-  if (error || !data || data.length === 0) {
-    if (error) console.error("getProducts: falling back to sample data —", error.message);
-    return fallbackProducts;
-  }
-
-  return data.map((row) => ({ ...row, price: Number(row.price) })) as Product[];
+function toProducts(rows: unknown[]): Product[] {
+  return (rows as (Product & { price: unknown })[]).map((row) => ({ ...row, price: Number(row.price) })) as Product[];
 }
 
-// Same as getProducts(), but filtered down to categories staff have
-// actually confirmed customers should see (see lib/categories.ts) — what
-// every customer-facing page (homepage, /order) should use instead of the
-// raw list, so a Clover department still awaiting review (or one staff
-// deliberately keep off the storefront, like Lottery or Tobacco) never
-// shows up to a shopper, even under an "All" filter. Server-side routes
-// that look a product up by id regardless of category — checkout, the
-// Stripe webhook — use plain getProducts() instead: by the time an item is
-// in a cart it already passed through a storefront page that filtered it.
-export async function getStorefrontProducts(): Promise<Product[]> {
-  const [products, visibleCategories] = await Promise.all([getProducts(), getStorefrontCategoryNames()]);
-  const visible = new Set(visibleCategories);
-  return products.filter((p) => visible.has(p.category));
+async function fetchAllPages(
+  build: (from: number, to: number) => PromiseLike<{ data: unknown[] | null; error: { message: string } | null }>
+): Promise<{ rows: unknown[]; error: string | null }> {
+  const rows: unknown[] = [];
+  for (let from = 0; ; from += PAGE) {
+    const { data, error } = await build(from, from + PAGE - 1);
+    if (error) return { rows, error: error.message };
+    rows.push(...(data ?? []));
+    if (!data || data.length < PAGE) break;
+    if (from > 50_000) break; // sanity cap
+  }
+  return { rows, error: null };
+}
+
+export async function getProducts(): Promise<Product[]> {
+  const client = supabase;
+  if (!client) return fallbackProducts;
+
+  const { rows, error } = await fetchAllPages((from, to) =>
+    client.from("products").select(PRODUCT_COLUMNS).order("name").order("id").range(from, to)
+  );
+
+  if (error || rows.length === 0) {
+    if (error) console.error("getProducts: falling back to sample data —", error);
+    return fallbackProducts;
+  }
+  return toProducts(rows);
+}
+
+// Looks up just the products in a cart — what checkout and the Stripe
+// webhook use, instead of loading the whole catalog to find a few items.
+export async function getProductsByIds(ids: string[]): Promise<Product[]> {
+  const unique = [...new Set(ids)].filter(Boolean);
+  if (unique.length === 0) return [];
+  if (!supabase) return fallbackProducts.filter((p) => unique.includes(p.id));
+  const { data, error } = await supabase.from("products").select(PRODUCT_COLUMNS).in("id", unique);
+  if (error || !data) {
+    if (error) console.error("getProductsByIds:", error.message);
+    return [];
+  }
+  return toProducts(data);
+}
+
+// Only what customers should see: products in categories staff have
+// confirmed for the storefront (see lib/categories.ts) — a Clover
+// department still awaiting review, or one deliberately kept off the site
+// like Lottery or Tobacco, never shows up to a shopper, even under "All".
+// Filtered in the database, since the full catalog is thousands of items.
+// Pass inStockOnly for the Order page, which only lists what can be bought.
+export async function getStorefrontProducts(opts: { inStockOnly?: boolean } = {}): Promise<Product[]> {
+  const client = supabase;
+  const visibleCategories = await getStorefrontCategoryNames();
+  if (!client) {
+    const visible = new Set(visibleCategories);
+    return fallbackProducts.filter((p) => visible.has(p.category) && (!opts.inStockOnly || p.stock > 0));
+  }
+  if (visibleCategories.length === 0) return [];
+
+  const { rows, error } = await fetchAllPages((from, to) => {
+    let q = client.from("products").select(PRODUCT_COLUMNS).in("category", visibleCategories);
+    if (opts.inStockOnly) q = q.gt("stock", 0);
+    return q.order("name").order("id").range(from, to);
+  });
+  if (error) {
+    console.error("getStorefrontProducts:", error);
+    return [];
+  }
+  return toProducts(rows);
 }
 
 // Best-effort stock decrement after a (mocked) order is placed. Calls a

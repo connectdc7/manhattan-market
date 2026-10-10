@@ -14,31 +14,39 @@
 // components/dashboard/CategoryReviewPanel.tsx) until a staffer confirms,
 // renames, merges, or hand-shows it.
 import { supabase } from "./supabase";
+import { Aisle, aisleFor } from "./aisles";
 
 export type Category = {
   name: string;
   sortOrder: number;
   showOnStorefront: boolean;
   needsReview: boolean;
+  // The storefront aisle staff picked for it (see lib/aisles.ts), or null
+  // to let the site guess from the name.
+  group: string | null;
 };
 
 // Used when Supabase isn't configured yet — mirrors lib/products.ts's own
 // fallbackProducts pattern, and lib/products.ts's fallbackProducts still use
 // these same four names.
 export const fallbackCategories: Category[] = [
-  { name: "Hot Food", sortOrder: 0, showOnStorefront: true, needsReview: false },
-  { name: "Snacks", sortOrder: 1, showOnStorefront: true, needsReview: false },
-  { name: "Drinks", sortOrder: 2, showOnStorefront: true, needsReview: false },
-  { name: "Grocery", sortOrder: 3, showOnStorefront: true, needsReview: false },
+  { name: "Hot Food", sortOrder: 0, showOnStorefront: true, needsReview: false, group: null },
+  { name: "Snacks", sortOrder: 1, showOnStorefront: true, needsReview: false, group: null },
+  { name: "Drinks", sortOrder: 2, showOnStorefront: true, needsReview: false, group: null },
+  { name: "Grocery", sortOrder: 3, showOnStorefront: true, needsReview: false, group: null },
 ];
 
-const CATEGORY_COLUMNS = "name, sort_order, show_on_storefront, needs_review";
+const BASE_COLUMNS = "name, sort_order, show_on_storefront, needs_review";
+// group_name comes from supabase/category-aisles.sql — if that hasn't been
+// run yet, reads fall back to the columns above so nothing breaks.
+const CATEGORY_COLUMNS = `${BASE_COLUMNS}, group_name`;
 
 type CategoryRow = {
   name: string;
   sort_order: number;
   show_on_storefront: boolean;
   needs_review: boolean;
+  group_name?: string | null;
 };
 
 function fromRow(row: CategoryRow): Category {
@@ -47,6 +55,7 @@ function fromRow(row: CategoryRow): Category {
     sortOrder: row.sort_order,
     showOnStorefront: row.show_on_storefront,
     needsReview: row.needs_review,
+    group: row.group_name ?? null,
   };
 }
 
@@ -55,16 +64,20 @@ function fromRow(row: CategoryRow): Category {
 // have to see hidden/unreviewed ones too, not just what customers see.
 export async function getCategories(): Promise<Category[]> {
   if (!supabase) return fallbackCategories;
-  const { data, error } = await supabase
-    .from("categories")
-    .select(CATEGORY_COLUMNS)
-    .order("sort_order")
-    .order("name");
+  const first = await supabase.from("categories").select(CATEGORY_COLUMNS).order("sort_order").order("name");
+  let data = first.data as CategoryRow[] | null;
+  let error = first.error;
+  if (error) {
+    // Most likely group_name doesn't exist yet — try without it.
+    const retry = await supabase.from("categories").select(BASE_COLUMNS).order("sort_order").order("name");
+    data = retry.data as CategoryRow[] | null;
+    error = retry.error;
+  }
   if (error || !data) {
     if (error) console.error("getCategories: falling back to sample data —", error.message);
     return fallbackCategories;
   }
-  return data.map(fromRow);
+  return (data as CategoryRow[]).map(fromRow);
 }
 
 // Only what customers should actually see — excludes anything still
@@ -76,6 +89,26 @@ export async function getStorefrontCategoryNames(): Promise<string[]> {
   return all.filter((c) => c.showOnStorefront && !c.needsReview).map((c) => c.name);
 }
 
+// What the storefront's Order page groups its chips by: each visible
+// category with the aisle it belongs to.
+export async function getStorefrontCategories(): Promise<{ name: string; aisle: Aisle }[]> {
+  const all = await getCategories();
+  return all
+    .filter((c) => c.showOnStorefront && !c.needsReview)
+    .map((c) => ({ name: c.name, aisle: aisleFor(c.name, c.group) }));
+}
+
+// Moves a category to a different storefront aisle (null = automatic).
+export async function setCategoryAisle(name: string, aisle: string | null): Promise<boolean> {
+  if (!supabase) return false;
+  const { error } = await supabase.from("categories").update({ group_name: aisle }).eq("name", name);
+  if (error) {
+    console.error("setCategoryAisle:", error.message);
+    return false;
+  }
+  return true;
+}
+
 // Hand-adds a brand-new category from the dashboard (e.g. the Add Product
 // form's "+ Add new category" option) — not staff resolving a Clover
 // review, so it goes straight in as confirmed and storefront-visible.
@@ -85,7 +118,7 @@ export async function createCategory(name: string): Promise<Category | null> {
   const { data, error } = await supabase
     .from("categories")
     .insert({ name: trimmed, show_on_storefront: true, needs_review: false })
-    .select(CATEGORY_COLUMNS)
+    .select(BASE_COLUMNS)
     .single();
   if (error || !data) {
     console.error("createCategory:", error?.message);
