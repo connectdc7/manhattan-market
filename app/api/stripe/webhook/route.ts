@@ -11,7 +11,7 @@
 import { NextResponse } from "next/server";
 import Stripe from "stripe";
 import { stripe, isStripeConfigured } from "@/lib/stripe";
-import { getProducts } from "@/lib/products";
+import { getProductsByIds } from "@/lib/products";
 import { createOrderAdmin, decrementStockAdmin } from "@/lib/orders-admin";
 import { pushOrderToClover } from "@/lib/clover-orders";
 import { isCloverConfigured } from "@/lib/clover";
@@ -33,7 +33,7 @@ async function fulfillCheckoutSession(session: Stripe.Checkout.Session) {
   // Re-derive name/price from the current product list rather than trusting
   // anything from the session — mirrors how the session was priced in the
   // first place (see app/api/checkout/session/route.ts).
-  const products = await getProducts();
+  const products = await getProductsByIds(cartLines.map((l) => l.id));
   const items = cartLines
     .map((line) => {
       const product = products.find((p) => p.id === line.id);
