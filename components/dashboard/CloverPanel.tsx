@@ -9,6 +9,7 @@ type Status = {
   connected: boolean;
   merchantId?: string | null;
   connectedAt?: string | null;
+  mode?: "token" | "oauth";
 };
 
 type WebhookState = {
@@ -67,7 +68,7 @@ export default function CloverPanel({ onSynced }: { onSynced: () => void }) {
   }, [searchParams]);
 
   useEffect(() => {
-    if (!status?.connected) return;
+    if (!status?.connected || status.mode === "token") return;
     staffFetch("/api/clover/webhook-code")
       .then((r) => r.json())
       .then(setWebhook)
@@ -157,6 +158,12 @@ export default function CloverPanel({ onSynced }: { onSynced: () => void }) {
               {status.connectedAt && (
                 <span className="text-ink-soft"> since {new Date(status.connectedAt).toLocaleDateString()}</span>
               )}
+              {status.mode === "token" && (
+                <span className="block font-body text-xs text-ink-soft">
+                  Connected with the store&apos;s Clover API token. The menu re-syncs from Clover automatically every
+                  few minutes; use Sync Now to pull changes immediately.
+                </span>
+              )}
             </p>
           ) : (
             <p className="mt-1 font-body text-sm text-ink-soft">
@@ -176,12 +183,14 @@ export default function CloverPanel({ onSynced }: { onSynced: () => void }) {
                 >
                   {syncing ? "Syncing…" : "Sync Now"}
                 </button>
-                <button
-                  onClick={handleDisconnect}
-                  className="font-mono text-[0.65rem] uppercase tracking-wide text-ink-soft hover:text-[#a8461a]"
-                >
-                  {confirmDisconnect ? "Click again to disconnect" : "Disconnect"}
-                </button>
+                {status.mode !== "token" && (
+                  <button
+                    onClick={handleDisconnect}
+                    className="font-mono text-[0.65rem] uppercase tracking-wide text-ink-soft hover:text-[#a8461a]"
+                  >
+                    {confirmDisconnect ? "Click again to disconnect" : "Disconnect"}
+                  </button>
+                )}
               </>
             ) : (
               <button
@@ -198,7 +207,7 @@ export default function CloverPanel({ onSynced }: { onSynced: () => void }) {
 
       {syncResult && <p className="mt-2 font-body text-xs text-ink-soft">{syncResult}</p>}
 
-      {status.connected && (
+      {status.connected && status.mode !== "token" && (
         <div className="mt-3 border-t border-line pt-3">
           <button
             type="button"
