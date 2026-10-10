@@ -321,7 +321,14 @@ function Dashboard({ staff }: { staff: StaffMember }) {
           </div>
 
           <div className="mt-6">
-            {tab === "orders" && <OrdersPanel orders={orders} onStatusChange={handleStatusChange} />}
+            {tab === "orders" && (
+              <OrdersPanel
+                orders={orders}
+                onStatusChange={handleStatusChange}
+                isOwner={staff.role === "owner"}
+                onRefunded={loadAll}
+              />
+            )}
             {tab === "inventory" && (
               <InventoryPanel
                 key={inventorySearch}
