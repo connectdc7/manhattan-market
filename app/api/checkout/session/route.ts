@@ -12,7 +12,7 @@
 // — the cart in the browser only ever supplies product ids and quantities.
 import { NextResponse } from "next/server";
 import { stripe, isStripeConfigured } from "@/lib/stripe";
-import { getProducts } from "@/lib/products";
+import { getProductsByIds } from "@/lib/products";
 import { getStoreSettings } from "@/lib/settings";
 import { getDeliveryQuote, isUberConfigured, toE164, validateDeliveryAddress, DeliveryAddress } from "@/lib/uber";
 
@@ -43,7 +43,7 @@ export async function POST(request: Request) {
   }
   const fulfillment = body.fulfillment === "delivery" ? "delivery" : "pickup";
 
-  const products = await getProducts();
+  const products = await getProductsByIds(requestedLines.map((l) => l.id));
   const lineItems: { name: string; unitAmount: number; qty: number }[] = [];
 
   for (const line of requestedLines) {
