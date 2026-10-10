@@ -29,6 +29,12 @@ export type Order = {
   uber_tracking_url?: string | null;
   uber_courier?: { name?: string; vehicle_type?: string; phone_number?: string } | null;
   uber_error?: string | null;
+  // Online payment + refunds (supabase/refunds.sql).
+  stripe_session_id?: string | null;
+  refunded_amount?: number | null;
+  refunded_items?: { id: string; qty: number }[] | null;
+  refund_status?: "partial" | "full" | null;
+  refunded_at?: string | null;
 };
 
 export type DeliveryAddressFields = {
@@ -61,13 +67,21 @@ export async function createOrder(order: {
 export async function getOrders(limit = 300): Promise<Order[]> {
   if (!supabase) return [];
 
-  const { data, error } = await supabase
+  const BASE =
+    "id, created_at, fulfillment, items, subtotal, status, phone, clover_order_id, clover_push_error, delivery_address, delivery_fee, service_fee, uber_delivery_id, uber_status, uber_tracking_url, uber_courier, uber_error, stripe_session_id";
+  const first = await supabase
     .from("orders")
-    .select(
-      "id, created_at, fulfillment, items, subtotal, status, phone, clover_order_id, clover_push_error, delivery_address, delivery_fee, service_fee, uber_delivery_id, uber_status, uber_tracking_url, uber_courier, uber_error"
-    )
+    .select(`${BASE}, refunded_amount, refunded_items, refund_status, refunded_at`)
     .order("created_at", { ascending: false })
     .limit(limit);
+  let data = first.data as Record<string, unknown>[] | null;
+  let error = first.error;
+  if (error) {
+    // supabase/refunds.sql not run yet — load orders without the refund columns.
+    const retry = await supabase.from("orders").select(BASE).order("created_at", { ascending: false }).limit(limit);
+    data = retry.data as Record<string, unknown>[] | null;
+    error = retry.error;
+  }
 
   if (error || !data) {
     if (error) console.error("getOrders:", error.message);
@@ -79,6 +93,7 @@ export async function getOrders(limit = 300): Promise<Order[]> {
     subtotal: Number(row.subtotal),
     delivery_fee: row.delivery_fee === null || row.delivery_fee === undefined ? null : Number(row.delivery_fee),
     service_fee: row.service_fee === null || row.service_fee === undefined ? null : Number(row.service_fee),
+    refunded_amount: row.refunded_amount != null ? Number(row.refunded_amount) : 0,
     status: (row.status ?? "new") as OrderStatus,
   })) as Order[];
 }
