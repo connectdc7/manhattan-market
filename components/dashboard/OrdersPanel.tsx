@@ -13,6 +13,7 @@ const UBER_LABEL: Record<string, string> = {
   returned: "Returned to store",
 };
 import { staffFetch } from "@/lib/staff-auth";
+import RefundBox from "./RefundBox";
 
 const STATUS_LABEL: Record<OrderStatus, string> = {
   new: "New",
@@ -61,9 +62,14 @@ const STATUS_RANK: Record<OrderStatus, number> = { new: 0, preparing: 1, ready: 
 export default function OrdersPanel({
   orders,
   onStatusChange,
+  isOwner = false,
+  onRefunded,
 }: {
   orders: Order[];
   onStatusChange: (id: string, status: OrderStatus) => void | Promise<void>;
+  // Refunds are owner-only (see components/dashboard/RefundBox.tsx).
+  isOwner?: boolean;
+  onRefunded?: () => void;
 }) {
   const [view, setView] = useState<"active" | "completed" | "all">("active");
   const [cloverConnected, setCloverConnected] = useState(false);
@@ -226,6 +232,11 @@ export default function OrdersPanel({
                         On Clover
                       </span>
                     )}
+                    {o.refund_status && (
+                      <span className="rounded-full bg-[#a8461a]/10 px-2.5 py-0.5 font-mono text-[0.6rem] font-semibold uppercase tracking-wide text-[#a8461a]">
+                        {o.refund_status === "full" ? "Refunded" : "Partly refunded"} ${Number(o.refunded_amount ?? 0).toFixed(2)}
+                      </span>
+                    )}
                   </div>
                   <span className="font-mono text-sm font-semibold text-ink">${o.subtotal.toFixed(2)}</span>
                 </div>
@@ -319,6 +330,11 @@ export default function OrdersPanel({
                     </button>
                   )}
                 </div>
+                {isOwner && o.stripe_session_id && (
+                  <div className="mt-2">
+                    <RefundBox order={o} onDone={() => onRefunded?.()} />
+                  </div>
+                )}
               </div>
             );
           })}
