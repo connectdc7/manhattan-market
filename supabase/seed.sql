@@ -1127,3 +1127,6 @@ create policy "Owners can update store settings"
 
 -- What the customer paid as a service fee on each delivery order.
 alter table orders add column if not exists service_fee numeric(10, 2);
+
+-- Clover API-token auto-sync (also in supabase/clover-token.sql)
+alter table clover_webhook_state add column if not exists last_auto_sync_at timestamptz;
