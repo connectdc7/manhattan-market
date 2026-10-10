@@ -4,22 +4,17 @@
 // current after that without staff needing to click Sync again.
 import { NextResponse } from "next/server";
 import { requireStaff } from "@/lib/require-staff";
-import {
-  fetchAllCloverItems,
-  getFreshCloverConnection,
-  isCloverConfigured,
-  loadCloverCategoryContext,
-  upsertProductFromCloverItem,
-} from "@/lib/clover";
+import { getFreshCloverConnection, isCloverConfigured } from "@/lib/clover";
+import { syncAllCloverItems } from "@/lib/clover-sync";
 import { generatePhotosForItems, isImageGenConfigured } from "@/lib/image-gen";
 
-// Pinned explicitly rather than left to Vercel's default: a catalog with
-// several items still missing a photo can spend real time in
-// generatePhotosForItems below (several seconds per image, even batched
-// a few at a time), and this is the number that budget is measured
-// against. 300s is the ceiling on Vercel's Hobby plan and the default on
-// Pro — see README's "AI-generated product photos" section.
+// 300s is the ceiling on Vercel's Hobby plan. The bulk sync itself takes
+// seconds; the time budget is for AI photos (when OPENAI_API_KEY is set).
 export const maxDuration = 300;
+
+// AI photos are slow (several seconds each), so each sync only does this
+// many — clicking Sync Now again carries on with the next batch.
+const PHOTOS_PER_SYNC = 20;
 
 export async function POST(request: Request) {
   // Dashboard-only: must come from a signed-in staffer (lib/require-staff.ts).
@@ -29,41 +24,18 @@ export async function POST(request: Request) {
   if (!isCloverConfigured()) {
     return NextResponse.json({ error: "Clover isn't configured yet." }, { status: 501 });
   }
-
-  const connection = await getFreshCloverConnection();
-  if (!connection) {
+  if (!(await getFreshCloverConnection())) {
     return NextResponse.json({ error: "Not connected to Clover yet." }, { status: 409 });
   }
 
-  const items = await fetchAllCloverItems(connection.merchant_id, connection.access_token);
-
-  // Loaded once for the whole run — see loadCloverCategoryContext's
-  // comment in lib/clover.ts for why (avoids a per-item DB round trip and
-  // duplicate category rows when several items share one new department).
-  const categoryContext = await loadCloverCategoryContext();
-
-  let succeeded = 0;
-  let failed = 0;
-  // Collected as items are upserted, then generated afterward as its own
-  // pass (a few at a time — see generatePhotosForItems) rather than one at
-  // a time inside this loop. Doing it inline here was the original
-  // approach, and it's why a sync with many missing photos would only get
-  // through the first handful before running long: this keeps the fast
-  // data sync and the slow photo generation from being tangled together.
-  const needsPhoto: { id: string; name: string; category: string }[] = [];
-
-  for (const item of items) {
-    const result = await upsertProductFromCloverItem(item, categoryContext);
-    if (result.ok) succeeded++;
-    else failed++;
-    if (result.ok && result.needsPhoto && result.id) {
-      needsPhoto.push({ id: result.id, name: result.name, category: result.category });
-    }
+  const result = await syncAllCloverItems();
+  if (!result.ok && result.succeeded === 0) {
+    return NextResponse.json({ error: result.error || "Sync failed." }, { status: 502 });
   }
 
   const photos = isImageGenConfigured()
-    ? await generatePhotosForItems(needsPhoto)
-    : { generated: 0, failed: 0, skipped: needsPhoto.length };
+    ? await generatePhotosForItems(result.needsPhoto.slice(0, PHOTOS_PER_SYNC))
+    : { generated: 0, failed: 0, skipped: result.needsPhoto.length };
 
-  return NextResponse.json({ total: items.length, succeeded, failed, photos });
+  return NextResponse.json({ total: result.total, succeeded: result.succeeded, failed: result.failed, photos });
 }
