@@ -239,6 +239,7 @@ export default function OrdersPanel({
                       {o.delivery_address.apt ? `, ${o.delivery_address.apt}` : ""}, {o.delivery_address.city}{" "}
                       {o.delivery_address.zip}
                       {o.delivery_fee ? <span className="text-ink-soft"> · paid ${o.delivery_fee.toFixed(2)} delivery</span> : null}
+                      {o.service_fee ? <span className="text-ink-soft"> + ${o.service_fee.toFixed(2)} service fee</span> : null}
                     </p>
                     {o.delivery_address.notes && <p className="mt-0.5 text-ink-soft">“{o.delivery_address.notes}”</p>}
                     {o.uber_status && (
