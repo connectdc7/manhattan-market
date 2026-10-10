@@ -466,13 +466,19 @@ export async function fetchAllCloverItems(
       `${cloverUrls().api}/v3/merchants/${merchantId}/items?expand=categories,itemStock&limit=${limit}&offset=${offset}`,
       { headers: { Authorization: `Bearer ${accessToken}` } }
     );
-    if (!res.ok) break;
+    if (!res.ok) {
+      // A failed page must not look like "the store has no more items" —
+      // the caller would report a partial catalog as a complete sync.
+      const detail = await res.text().catch(() => "");
+      console.error("[clover] item list failed", { offset, status: res.status, detail: detail.slice(0, 300) });
+      throw new Error(`Clover refused the item list (HTTP ${res.status})${res.status === 401 ? " — check CLOVER_API_TOKEN and its Inventory permission" : ""}.`);
+    }
     const body = (await res.json()) as { elements?: CloverItem[] };
     const page = body.elements ?? [];
     items.push(...page);
     if (page.length < limit) break;
     offset += limit;
-    if (offset > 5000) break; // sanity cap — a convenience store's catalog won't get near this
+    if (offset >= 20000) break; // sanity cap
   }
 
   return items;

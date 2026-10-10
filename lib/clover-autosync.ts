@@ -10,13 +10,8 @@
 // (clover_webhook_state.last_auto_sync_at, supabase/clover-token.sql), so
 // many visitors at once still trigger just one sync.
 import { supabaseAdmin } from "./supabase-admin";
-import {
-  fetchAllCloverItems,
-  getFreshCloverConnection,
-  isCloverTokenMode,
-  loadCloverCategoryContext,
-  upsertProductFromCloverItem,
-} from "./clover";
+import { isCloverTokenMode } from "./clover";
+import { syncAllCloverItems } from "./clover-sync";
 
 const AUTO_SYNC_MINUTES = 3;
 
@@ -41,16 +36,8 @@ export async function maybeAutoSyncClover(): Promise<void> {
     }
     if (!claimed || claimed.length === 0) return; // synced recently
 
-    const connection = await getFreshCloverConnection();
-    if (!connection) return;
-    const items = await fetchAllCloverItems(connection.merchant_id, connection.access_token);
-    const ctx = await loadCloverCategoryContext();
-    let ok = 0;
-    for (const item of items) {
-      const result = await upsertProductFromCloverItem(item, ctx);
-      if (result.ok) ok++;
-    }
-    console.log(`[clover autosync] synced ${ok}/${items.length} items`);
+    const result = await syncAllCloverItems();
+    console.log(`[clover autosync] synced ${result.succeeded}/${result.total} items`, result.error ?? "");
   } catch (err) {
     console.error("[clover autosync] failed", err);
   }
