@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { after } from "next/server";
 import { maybeAutoSyncClover } from "@/lib/clover-autosync";
 import { getStorefrontProducts } from "@/lib/products";
-import { getStorefrontCategoryNames } from "@/lib/categories";
+import { getStorefrontCategories } from "@/lib/categories";
 import OrderCatalog from "@/components/OrderCatalog";
 
 export const metadata: Metadata = {
@@ -23,7 +23,7 @@ export default async function OrderPage() {
   // Keep the menu in step with Clover (API-token mode) — runs after the
   // page is sent, at most every few minutes. See lib/clover-autosync.ts.
   after(maybeAutoSyncClover);
-  const [products, categories] = await Promise.all([getStorefrontProducts(), getStorefrontCategoryNames()]);
+  const [products, categories] = await Promise.all([getStorefrontProducts({ inStockOnly: true }), getStorefrontCategories()]);
 
   // Only ever show what's actually in stock — the site should always match
   // the live inventory, so a sold-out item just isn't on the menu rather
