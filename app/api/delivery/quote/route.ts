@@ -4,13 +4,15 @@
 // before charging, so nobody can tamper with the price from the browser.
 import { NextResponse } from "next/server";
 import { getDeliveryQuote, isUberConfigured, validateDeliveryAddress, DeliveryAddress } from "@/lib/uber";
+import { getStoreSettings } from "@/lib/settings";
 
 export const runtime = "nodejs";
 
 export async function POST(request: Request) {
+  const { deliveryServiceFee } = await getStoreSettings();
   if (!isUberConfigured()) {
-    // Not set up yet — checkout keeps taking delivery orders with no fee.
-    return NextResponse.json({ configured: false });
+    // Not set up yet — checkout keeps taking delivery orders with no Uber fee.
+    return NextResponse.json({ configured: false, serviceFee: deliveryServiceFee });
   }
 
   let body: { address?: Partial<DeliveryAddress>; phone?: string | null };
@@ -33,6 +35,7 @@ export async function POST(request: Request) {
   return NextResponse.json({
     configured: true,
     fee: result.quote.fee,
+    serviceFee: deliveryServiceFee,
     dropoffEta: result.quote.dropoffEta,
     durationMin: result.quote.durationMin,
   });
