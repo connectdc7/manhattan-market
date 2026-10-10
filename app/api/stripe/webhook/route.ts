@@ -44,7 +44,7 @@ async function fulfillCheckoutSession(session: Stripe.Checkout.Session) {
   if (items.length === 0) return;
 
   // Delivery details captured at checkout (see app/api/checkout/session).
-  let delivery: { name: string; street: string; apt?: string; city: string; state: string; zip: string; notes?: string; fee?: number } | null = null;
+  let delivery: { name: string; street: string; apt?: string; city: string; state: string; zip: string; notes?: string; fee?: number; service?: number } | null = null;
   if (meta.delivery) {
     try {
       delivery = JSON.parse(meta.delivery);
@@ -53,12 +53,13 @@ async function fulfillCheckoutSession(session: Stripe.Checkout.Session) {
     }
   }
   const deliveryFee = Number(delivery?.fee ?? 0) || 0;
+  const serviceFee = Number(delivery?.service ?? 0) || 0;
 
   // Items only — the delivery fee is stored separately so sales numbers
   // aren't inflated by what goes to Uber.
   const subtotal =
     typeof session.amount_total === "number"
-      ? Math.max(0, session.amount_total / 100 - deliveryFee)
+      ? Math.max(0, session.amount_total / 100 - deliveryFee - serviceFee)
       : items.reduce((sum, item) => sum + item.price * item.qty, 0);
 
   const createdId = await createOrderAdmin({
@@ -79,6 +80,7 @@ async function fulfillCheckoutSession(session: Stripe.Checkout.Session) {
         }
       : null,
     delivery_fee: delivery ? deliveryFee : null,
+    service_fee: delivery && serviceFee > 0 ? serviceFee : null,
   });
 
   // Only touch stock the first time this session is fulfilled — createOrderAdmin
