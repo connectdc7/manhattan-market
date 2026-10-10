@@ -32,8 +32,7 @@ export default async function OrderPage() {
         Pickup or delivery — your call
       </h1>
       <p className="mt-2 max-w-xl font-body text-sm text-ink-soft">
-        Sample menu for this preview. Add real products, photos, and pricing before
-        launch.
+        Order ahead and skip the line — pick it up at the counter or have it delivered.
       </p>
 
       <OrderCatalog products={inStock} categories={categories} />
