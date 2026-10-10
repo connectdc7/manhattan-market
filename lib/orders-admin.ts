@@ -23,6 +23,7 @@ export async function createOrderAdmin(order: {
   stripe_session_id: string;
   delivery_address?: Record<string, string> | null;
   delivery_fee?: number | null;
+  service_fee?: number | null;
 }): Promise<string | null> {
   const client = supabaseAdmin;
   if (!client) return null;
