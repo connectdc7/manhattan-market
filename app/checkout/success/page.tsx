@@ -10,7 +10,6 @@ import { Suspense, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useCart } from "@/lib/cart-context";
-import { isSupabaseConfigured } from "@/lib/supabase";
 import { saveLastOrder } from "@/components/ReorderCard";
 
 type Status = "checking" | "paid" | "unpaid" | "error";
@@ -63,10 +62,8 @@ function CheckoutSuccessInner() {
         </div>
         <h1 className="mt-5 font-display text-2xl font-bold text-ink">Order placed</h1>
         <p className="mt-2 font-body text-sm text-ink-soft">
-          Payment received — thanks!{" "}
-          {isSupabaseConfigured
-            ? "Stock for what you ordered just updated, and it's on the counter's order queue now."
-            : "In the live site, stock updates automatically and the order lands on the counter's queue."}
+          Payment received — thanks! We&apos;re getting your order ready now. If you left a phone number,
+          we&apos;ll text you when it&apos;s ready (or when your courier is on the way).
         </p>
         <Link
           href="/order"
