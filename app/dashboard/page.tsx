@@ -16,10 +16,11 @@ import RewardsPanel from "@/components/dashboard/RewardsPanel";
 import AnalyticsPanel from "@/components/dashboard/AnalyticsPanel";
 import HeroPanel from "@/components/dashboard/HeroPanel";
 import StaffPanel from "@/components/dashboard/StaffPanel";
+import SettingsPanel from "@/components/dashboard/SettingsPanel";
 import StaffGate from "@/components/dashboard/StaffGate";
 import { signOutStaff, StaffMember } from "@/lib/staff-auth";
 
-type Tab = "orders" | "inventory" | "rewards" | "analytics" | "homepage" | "staff";
+type Tab = "orders" | "inventory" | "rewards" | "analytics" | "homepage" | "staff" | "settings";
 
 function isToday(iso: string) {
   const d = new Date(iso);
@@ -210,7 +211,12 @@ function Dashboard({ staff }: { staff: StaffMember }) {
                 ["rewards", "Rewards"],
                 ["analytics", "Analytics"],
                 ["homepage", "Homepage"],
-                ...(staff.role === "owner" ? ([["staff", "Staff"]] as const) : []),
+                ...(staff.role === "owner"
+                  ? ([
+                      ["staff", "Staff"],
+                      ["settings", "Settings"],
+                    ] as const)
+                  : []),
               ] as const
             ).map(([key, label]) => (
               <button
@@ -242,6 +248,7 @@ function Dashboard({ staff }: { staff: StaffMember }) {
             {tab === "analytics" && <AnalyticsPanel orders={orders} />}
             {tab === "homepage" && <HeroPanel effect={heroEffect} media={heroMedia} onRefresh={loadAll} />}
             {tab === "staff" && staff.role === "owner" && <StaffPanel me={staff} />}
+            {tab === "settings" && staff.role === "owner" && <SettingsPanel />}
           </div>
         </>
       )}
