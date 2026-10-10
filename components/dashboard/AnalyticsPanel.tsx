@@ -2,6 +2,7 @@
 
 import { useMemo } from "react";
 import { Order } from "@/lib/orders";
+import type { CloverStats } from "@/lib/clover-stats";
 import StatTile from "./StatTile";
 
 function isSameDay(a: Date, b: Date) {
@@ -14,8 +15,35 @@ function formatHour(hour: number) {
   return `${hour12}${period}`;
 }
 
-export default function AnalyticsPanel({ orders }: { orders: Order[] }) {
+export default function AnalyticsPanel({
+  orders,
+  cloverStats = null,
+  cloverError = null,
+}: {
+  orders: Order[];
+  cloverStats?: CloverStats | null;
+  cloverError?: string | null;
+}) {
   const stats = useMemo(() => {
+    // Preferred: the store's real sales from Clover (register + online).
+    if (cloverStats) {
+      const c = cloverStats;
+      const salesDelta =
+        c.salesYesterday > 0 ? ((c.salesToday - c.salesYesterday) / c.salesYesterday) * 100 : c.salesToday > 0 ? 100 : 0;
+      return {
+        salesToday: c.salesToday,
+        salesYesterday: c.salesYesterday,
+        ordersToday: c.ordersToday,
+        ordersYesterday: c.ordersYesterday,
+        salesDelta,
+        bestSellers: c.bestSellers,
+        slowMovers: c.slowMovers,
+        countByHour: c.countByHour,
+        maxHourCount: Math.max(1, ...c.countByHour),
+        hasOrders: c.ordersInHistory > 0,
+      };
+    }
+
     const now = new Date();
     const yesterday = new Date(now);
     yesterday.setDate(yesterday.getDate() - 1);
@@ -69,10 +97,19 @@ export default function AnalyticsPanel({ orders }: { orders: Order[] }) {
       maxHourCount,
       hasOrders: orders.length > 0,
     };
-  }, [orders]);
+  }, [orders, cloverStats]);
+
+  const source = cloverStats
+    ? `From Clover — every sale on the register plus online orders, last ${cloverStats.historyDays} days (${cloverStats.ordersInHistory.toLocaleString()} orders).`
+    : `From website orders only${cloverError ? ` — couldn't load Clover sales: ${cloverError}` : ""}. Based on the most recent ${orders.length} order${orders.length === 1 ? "" : "s"} loaded.`;
 
   if (!stats.hasOrders) {
-    return <p className="mt-6 font-body text-sm text-ink-soft">No order history yet — analytics will build up as orders come in.</p>;
+    return (
+      <div className="mt-6 font-body text-sm text-ink-soft">
+        <p>No sales yet — analytics will build up as orders come in.</p>
+        <p className="mt-2 font-mono text-[0.62rem] uppercase tracking-wide">{source}</p>
+      </div>
+    );
   }
 
   return (
@@ -90,7 +127,7 @@ export default function AnalyticsPanel({ orders }: { orders: Order[] }) {
 
       <div>
         <p className="font-mono text-[0.65rem] uppercase tracking-wide text-ink-soft">
-          Orders by hour of day (all history loaded)
+          Orders by hour of day{cloverStats ? ` (last ${cloverStats.historyDays} days)` : ""}
         </p>
         <div className="mt-3 overflow-x-auto">
           <div className="flex min-w-[640px] items-end gap-1" style={{ height: 120 }}>
@@ -128,6 +165,7 @@ export default function AnalyticsPanel({ orders }: { orders: Order[] }) {
           </div>
         </div>
 
+        {stats.slowMovers.length > 0 && (
         <div>
           <p className="font-mono text-[0.65rem] uppercase tracking-wide text-ink-soft">Slow movers</p>
           <div className="mt-3 flex flex-col gap-2">
@@ -145,11 +183,10 @@ export default function AnalyticsPanel({ orders }: { orders: Order[] }) {
             ))}
           </div>
         </div>
+        )}
       </div>
 
-      <p className="font-mono text-[0.62rem] uppercase tracking-wide text-ink-soft">
-        Based on the most recent {orders.length} order{orders.length === 1 ? "" : "s"} loaded.
-      </p>
+      <p className="font-mono text-[0.62rem] uppercase tracking-wide text-ink-soft">{source}</p>
     </div>
   );
 }

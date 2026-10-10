@@ -142,10 +142,10 @@ export default function CategoryReviewPanel({
   if (pending.length === 0) return null;
 
   return (
-    <div className="mb-4 rounded-lg border border-gold-ink/40 bg-gold-tint p-4">
-      <p className="font-mono text-[0.65rem] uppercase tracking-wide text-gold-ink">
+    <details className="mb-4 rounded-lg border border-gold-ink/40 bg-gold-tint p-4">
+      <summary className="cursor-pointer select-none font-mono text-[0.65rem] uppercase tracking-wide text-gold-ink">
         {pending.length} categor{pending.length === 1 ? "y" : "ies"} from Clover need a quick look
-      </p>
+      </summary>
       <p className="mt-1 font-body text-sm text-ink-soft">
         Rename to match your existing naming, merge into a category you already have, or confirm
         as-is — and choose whether it should show on the online order page.
@@ -160,6 +160,6 @@ export default function CategoryReviewPanel({
           />
         ))}
       </div>
-    </div>
+    </details>
   );
 }

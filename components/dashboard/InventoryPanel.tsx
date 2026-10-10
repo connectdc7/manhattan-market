@@ -86,6 +86,7 @@ export default function InventoryPanel({
   onProductRemoved,
   onRefresh,
   salesVelocity,
+  initialSearch = "",
 }: {
   products: Product[];
   categories: Category[];
@@ -94,8 +95,10 @@ export default function InventoryPanel({
   onProductRemoved: (id: string) => void;
   onRefresh: () => void;
   salesVelocity: Record<string, number>;
+  initialSearch?: string;
 }) {
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useState(initialSearch);
+  const [showCategories, setShowCategories] = useState(false);
   const [category, setCategory] = useState<string>("All");
   const categoryNames = useMemo(() => categories.map((c) => c.name), [categories]);
   const [sort, setSort] = useState<SortMode>("low-stock");
@@ -293,22 +296,31 @@ export default function InventoryPanel({
           placeholder="Search products…"
           className="rounded-full border border-line bg-paper px-4 py-1.5 font-body text-sm text-ink outline-none focus:border-green"
         />
-        {["All", ...categoryNames].map((c) => (
+        {/* Category filter — collapsed behind one button, since a real
+            catalog has dozens of categories and a wall of chips is busy. */}
+        <button
+          type="button"
+          onClick={() => setShowCategories((v) => !v)}
+          aria-expanded={showCategories}
+          className={`flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 font-mono text-xs font-semibold transition ${
+            category !== "All" ? "border-green bg-green text-white" : "border-line text-ink-soft hover:border-green hover:text-green"
+          }`}
+        >
+          {category === "All" ? "All categories" : category}
+          <span aria-hidden className={`transition-transform ${showCategories ? "rotate-180" : ""}`}>▾</span>
+        </button>
+        {category !== "All" && (
           <button
-            key={c}
+            type="button"
             onClick={() => {
-              setCategory(c);
+              setCategory("All");
               setRowLimit(ROW_PAGE);
             }}
-            className={`rounded-full border px-3.5 py-1.5 font-mono text-xs font-semibold transition ${
-              category === c
-                ? "border-green bg-green text-white"
-                : "border-line text-ink-soft hover:border-green hover:text-green"
-            }`}
+            className="font-mono text-[0.65rem] uppercase tracking-wide text-ink-soft hover:text-green"
           >
-            {c}
+            Clear
           </button>
-        ))}
+        )}
         <div className="ml-auto flex items-center gap-3">
           <div className="flex items-center gap-1.5">
             <span className="font-mono text-[0.65rem] uppercase tracking-wide text-ink-soft">Sort</span>
@@ -329,6 +341,28 @@ export default function InventoryPanel({
           </button>
         </div>
       </div>
+
+      {showCategories && (
+        <div className="mt-3 flex flex-wrap gap-1.5 rounded-lg border border-line bg-panel p-3">
+          {["All", ...categoryNames].map((c) => (
+            <button
+              key={c}
+              onClick={() => {
+                setCategory(c);
+                setRowLimit(ROW_PAGE);
+                setShowCategories(false);
+              }}
+              className={`rounded-full border px-3 py-1 font-mono text-xs font-semibold transition ${
+                category === c
+                  ? "border-green bg-green text-white"
+                  : "border-line bg-paper text-ink-soft hover:border-green hover:text-green"
+              }`}
+            >
+              {c === "All" ? "All categories" : c}
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* Mobile: stacked cards with a large tappable photo. The table below
           is fine on wider screens, but forcing a 720px-wide table onto a
