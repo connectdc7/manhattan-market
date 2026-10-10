@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import Link from "next/link";
 import { getProducts, Product } from "@/lib/products";
 import { getCategories, Category } from "@/lib/categories";
 import { getOrders, updateOrderStatus, notifyOrderReady, Order, OrderStatus } from "@/lib/orders";
@@ -156,22 +155,12 @@ function Dashboard({ staff }: { staff: StaffMember }) {
               {live ? "Live" : "Connected"}
             </span>
           )}
-          {/* Same-tab, client-side navigation on purpose — nothing on the
-              dashboard should hand staff a second window to keep track of.
-              The browser's own Back button is the way back here, same as
-              every other link on this page. */}
           <button
             onClick={() => signOutStaff()}
             className="rounded-full border border-line px-3.5 py-1.5 font-mono text-xs font-semibold text-ink-soft transition hover:border-green hover:text-green"
           >
             Sign out
           </button>
-          <Link
-            href="/"
-            className="rounded-full border border-line px-3.5 py-1.5 font-mono text-xs font-semibold text-ink-soft transition hover:border-green hover:text-green"
-          >
-            View Storefront
-          </Link>
         </div>
       </div>
       <p className="mt-2 font-body text-sm text-ink-soft">
