@@ -1,4 +1,5 @@
 import Link from "next/link";
+import ProductPlaceholder from "@/components/ProductPlaceholder";
 import { after } from "next/server";
 import { maybeAutoSyncClover } from "@/lib/clover-autosync";
 import { getStorefrontProducts } from "@/lib/products";
@@ -25,7 +26,7 @@ export default async function Home() {
   // page is sent, at most every few minutes. See lib/clover-autosync.ts.
   after(maybeAutoSyncClover);
   const [products, activeOrders, heroEffect, activeHeroMedia] = await Promise.all([
-    getStorefrontProducts(),
+    getStorefrontProducts({ inStockOnly: true }),
     getActiveOrderCount(),
     getHeroEffect(),
     getActiveHeroMedia(),
@@ -136,12 +137,12 @@ export default async function Home() {
                       className="h-48 w-full object-cover sm:h-full"
                     />
                   ) : (
-                    <div
-                      className="flex h-48 items-center justify-center font-mono text-[0.65rem] uppercase tracking-widest text-white/70 sm:h-full"
-                      style={{ backgroundColor: productOfDay.swatch }}
-                    >
-                      sample photo
-                    </div>
+                    <ProductPlaceholder
+                      name={productOfDay.name}
+                      category={productOfDay.category}
+                      swatch={productOfDay.swatch}
+                      className="h-48 w-full sm:h-full"
+                    />
                   )}
                 </div>
 
