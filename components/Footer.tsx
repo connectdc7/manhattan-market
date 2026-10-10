@@ -55,6 +55,18 @@ export default function Footer() {
           </span>
           <span>Manhattan Market &copy; 2026</span>
         </div>
+        {/* Required credit for product photos from Open Food Facts (CC BY-SA) — see lib/photo-lookup.ts. */}
+        <p className="mt-3 font-body text-[0.7rem] normal-case tracking-normal text-white/35">
+          Some product photos courtesy of{" "}
+          <a href="https://world.openfoodfacts.org" target="_blank" rel="noopener noreferrer" className="underline hover:text-gold">
+            Open Food Facts
+          </a>{" "}
+          contributors, licensed{" "}
+          <a href="https://creativecommons.org/licenses/by-sa/3.0/" target="_blank" rel="noopener noreferrer" className="underline hover:text-gold">
+            CC BY-SA
+          </a>
+          .
+        </p>
       </div>
     </footer>
     </HideOnDashboard>
