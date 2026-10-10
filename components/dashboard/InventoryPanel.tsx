@@ -6,6 +6,7 @@ import { Category } from "@/lib/categories";
 import ProductFormModal from "./ProductFormModal";
 import CloverPanel from "./CloverPanel";
 import CategoryReviewPanel from "./CategoryReviewPanel";
+import CategoryManagerPanel from "./CategoryManagerPanel";
 import { staffFetch } from "@/lib/staff-auth";
 
 function StockStepper({
@@ -73,6 +74,8 @@ function StockStepper({
 
 type SortMode = "low-stock" | "name";
 
+const ROW_PAGE = 100;
+
 type ModalState = { mode: "create" } | { mode: "edit"; product: Product } | null;
 
 export default function InventoryPanel({
@@ -96,6 +99,9 @@ export default function InventoryPanel({
   const [category, setCategory] = useState<string>("All");
   const categoryNames = useMemo(() => categories.map((c) => c.name), [categories]);
   const [sort, setSort] = useState<SortMode>("low-stock");
+  // The real catalog is thousands of items — list a manageable number at a
+  // time (search or pick a category to narrow it down).
+  const [rowLimit, setRowLimit] = useState(ROW_PAGE);
   const [modal, setModal] = useState<ModalState>(null);
   const [togglingSpecial, setTogglingSpecial] = useState<string | null>(null);
   const [togglingHealthy, setTogglingHealthy] = useState<string | null>(null);
@@ -178,7 +184,7 @@ export default function InventoryPanel({
     onRefresh();
   };
 
-  const shown = useMemo(() => {
+  const matching = useMemo(() => {
     let list = products;
     if (category !== "All") list = list.filter((p) => p.category === category);
     if (search.trim()) {
@@ -193,12 +199,14 @@ export default function InventoryPanel({
     }
     return list;
   }, [products, category, search, sort]);
+  const shown = matching.slice(0, rowLimit);
 
   return (
     <div>
       <CloverPanel onSynced={onRefresh} />
 
       <CategoryReviewPanel categories={categories} onResolved={onRefresh} />
+      <CategoryManagerPanel categories={categories} products={products} onChanged={onRefresh} />
 
       <div className="mb-4 flex flex-wrap items-center gap-3 rounded-lg border border-line bg-panel p-4">
         <div>
@@ -239,14 +247,20 @@ export default function InventoryPanel({
         <input
           type="text"
           value={search}
-          onChange={(e) => setSearch(e.target.value)}
+          onChange={(e) => {
+            setSearch(e.target.value);
+            setRowLimit(ROW_PAGE);
+          }}
           placeholder="Search products…"
           className="rounded-full border border-line bg-paper px-4 py-1.5 font-body text-sm text-ink outline-none focus:border-green"
         />
         {["All", ...categoryNames].map((c) => (
           <button
             key={c}
-            onClick={() => setCategory(c)}
+            onClick={() => {
+              setCategory(c);
+              setRowLimit(ROW_PAGE);
+            }}
             className={`rounded-full border px-3.5 py-1.5 font-mono text-xs font-semibold transition ${
               category === c
                 ? "border-green bg-green text-white"
@@ -491,6 +505,21 @@ export default function InventoryPanel({
           </tbody>
         </table>
       </div>
+
+      {matching.length > shown.length && (
+        <div className="mt-4 flex flex-col items-center gap-1.5">
+          <button
+            type="button"
+            onClick={() => setRowLimit((n) => n + ROW_PAGE * 2)}
+            className="rounded-full border border-green px-4 py-1.5 font-mono text-xs font-semibold text-green transition hover:bg-green hover:text-white"
+          >
+            Show more
+          </button>
+          <p className="font-mono text-[0.65rem] text-ink-soft">
+            Showing {shown.length} of {matching.length} — search or pick a category to narrow it down
+          </p>
+        </div>
+      )}
 
       {modal && (
         <ProductFormModal
