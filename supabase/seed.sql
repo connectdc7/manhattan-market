@@ -1133,3 +1133,7 @@ alter table clover_webhook_state add column if not exists last_auto_sync_at time
 
 -- Storefront aisles (supabase/category-aisles.sql)
 alter table categories add column if not exists group_name text;
+
+-- Free product photos by barcode (supabase/product-photos.sql)
+alter table products add column if not exists barcode text;
+alter table products add column if not exists photo_lookup_at timestamptz;
