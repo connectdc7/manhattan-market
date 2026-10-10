@@ -1,9 +1,13 @@
 import Link from "next/link";
 import Reveal from "@/components/Reveal";
 import { SkylineWordmark } from "@/components/Logo";
+import HideOnDashboard from "@/components/HideOnDashboard";
 
+// Not shown on the staff dashboard (see HideOnDashboard) — its links all
+// lead to the customer storefront.
 export default function Footer() {
   return (
+    <HideOnDashboard>
     <footer className="mt-auto bg-green-deep text-white">
       <div className="mx-auto max-w-6xl px-5 py-10">
         <div className="grid gap-8 sm:grid-cols-3">
@@ -50,5 +54,6 @@ export default function Footer() {
         </div>
       </div>
     </footer>
+    </HideOnDashboard>
   );
 }

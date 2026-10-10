@@ -1,7 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
+import { supabase } from "@/lib/supabase";
 import { useCart } from "@/lib/cart-context";
 import { SkylineWordmark } from "@/components/Logo";
 
@@ -13,8 +15,47 @@ const NAV = [
 ];
 
 export default function Header() {
+  const pathname = usePathname();
+  const onDashboard = pathname?.startsWith("/dashboard") ?? false;
+  if (onDashboard) return <DashboardHeader />;
+  return <StorefrontHeader />;
+}
+
+// Staff dashboard: just the logo (back to the dashboard) — no storefront
+// links or cart, so staff don't get sent off the dashboard by accident.
+function DashboardHeader() {
+  return (
+    <header className="sticky top-0 z-40">
+      <div className="stripe-bar h-1.5" />
+      <div className="border-b border-line bg-paper/95 backdrop-blur">
+        <div className="mx-auto flex max-w-6xl items-center justify-between px-5 py-4">
+          <Link href="/dashboard" className="skyline-hover-zone flex items-center text-ink" aria-label="Dashboard home">
+            <SkylineWordmark className="h-11 w-auto shrink-0 sm:h-12" />
+          </Link>
+          <span className="font-mono text-[0.65rem] font-semibold uppercase tracking-widest text-ink-soft">
+            Staff Dashboard
+          </span>
+        </div>
+      </div>
+    </header>
+  );
+}
+
+function StorefrontHeader() {
   const { count, openDrawer } = useCart();
   const [menuOpen, setMenuOpen] = useState(false);
+  // Signed-in staff who hop over to the storefront ("View Storefront")
+  // get a button straight back to the dashboard. Customers never sign in,
+  // so they never see it.
+  const [isStaff, setIsStaff] = useState(false);
+
+  useEffect(() => {
+    if (!supabase) return;
+    const client = supabase;
+    client.auth.getSession().then(({ data }) => setIsStaff(Boolean(data.session)));
+    const { data: sub } = client.auth.onAuthStateChange((_event, session) => setIsStaff(Boolean(session)));
+    return () => sub.subscription.unsubscribe();
+  }, []);
 
   return (
     <header className="sticky top-0 z-40">
@@ -39,6 +80,14 @@ export default function Header() {
           </nav>
 
           <div className="flex items-center gap-3">
+            {isStaff && (
+              <Link
+                href="/dashboard"
+                className="rounded-full bg-green px-4 py-2 font-mono text-xs font-semibold text-white transition-all hover:bg-green-deep active:scale-95"
+              >
+                ← Dashboard
+              </Link>
+            )}
             <button
               onClick={openDrawer}
               className="relative rounded-full border border-line bg-paper px-4 py-2 font-mono text-xs font-semibold text-ink transition-all hover:border-green hover:text-green active:scale-95"
