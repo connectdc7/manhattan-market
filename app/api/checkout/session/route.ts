@@ -13,6 +13,7 @@
 import { NextResponse } from "next/server";
 import { stripe, isStripeConfigured } from "@/lib/stripe";
 import { getProducts } from "@/lib/products";
+import { getStoreSettings } from "@/lib/settings";
 import { getDeliveryQuote, isUberConfigured, toE164, validateDeliveryAddress, DeliveryAddress } from "@/lib/uber";
 
 type RequestLine = { id: string; qty: number };
@@ -63,6 +64,7 @@ export async function POST(request: Request) {
   // (never from the browser). Without Uber set up, delivery still works
   // with no fee and staff arrange it themselves.
   let deliveryFee = 0;
+  let serviceFee = 0;
   let deliveryMeta = "";
   if (fulfillment === "delivery") {
     const invalid = validateDeliveryAddress(body.delivery);
@@ -78,6 +80,9 @@ export async function POST(request: Request) {
       }
       deliveryFee = quote.quote.fee;
     }
+    // Owner-set flat service fee (dashboard → Settings), read from the
+    // database here — never from the browser.
+    serviceFee = (await getStoreSettings()).deliveryServiceFee;
     deliveryMeta = JSON.stringify({
       name: address.name.trim().slice(0, 60),
       street: address.street.trim().slice(0, 100),
@@ -87,6 +92,7 @@ export async function POST(request: Request) {
       zip: address.zip.trim().slice(0, 10),
       notes: (address.notes ?? "").trim().slice(0, 150),
       fee: deliveryFee,
+      service: serviceFee,
     });
   }
 
@@ -112,6 +118,18 @@ export async function POST(request: Request) {
                   currency: "usd",
                   unit_amount: Math.round(deliveryFee * 100),
                   product_data: { name: "Delivery (Uber)" },
+                },
+              },
+            ]
+          : []),
+        ...(serviceFee > 0
+          ? [
+              {
+                quantity: 1,
+                price_data: {
+                  currency: "usd",
+                  unit_amount: Math.round(serviceFee * 100),
+                  product_data: { name: "Service fee" },
                 },
               },
             ]
