@@ -92,7 +92,7 @@ export default function CartDrawer() {
             Checkout
           </button>
           <p className="mt-2 text-center font-mono text-[0.62rem] uppercase tracking-wide text-ink-soft">
-            Preview build — payment not yet connected
+            Secure checkout · pickup or delivery
           </p>
         </div>
       </aside>

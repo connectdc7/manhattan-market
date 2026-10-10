@@ -49,7 +49,10 @@ export default function Footer() {
           </div>
         </div>
         <div className="mt-8 flex flex-wrap items-center justify-between gap-2 border-t border-white/15 pt-5 font-mono text-[0.7rem] uppercase tracking-widest text-white/40">
-          <span>Preview build — sample content, not yet final</span>
+          <span className="flex gap-4">
+            <Link href="/privacy" className="hover:text-gold">Privacy</Link>
+            <Link href="/terms" className="hover:text-gold">Terms</Link>
+          </span>
           <span>Manhattan Market &copy; 2026</span>
         </div>
       </div>
