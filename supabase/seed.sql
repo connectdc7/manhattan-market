@@ -1137,3 +1137,9 @@ alter table categories add column if not exists group_name text;
 -- Free product photos by barcode (supabase/product-photos.sql)
 alter table products add column if not exists barcode text;
 alter table products add column if not exists photo_lookup_at timestamptz;
+
+-- Refunds from the dashboard (supabase/refunds.sql)
+alter table orders add column if not exists refunded_amount numeric(10, 2) not null default 0;
+alter table orders add column if not exists refunded_items jsonb not null default '[]'::jsonb;
+alter table orders add column if not exists refund_status text;
+alter table orders add column if not exists refunded_at timestamptz;
