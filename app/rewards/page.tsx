@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, FormEvent } from "react";
-import { supabase, isSupabaseConfigured } from "@/lib/supabase";
+import { supabase } from "@/lib/supabase";
 
 export default function RewardsPage() {
   const [submitted, setSubmitted] = useState(false);
@@ -59,9 +59,7 @@ export default function RewardsPage() {
               {contact} is signed up. Your first order starts earning points right away.
             </p>
             <p className="mt-3 font-mono text-[0.62rem] uppercase tracking-wide text-ink-soft">
-              {isSupabaseConfigured
-                ? "Saved to the rewards list in Supabase"
-                : "Preview build — not yet connected to a real rewards ledger"}
+              Welcome to Manhattan Market Rewards
             </p>
           </div>
         ) : (
