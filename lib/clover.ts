@@ -462,22 +462,30 @@ export async function fetchAllCloverItems(
   let offset = 0;
 
   for (;;) {
-    const res = await fetch(
-      `${cloverUrls().api}/v3/merchants/${merchantId}/items?expand=categories,itemStock&limit=${limit}&offset=${offset}`,
-      { headers: { Authorization: `Bearer ${accessToken}` } }
-    );
+    const url = `${cloverUrls().api}/v3/merchants/${merchantId}/items?expand=categories,itemStock&limit=${limit}&offset=${offset}`;
+    // Clover rate-limits each token (HTTP 429), and a background auto-sync
+    // or the Clover device itself may be using it at the same moment — so
+    // wait and retry instead of giving up.
+    let res = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` } });
+    for (let attempt = 0; res.status === 429 && attempt < 6; attempt++) {
+      const retryAfter = Number(res.headers.get("retry-after"));
+      const waitMs = retryAfter > 0 ? Math.min(retryAfter * 1000, 10_000) : 1000 * 2 ** attempt;
+      await new Promise((r) => setTimeout(r, waitMs));
+      res = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` } });
+    }
     if (!res.ok) {
       // A failed page must not look like "the store has no more items" —
       // the caller would report a partial catalog as a complete sync.
       const detail = await res.text().catch(() => "");
       console.error("[clover] item list failed", { offset, status: res.status, detail: detail.slice(0, 300) });
-      throw new Error(`Clover refused the item list (HTTP ${res.status})${res.status === 401 ? " — check CLOVER_API_TOKEN and its Inventory permission" : ""}.`);
+      throw new Error(`Clover refused the item list (HTTP ${res.status})${res.status === 401 ? " — check CLOVER_API_TOKEN and its Inventory permission" : res.status === 429 ? " — Clover is busy, try again in a minute" : ""}.`);
     }
     const body = (await res.json()) as { elements?: CloverItem[] };
     const page = body.elements ?? [];
     items.push(...page);
     if (page.length < limit) break;
     offset += limit;
+    await new Promise((r) => setTimeout(r, 250)); // stay well under Clover's per-second limit
     if (offset >= 20000) break; // sanity cap
   }
 
