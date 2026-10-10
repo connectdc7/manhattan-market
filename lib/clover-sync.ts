@@ -40,6 +40,13 @@ function productIdFor(name: string, cloverItemId: string): string {
   return `${base || "product"}-${cloverItemId.toLowerCase().slice(-6)}`;
 }
 
+// Clover's "code" field holds whatever staff typed or scanned — keep it only
+// when it looks like a real product barcode (UPC/EAN: 8–14 digits).
+function cleanBarcode(code: string | undefined): string | null {
+  const digits = (code ?? "").replace(/\s/g, "");
+  return /^\d{8,14}$/.test(digits) ? digits : null;
+}
+
 export async function syncAllCloverItems(): Promise<CloverSyncResult> {
   const empty = { total: 0, succeeded: 0, failed: 0, needsPhoto: [] };
   const admin = supabaseAdmin;
@@ -71,7 +78,8 @@ export async function syncAllCloverItems(): Promise<CloverSyncResult> {
   }
 
   const ctx = await loadCloverCategoryContext();
-  const rows = new Map<string, { id: string; name: string; category: string; price: number; stock: number; clover_item_id: string }>();
+  type Row = { id: string; name: string; category: string; price: number; stock: number; clover_item_id: string; barcode?: string | null };
+  const rows = new Map<string, Row>();
   const needsPhoto: CloverSyncResult["needsPhoto"] = [];
 
   for (const item of items) {
@@ -79,19 +87,25 @@ export async function syncAllCloverItems(): Promise<CloverSyncResult> {
     const fields = await mapCloverItemToProductFields(item, ctx);
     const prior = existing.get(item.id);
     const id = prior?.id ?? productIdFor(fields.name, item.id);
-    rows.set(id, { id, ...fields, clover_item_id: item.id });
+    rows.set(id, { id, ...fields, clover_item_id: item.id, barcode: cleanBarcode(item.code) });
     if (!prior?.image_url) needsPhoto.push({ id, name: fields.name, category: fields.category });
   }
 
   // Upsert on the primary key: existing rows get name/category/price/stock
   // refreshed (blurb, photo and flags are left alone); new rows are inserted
   // with the table's defaults for everything else.
-  const all = [...rows.values()];
+  let all: Row[] = [...rows.values()];
   let succeeded = 0;
   let failed = 0;
   for (let i = 0; i < all.length; i += BATCH) {
     const batch = all.slice(i, i + BATCH);
-    const { error } = await admin.from("products").upsert(batch, { onConflict: "id" });
+    let { error } = await admin.from("products").upsert(batch, { onConflict: "id" });
+    if (error && /barcode/i.test(error.message)) {
+      // supabase/product-photos.sql hasn't been run yet — sync without barcodes.
+      console.warn("[clover sync] products.barcode missing — run supabase/product-photos.sql");
+      all = all.map(({ barcode: _omit, ...rest }) => rest);
+      ({ error } = await admin.from("products").upsert(all.slice(i, i + BATCH), { onConflict: "id" }));
+    }
     if (error) {
       console.error("[clover sync] batch failed", { from: i, size: batch.length, error: error.message });
       failed += batch.length;

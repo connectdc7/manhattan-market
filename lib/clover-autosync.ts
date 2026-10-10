@@ -12,6 +12,7 @@
 import { supabaseAdmin } from "./supabase-admin";
 import { isCloverTokenMode } from "./clover";
 import { syncAllCloverItems } from "./clover-sync";
+import { findProductPhotos } from "./photo-lookup";
 
 const AUTO_SYNC_MINUTES = 3;
 
@@ -38,6 +39,10 @@ export async function maybeAutoSyncClover(): Promise<void> {
 
     const result = await syncAllCloverItems();
     console.log(`[clover autosync] synced ${result.succeeded}/${result.total} items`, result.error ?? "");
+
+    // Then a small batch of free barcode photo lookups (lib/photo-lookup.ts),
+    // so pictures fill in over time without anyone clicking anything.
+    await findProductPhotos({ limit: 40, timeBudgetMs: 40_000 });
   } catch (err) {
     console.error("[clover autosync] failed", err);
   }

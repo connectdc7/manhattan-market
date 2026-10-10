@@ -288,6 +288,7 @@ export type CloverItem = {
   name?: string;
   price?: number; // cents
   hidden?: boolean;
+  code?: string; // the barcode / UPC staff scan at the register, when set
   categories?: { elements?: { name?: string }[] };
   itemStock?: { quantity?: number };
 };
