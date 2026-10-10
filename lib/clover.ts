@@ -15,8 +15,19 @@ function cloverEnv(): CloverEnv {
   return process.env.CLOVER_ENV === "production" ? "production" : "sandbox";
 }
 
+// Two ways to connect the store's Clover account:
+//   1. API token (simplest, no Clover developer app needed): the store owner
+//      creates a token in their own Clover dashboard (Settings → Business
+//      Operations → API Tokens) and it's set in Vercel as CLOVER_API_TOKEN
+//      together with CLOVER_MERCHANT_ID. No webhooks in this mode — the site
+//      re-syncs automatically every few minutes instead (lib/clover-autosync.ts).
+//   2. OAuth app (CLOVER_APP_ID + CLOVER_APP_SECRET + "Connect Clover").
+export function isCloverTokenMode(): boolean {
+  return Boolean(process.env.CLOVER_API_TOKEN?.trim() && process.env.CLOVER_MERCHANT_ID?.trim());
+}
+
 export function isCloverConfigured(): boolean {
-  return Boolean(process.env.CLOVER_APP_ID && process.env.CLOVER_APP_SECRET);
+  return isCloverTokenMode() || Boolean(process.env.CLOVER_APP_ID && process.env.CLOVER_APP_SECRET);
 }
 
 // Sandbox and production Clover accounts live on different hosts entirely —
@@ -123,6 +134,15 @@ export async function getFreshCloverConnection(): Promise<CloverConnection | nul
 // Market's own store) — enough for one physical location. Multi-location
 // support would key connections by something the dashboard lets staff pick.
 export async function getCloverConnection(): Promise<CloverConnection | null> {
+  if (isCloverTokenMode()) {
+    return {
+      merchant_id: process.env.CLOVER_MERCHANT_ID!.trim(),
+      access_token: process.env.CLOVER_API_TOKEN!.trim(),
+      refresh_token: null,
+      access_token_expiration: null, // merchant API tokens don't expire
+      connected_at: "",
+    };
+  }
   const client = supabaseAdmin;
   if (!client) return null;
   const { data, error } = await client
