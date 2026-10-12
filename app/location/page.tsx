@@ -46,6 +46,11 @@ export default function LocationPage() {
           <p className="mt-2 font-body text-sm text-ink-soft">
             <a href="tel:+12029864774" className="hover:text-pink-deep">(202) 986-4774</a>
           </p>
+          <p className="font-body text-sm text-ink-soft">
+            <a href="mailto:order@manhattanmarketdc.com" className="hover:text-pink-deep">
+              order@manhattanmarketdc.com
+            </a>
+          </p>
         </div>
 
         <div>
