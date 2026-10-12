@@ -75,7 +75,11 @@ export default function TermsPage() {
         <section>
           <h2 className="font-display text-lg font-semibold text-ink">Contact</h2>
           <p className="mt-2">
-            Questions about these terms? Call us at{" "}
+            Questions about these terms? Email us at 
+            <a href="mailto:order@manhattanmarketdc.com" className="text-green-deep hover:text-pink-deep">
+              order@manhattanmarketdc.com
+            </a> 
+            or call 
             <a href="tel:+12029864774" className="text-green-deep hover:text-pink-deep">
               (202) 986-4774
             </a>
