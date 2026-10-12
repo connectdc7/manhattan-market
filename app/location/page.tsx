@@ -10,6 +10,8 @@ export const metadata: Metadata = {
   },
 };
 
+const MAP_QUERY = encodeURIComponent("Manhattan Market, 3706 Connecticut Ave NW, Washington, DC 20008");
+
 export default function LocationPage() {
   return (
     <div className="mx-auto max-w-4xl px-5 py-16">
@@ -20,9 +22,25 @@ export default function LocationPage() {
 
       <div className="mt-8 grid gap-8 sm:grid-cols-2">
         <div>
-          <div className="flex h-48 items-center justify-center rounded-lg border border-line bg-panel font-mono text-xs uppercase tracking-widest text-ink-soft">
-            map placeholder
+          {/* Google Maps embed — the plain "output=embed" form needs no API key. */}
+          <div className="overflow-hidden rounded-lg border border-line bg-panel">
+            <iframe
+              title="Map showing Manhattan Market at 3706 Connecticut Ave NW, Washington, DC"
+              src={`https://www.google.com/maps?q=${MAP_QUERY}&output=embed`}
+              className="block h-64 w-full sm:h-72"
+              loading="lazy"
+              referrerPolicy="no-referrer-when-downgrade"
+              allowFullScreen
+            />
           </div>
+          <a
+            href={`https://www.google.com/maps/dir/?api=1&destination=${MAP_QUERY}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-green px-4 py-2 font-mono text-xs font-semibold text-white transition hover:bg-green-deep"
+          >
+            Get directions →
+          </a>
           <p className="mt-4 font-body text-sm text-ink">3706 Connecticut Ave NW</p>
           <p className="font-body text-sm text-ink-soft">Washington, DC 20008</p>
           <p className="mt-2 font-body text-sm text-ink-soft">
