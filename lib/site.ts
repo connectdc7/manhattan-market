@@ -17,6 +17,7 @@ export const SITE_DESCRIPTION =
 export const BUSINESS = {
   telephone: "+12029864774",
   telephoneDisplay: "(202) 986-4774",
+  email: "order@manhattanmarketdc.com",
   streetAddress: "3706 Connecticut Ave NW",
   addressLocality: "Washington",
   addressRegion: "DC",
@@ -37,6 +38,7 @@ export function localBusinessJsonLd() {
     name: SITE_NAME,
     url: SITE_URL,
     telephone: BUSINESS.telephone,
+    email: BUSINESS.email,
     address: {
       "@type": "PostalAddress",
       streetAddress: BUSINESS.streetAddress,
