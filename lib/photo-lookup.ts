@@ -13,7 +13,7 @@
 import { supabaseAdmin } from "./supabase-admin";
 import { guessAisle } from "./aisles";
 
-const USER_AGENT = "ManhattanMarket/1.0 (manhattan-market.vercel.app)";
+const USER_AGENT = "ManhattanMarket/1.0 (www.manhattanmarketdc.com)";
 // Open Food Facts asks for at most ~100 product lookups a minute per site.
 const GAP_MS = 700;
 

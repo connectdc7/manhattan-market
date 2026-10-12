@@ -3,13 +3,13 @@
 // files. Kept in one place so there's a single spot to update if the
 // production domain, phone, or address ever change.
 //
-// Note: this doesn't replace the visible address/phone/email already
+// Note: this doesn't replace the visible address/phone already
 // written into the Footer and the Hours & Location page — those are
 // separate, customer-facing copy. Update both places if the real info
 // changes.
 import { HOURS } from "./store-hours";
 
-export const SITE_URL = "https://manhattanmarketdc.com";
+export const SITE_URL = "https://www.manhattanmarketdc.com";
 export const SITE_NAME = "Manhattan Market";
 export const SITE_DESCRIPTION =
   "Order ahead for pickup or delivery at Manhattan Market, Woodley Park's neighborhood corner store on Connecticut Ave NW in Washington, DC. Hot food, snacks, drinks, and everyday essentials.";
@@ -17,7 +17,6 @@ export const SITE_DESCRIPTION =
 export const BUSINESS = {
   telephone: "+12029864774",
   telephoneDisplay: "(202) 986-4774",
-  email: "partners@manhattanmarketdc.com",
   streetAddress: "3706 Connecticut Ave NW",
   addressLocality: "Washington",
   addressRegion: "DC",
@@ -38,7 +37,6 @@ export function localBusinessJsonLd() {
     name: SITE_NAME,
     url: SITE_URL,
     telephone: BUSINESS.telephone,
-    email: BUSINESS.email,
     address: {
       "@type": "PostalAddress",
       streetAddress: BUSINESS.streetAddress,
