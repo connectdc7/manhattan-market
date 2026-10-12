@@ -24,18 +24,12 @@ export default function Footer() {
             </p>
             <p className="mt-3 font-body text-sm text-white/80">
               <a href="tel:+12029864774" className="hover:text-gold">(202) 986-4774</a>
-              <br />
-              <a href="mailto:partners@manhattanmarketdc.com" className="hover:text-gold">
-                partners@manhattanmarketdc.com
-              </a>
             </p>
           </div>
           <div>
             <p className="eyebrow text-white/50">Hours</p>
             <p className="mt-2 font-body text-sm text-white/80">
-              Mon–Fri · 9:00am – 11:00pm
-              <br />
-              Sat–Sun · 10:00am – 10:00pm
+              Every day · 9:00am – 9:00pm
             </p>
           </div>
           <div>
