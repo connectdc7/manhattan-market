@@ -232,6 +232,11 @@ export default function OrdersPanel({
                         On Clover
                       </span>
                     )}
+                    {o.contains_alcohol && (
+                      <span className="rounded-full bg-ink px-2.5 py-0.5 font-mono text-[0.6rem] font-semibold uppercase tracking-wide text-white">
+                        21+ · Check ID
+                      </span>
+                    )}
                     {o.refund_status && (
                       <span className="rounded-full bg-[#a8461a]/10 px-2.5 py-0.5 font-mono text-[0.6rem] font-semibold uppercase tracking-wide text-[#a8461a]">
                         {o.refund_status === "full" ? "Refunded" : "Partly refunded"} ${Number(o.refunded_amount ?? 0).toFixed(2)}

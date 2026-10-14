@@ -1,7 +1,14 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Category, mergeCategoryInto, renameCategory, setCategoryAisle, setCategoryVisibility } from "@/lib/categories";
+import {
+  Category,
+  mergeCategoryInto,
+  renameCategory,
+  setCategoryAgeRestricted,
+  setCategoryAisle,
+  setCategoryVisibility,
+} from "@/lib/categories";
 import { AISLES, guessAisle } from "@/lib/aisles";
 import { Product } from "@/lib/products";
 
@@ -46,6 +53,15 @@ function ManageRow({
     setBusy(false);
     if (ok) onChanged();
     else setError("Couldn't change that — try again.");
+  };
+
+  const toggleAge = async () => {
+    setBusy(true);
+    setError(null);
+    const ok = await setCategoryAgeRestricted(category.name, !category.ageRestricted);
+    setBusy(false);
+    if (ok) onChanged();
+    else setError("Couldn't change that — has supabase/alcohol.sql been run?");
   };
 
   const changeAisle = async (value: string) => {
@@ -118,6 +134,18 @@ function ManageRow({
             {count} item{count === 1 ? "" : "s"} · {category.showOnStorefront ? "On website" : "Hidden from website"}
           </p>
         </div>
+
+        <button
+          type="button"
+          onClick={toggleAge}
+          disabled={busy}
+          title="21+ items need an age check online and a photo ID check at pickup"
+          className={`rounded-full border px-2 py-0.5 font-mono text-[0.6rem] font-semibold transition disabled:opacity-60 ${
+            category.ageRestricted ? "border-ink bg-ink text-white" : "border-line text-ink-soft hover:border-ink hover:text-ink"
+          }`}
+        >
+          21+
+        </button>
 
         <select
           value={category.group ?? ""}
@@ -274,7 +302,7 @@ export default function CategoryManagerPanel({
       <div className="mt-2">
         {visible.map((c) => (
           <ManageRow
-            key={c.name + String(c.showOnStorefront) + (c.group ?? "")}
+            key={c.name + String(c.showOnStorefront) + (c.group ?? "") + String(c.ageRestricted)}
             category={c}
             count={counts.get(c.name) ?? 0}
             others={categories.filter((o) => o.name !== c.name)}

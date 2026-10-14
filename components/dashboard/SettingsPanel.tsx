@@ -4,7 +4,7 @@
 // added to delivery orders on top of Uber's delivery fee. Takes effect on
 // the next checkout — orders already placed keep what they paid.
 import { useEffect, useState } from "react";
-import { getStoreSettings, setDeliveryServiceFee } from "@/lib/settings";
+import { getStoreSettings, setAlcoholDelivery, setDeliveryServiceFee } from "@/lib/settings";
 import { inputClass, labelClass } from "./StaffGate";
 
 export default function SettingsPanel() {
@@ -12,13 +12,35 @@ export default function SettingsPanel() {
   const [value, setValue] = useState("");
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
+  const [alcoholDelivery, setAlcoholDeliveryState] = useState<boolean | null>(null);
+  const [alcoholMsg, setAlcoholMsg] = useState<{ ok: boolean; text: string } | null>(null);
 
   useEffect(() => {
     getStoreSettings().then((s) => {
       setSaved(s.deliveryServiceFee);
       setValue(s.deliveryServiceFee.toFixed(2));
+      setAlcoholDeliveryState(s.alcoholDelivery);
     });
   }, []);
+
+  const toggleAlcoholDelivery = async () => {
+    if (alcoholDelivery === null) return;
+    const next = !alcoholDelivery;
+    if (
+      next &&
+      !window.confirm(
+        "Only turn this on once DC ABCA has confirmed your licence allows delivery, and Uber has enabled alcohol (with ID checks) on your Uber Direct account. Turn on wine & beer delivery?"
+      )
+    )
+      return;
+    setAlcoholMsg(null);
+    const err = await setAlcoholDelivery(next);
+    if (err) setAlcoholMsg({ ok: false, text: err });
+    else {
+      setAlcoholDeliveryState(next);
+      setAlcoholMsg({ ok: true, text: next ? "Wine & beer can now be delivered." : "Wine & beer are pickup only." });
+    }
+  };
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -97,6 +119,39 @@ export default function SettingsPanel() {
           </p>
         )}
       </form>
+
+      <div className="mt-5 rounded-lg border border-line bg-panel p-5">
+        <p className={labelClass}>Wine &amp; beer delivery</p>
+        <p className="mt-2 font-body text-sm text-ink-soft">
+          Wine and beer (categories marked 21+) can always be ordered for pickup — customers confirm they&apos;re 21+
+          and staff check photo ID at the counter. Delivery stays off until DC ABCA confirms your licence allows it and
+          Uber turns on alcohol delivery (with ID checks) for your account.
+        </p>
+        <div className="mt-4 flex items-center gap-3">
+          <button
+            type="button"
+            role="switch"
+            aria-checked={Boolean(alcoholDelivery)}
+            onClick={toggleAlcoholDelivery}
+            disabled={alcoholDelivery === null}
+            className={`relative inline-flex h-6 w-11 shrink-0 rounded-full transition disabled:opacity-50 ${
+              alcoholDelivery ? "bg-green" : "bg-line"
+            }`}
+          >
+            <span
+              className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-all ${
+                alcoholDelivery ? "left-[1.375rem]" : "left-0.5"
+              }`}
+            />
+          </button>
+          <span className="font-body text-sm text-ink">
+            {alcoholDelivery ? "Delivery allowed for wine & beer" : "Pickup only for wine & beer"}
+          </span>
+        </div>
+        {alcoholMsg && (
+          <p className={`mt-3 font-body text-sm ${alcoholMsg.ok ? "text-green" : "text-[#a8461a]"}`}>{alcoholMsg.text}</p>
+        )}
+      </div>
     </div>
   );
 }
