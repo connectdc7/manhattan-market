@@ -18,7 +18,7 @@ export default function Footer() {
               </span>
             </Reveal>
             <p className="mt-3 font-body text-sm text-white/70">
-              3706 Connecticut Ave NW
+              2647 Connecticut Ave NW
               <br />
               Washington, DC 20008
             </p>
@@ -27,6 +27,14 @@ export default function Footer() {
               <br />
               <a href="mailto:order@manhattanmarketdc.com" className="hover:text-gold">
                 order@manhattanmarketdc.com
+              </a>
+            </p>
+            <p className="mt-3 flex gap-4 font-body text-sm text-white/80">
+              <a href="https://www.instagram.com/manhattanmarketdc" target="_blank" rel="noopener noreferrer" className="hover:text-gold">
+                Instagram
+              </a>
+              <a href="https://www.facebook.com/manhattanmarketdc" target="_blank" rel="noopener noreferrer" className="hover:text-gold">
+                Facebook
               </a>
             </p>
           </div>
