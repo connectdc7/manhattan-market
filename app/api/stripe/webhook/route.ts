@@ -13,6 +13,7 @@ import Stripe from "stripe";
 import { stripe, isStripeConfigured } from "@/lib/stripe";
 import { getProductsByIds } from "@/lib/products";
 import { createOrderAdmin, decrementStockAdmin } from "@/lib/orders-admin";
+import { supabaseAdmin } from "@/lib/supabase-admin";
 import { pushOrderToClover } from "@/lib/clover-orders";
 import { isCloverConfigured } from "@/lib/clover";
 
@@ -87,6 +88,12 @@ async function fulfillCheckoutSession(session: Stripe.Checkout.Session) {
   // returns false on a Stripe retry for a session already recorded (see its
   // own comment), which keeps a redelivered webhook from double-decrementing.
   if (createdId) {
+    // Flag wine/beer orders so staff check ID (column from supabase/alcohol.sql;
+    // a separate best-effort update so a missing column can't block the order).
+    if (meta.alcohol === "1") {
+      const { error } = (await supabaseAdmin?.from("orders").update({ contains_alcohol: true }).eq("id", createdId)) ?? {};
+      if (error) console.error("[stripe webhook] couldn't flag alcohol order", error.message);
+    }
     await decrementStockAdmin(cartLines);
 
     // Send it to the Clover device/printer and lower Clover's stock. Best-
