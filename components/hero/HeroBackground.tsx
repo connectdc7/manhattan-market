@@ -12,8 +12,8 @@ import CustomHeroMedia from "@/components/hero/CustomHeroMedia";
 // paper background, so the existing dark ink/pink/green text stays as
 // is; only a client's own photo/video is unpredictable enough in tone
 // to need the light-text-plus-overlay treatment.
-export function heroUsesLightText(effect: HeroEffect, activeMedia: HeroMedia | null): boolean {
-  return effect === "custom" && activeMedia !== null;
+export function heroUsesLightText(effect: HeroEffect, activeMedia: HeroMedia[]): boolean {
+  return effect === "custom" && activeMedia.length > 0;
 }
 
 // Picks the right ambient effect (or the client's own upload) for the
@@ -26,7 +26,7 @@ export default function HeroBackground({
   activeMedia,
 }: {
   effect: HeroEffect;
-  activeMedia: HeroMedia | null;
+  activeMedia: HeroMedia[];
 }) {
   switch (effect) {
     case "petals":
@@ -40,7 +40,7 @@ export default function HeroBackground({
     case "bokeh":
       return <BokehField />;
     case "custom":
-      return activeMedia ? <CustomHeroMedia media={activeMedia} /> : null;
+      return activeMedia.length > 0 ? <CustomHeroMedia items={activeMedia} /> : null;
     case "plain":
       return null;
     default:
