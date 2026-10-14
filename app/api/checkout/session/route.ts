@@ -14,6 +14,7 @@ import { NextResponse } from "next/server";
 import { stripe, isStripeConfigured } from "@/lib/stripe";
 import { getProductsByIds } from "@/lib/products";
 import { getStoreSettings } from "@/lib/settings";
+import { getCategories } from "@/lib/categories";
 import { getDeliveryQuote, isUberConfigured, toE164, validateDeliveryAddress, DeliveryAddress } from "@/lib/uber";
 
 type RequestLine = { id: string; qty: number };
@@ -28,6 +29,7 @@ export async function POST(request: Request) {
     fulfillment?: "pickup" | "delivery";
     phone?: string | null;
     delivery?: Partial<DeliveryAddress> | null;
+    ageConfirmed?: boolean;
   };
   try {
     body = await request.json();
@@ -58,6 +60,25 @@ export async function POST(request: Request) {
       );
     }
     lineItems.push({ name: product.name, unitAmount: Math.round(product.price * 100), qty: line.qty });
+  }
+
+  // Wine/beer (21+ categories): customer must confirm age, and delivery is
+  // only allowed once the owner switches it on (dashboard → Settings).
+  const restricted = new Set((await getCategories()).filter((c) => c.ageRestricted).map((c) => c.name));
+  const containsAlcohol = requestedLines.some((l) => {
+    const p = products.find((x) => x.id === l.id);
+    return p ? restricted.has(p.category) : false;
+  });
+  if (containsAlcohol) {
+    if (!body.ageConfirmed) {
+      return NextResponse.json({ error: "Please confirm you're 21 or older to buy wine or beer." }, { status: 400 });
+    }
+    if (fulfillment === "delivery" && !(await getStoreSettings()).alcoholDelivery) {
+      return NextResponse.json(
+        { error: "Orders with wine or beer are pickup only for now — switch to pickup to continue." },
+        { status: 400 }
+      );
+    }
   }
 
   // Delivery: check the address and take Uber's fee from Uber directly
@@ -144,6 +165,7 @@ export async function POST(request: Request) {
         // metadata value limit — the webhook re-looks-up name/price from
         // the product list at fulfillment time rather than trusting this.
         cart: JSON.stringify(requestedLines.map((l) => ({ id: l.id, qty: l.qty }))),
+        ...(containsAlcohol ? { alcohol: "1" } : {}),
         ...(deliveryMeta ? { delivery: deliveryMeta } : {}),
       },
     });
