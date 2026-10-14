@@ -98,7 +98,7 @@ export default function PrivacyPage() {
             <a href="tel:+12029864774" className="text-green-deep hover:text-pink-deep">
               (202) 986-4774
             </a>
-            , or by mail at 3706 Connecticut Ave NW, Washington, DC 20008.
+            , or by mail at 2647 Connecticut Ave NW, Washington, DC 20008.
           </p>
         </section>
       </div>
