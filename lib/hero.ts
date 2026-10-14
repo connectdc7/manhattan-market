@@ -105,15 +105,37 @@ export async function getHeroMedia(): Promise<HeroMedia[]> {
 // Returns null if nothing's been uploaded yet, or nothing's been marked
 // active — the homepage falls back to a plain background in that case
 // rather than showing nothing meaningful.
-export async function getActiveHeroMedia(): Promise<HeroMedia | null> {
-  if (!supabase) return null;
+export async function getActiveHeroMedia(): Promise<HeroMedia[]> {
+  if (!supabase) return [];
   const { data, error } = await supabase
     .from("hero_media")
     .select(HERO_MEDIA_COLUMNS)
     .eq("is_active", true)
-    .maybeSingle();
-  if (error || !data) return null;
-  return fromRow(data);
+    .order("sort_order")
+    .order("created_at");
+  if (error || !data) return [];
+  const items = data.map(fromRow);
+  // A video plays on its own (no slideshow) — if one is live, show just it.
+  const video = items.find((m) => m.kind === "video");
+  return video ? [video] : items;
+}
+
+// Homepage slideshow: any number of photos can be "in rotation" at once
+// (they cross-fade every few seconds), or a single video. Turning a video
+// on takes everything else out; turning a photo on takes any video out.
+export async function setHeroMediaInRotation(item: HeroMedia, on: boolean, all: HeroMedia[]): Promise<boolean> {
+  const client = supabase;
+  if (!client) return false;
+  const ops: PromiseLike<{ error: { message: string } | null }>[] = [];
+  if (on) {
+    const toTurnOff = all.filter((m) => m.isActive && m.id !== item.id && (item.kind === "video" || m.kind === "video"));
+    for (const m of toTurnOff) ops.push(client.from("hero_media").update({ is_active: false }).eq("id", m.id));
+  }
+  ops.push(client.from("hero_media").update({ is_active: on }).eq("id", item.id));
+  const results = await Promise.all(ops);
+  const failed = results.find((r) => r.error);
+  if (failed?.error) console.error("setHeroMediaInRotation:", failed.error.message);
+  return !failed;
 }
 
 // Uploads a staff-chosen photo or video to the "hero-media" storage bucket
