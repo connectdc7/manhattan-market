@@ -17,7 +17,7 @@ const fieldClass =
 export default function CheckoutPage() {
   const { lines, subtotal, clear } = useCart();
   const [stage, setStage] = useState<Stage>("review");
-  const [fulfillment, setFulfillment] = useState<"pickup" | "delivery">("pickup");
+  const [chosenFulfillment, setFulfillment] = useState<"pickup" | "delivery">("pickup");
   const [phone, setPhone] = useState("");
   const [error, setError] = useState<string | null>(null);
 
@@ -28,10 +28,21 @@ export default function CheckoutPage() {
   const [quote, setQuote] = useState<{ fee: number; durationMin: number | null } | null>(null);
   // Owner-set flat service fee on delivery orders (dashboard → Settings).
   const [serviceFee, setServiceFee] = useState(0);
+  // Wine/beer: delivery only when the owner has switched it on (Settings).
+  const [alcoholDelivery, setAlcoholDelivery] = useState(false);
+  const [ageConfirmed, setAgeConfirmed] = useState(false);
+  const hasAlcohol = lines.some((l) => l.ageRestricted);
+  const deliveryBlocked = hasAlcohol && !alcoholDelivery;
 
   useEffect(() => {
-    getStoreSettings().then((s) => setServiceFee(s.deliveryServiceFee));
+    getStoreSettings().then((s) => {
+      setServiceFee(s.deliveryServiceFee);
+      setAlcoholDelivery(s.alcoholDelivery);
+    });
   }, []);
+
+  // Wine/beer in the cart while alcohol delivery is off → pickup only.
+  const fulfillment: "pickup" | "delivery" = deliveryBlocked ? "pickup" : chosenFulfillment;
   const [quoting, setQuoting] = useState(false);
   const [quoteError, setQuoteError] = useState<string | null>(null);
 
@@ -114,6 +125,10 @@ export default function CheckoutPage() {
 
   const placeOrder = async () => {
     setError(null);
+    if (hasAlcohol && !ageConfirmed) {
+      setError("Please confirm you're 21 or older and will show a valid photo ID.");
+      return;
+    }
     if (fulfillment === "delivery") {
       if (!addr.name.trim() || !addr.street.trim() || !addr.zip.trim()) {
         setError("Enter your name, street address and ZIP for delivery.");
@@ -139,6 +154,7 @@ export default function CheckoutPage() {
           fulfillment,
           phone: phone.trim() || null,
           delivery: fulfillment === "delivery" ? addr : null,
+          ageConfirmed: hasAlcohol ? ageConfirmed : undefined,
         }),
       });
       const body = await res.json();
@@ -262,7 +278,8 @@ export default function CheckoutPage() {
             <button
               key={f}
               onClick={() => setFulfillment(f)}
-              className={`rounded-full border px-4 py-1.5 font-mono text-xs font-semibold capitalize transition-all active:scale-95 ${
+              disabled={f === "delivery" && deliveryBlocked}
+              className={`rounded-full border px-4 py-1.5 font-mono text-xs font-semibold capitalize transition-all active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 ${
                 fulfillment === f
                   ? "border-green bg-green text-white"
                   : "border-line text-ink-soft hover:border-green hover:text-green"
@@ -272,6 +289,11 @@ export default function CheckoutPage() {
             </button>
           ))}
         </div>
+        {deliveryBlocked && (
+          <p className="mt-2 font-body text-xs text-ink-soft">
+            Orders with wine or beer are pickup only for now. Remove those items if you&apos;d like delivery.
+          </p>
+        )}
         {fulfillment === "delivery" && (
           <div className="mt-4 rounded-lg border border-line bg-paper p-4">
             <p className="font-body text-xs text-ink-soft">
@@ -354,6 +376,24 @@ export default function CheckoutPage() {
           className="rounded border border-line bg-paper px-3 py-2 font-body text-sm text-ink outline-none focus:border-green sm:max-w-xs"
         />
       </label>
+
+      {hasAlcohol && (
+        <label className="mt-6 flex items-start gap-2.5 rounded-lg border border-line bg-paper p-4">
+          <input
+            type="checkbox"
+            checked={ageConfirmed}
+            onChange={(e) => setAgeConfirmed(e.target.checked)}
+            className="mt-0.5"
+          />
+          <span className="font-body text-sm text-ink">
+            <span className="font-semibold">I&apos;m 21 or older.</span>{" "}
+            <span className="text-ink-soft">
+              Your order includes wine or beer. Bring a valid photo ID — we&apos;ll check it at{" "}
+              {fulfillment === "delivery" ? "the door" : "pickup"} before handing over those items.
+            </span>
+          </span>
+        </label>
+      )}
 
       {error && (
         <p className="mt-4 font-body text-sm text-[#a8461a]" role="alert">
