@@ -259,7 +259,7 @@ export default async function Home() {
             <div>
               <p className="eyebrow text-green">Hours &amp; Location</p>
               <p className="mt-2 font-display text-xl font-bold text-ink">
-                Open daily · 3706 Connecticut Ave NW
+                Open daily · 2647 Connecticut Ave NW
               </p>
               <p className="mt-1 font-body text-sm text-ink-soft">
                 Washington, DC 20008 · (202) 986-4774

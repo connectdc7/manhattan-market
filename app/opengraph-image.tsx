@@ -83,7 +83,7 @@ export default function Image() {
             Skip the line.
           </div>
           <div style={{ display: "flex", fontSize: 30, color: INK_SOFT, marginTop: 30 }}>
-            3706 Connecticut Ave NW · Washington, DC
+            2647 Connecticut Ave NW · Washington, DC
           </div>
         </div>
         <div style={{ display: "flex", height: 18, width: "100%", backgroundColor: STRIPE }} />
