@@ -18,10 +18,12 @@ export const BUSINESS = {
   telephone: "+12029864774",
   telephoneDisplay: "(202) 986-4774",
   email: "order@manhattanmarketdc.com",
-  streetAddress: "3706 Connecticut Ave NW",
+  streetAddress: "2647 Connecticut Ave NW",
   addressLocality: "Washington",
   addressRegion: "DC",
   postalCode: "20008",
+  instagram: "https://www.instagram.com/manhattanmarketdc",
+  facebook: "https://www.facebook.com/manhattanmarketdc",
   addressCountry: "US",
 };
 
@@ -54,5 +56,6 @@ export function localBusinessJsonLd() {
       closes: h.close,
     })),
     priceRange: "$",
+    sameAs: [BUSINESS.instagram, BUSINESS.facebook],
   };
 }
