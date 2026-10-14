@@ -16,13 +16,14 @@ import OrdersPanel from "@/components/dashboard/OrdersPanel";
 import RewardsPanel from "@/components/dashboard/RewardsPanel";
 import AnalyticsPanel from "@/components/dashboard/AnalyticsPanel";
 import HeroPanel from "@/components/dashboard/HeroPanel";
+import GalleryPanel from "@/components/dashboard/GalleryPanel";
 import StaffPanel from "@/components/dashboard/StaffPanel";
 import SettingsPanel from "@/components/dashboard/SettingsPanel";
 import StaffGate from "@/components/dashboard/StaffGate";
 import { signOutStaff, staffFetch, StaffMember } from "@/lib/staff-auth";
 import type { CloverStats } from "@/lib/clover-stats";
 
-type Tab = "orders" | "inventory" | "rewards" | "analytics" | "homepage" | "staff" | "settings";
+type Tab = "orders" | "inventory" | "rewards" | "analytics" | "homepage" | "gallery" | "staff" | "settings";
 
 function isToday(iso: string) {
   const d = new Date(iso);
@@ -300,6 +301,7 @@ function Dashboard({ staff }: { staff: StaffMember }) {
                 ["rewards", "Rewards"],
                 ["analytics", "Analytics"],
                 ["homepage", "Homepage"],
+                ["gallery", "Gallery"],
                 ...(staff.role === "owner"
                   ? ([
                       ["staff", "Staff"],
@@ -345,6 +347,7 @@ function Dashboard({ staff }: { staff: StaffMember }) {
             {tab === "rewards" && <RewardsPanel signups={signups} />}
             {tab === "analytics" && <AnalyticsPanel orders={orders} cloverStats={cloverStats} cloverError={cloverStatsError} />}
             {tab === "homepage" && <HeroPanel effect={heroEffect} media={heroMedia} onRefresh={loadAll} />}
+            {tab === "gallery" && <GalleryPanel />}
             {tab === "staff" && staff.role === "owner" && <StaffPanel me={staff} />}
             {tab === "settings" && staff.role === "owner" && <SettingsPanel />}
           </div>
