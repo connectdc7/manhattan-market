@@ -61,6 +61,11 @@ export async function pushOrderToClover(orderId: string): Promise<CloverPushResu
     .maybeSingle<OrderRow>();
   if (orderError || !order) return { ok: false, error: "Order not found." };
 
+  // Wine/beer flag (supabase/alcohol.sql) — read separately so an older
+  // database without the column still pushes orders fine.
+  const { data: alcoholRow } = await admin.from("orders").select("contains_alcohol").eq("id", orderId).maybeSingle();
+  const containsAlcohol = Boolean((alcoholRow as { contains_alcohol?: boolean } | null)?.contains_alcohol);
+
   // Never create the same order on Clover twice (Stripe retries, double-clicks).
   if (order.clover_order_id) {
     return { ok: true, cloverOrderId: order.clover_order_id, printed: false, stockUpdated: 0 };
@@ -86,8 +91,9 @@ export async function pushOrderToClover(orderId: string): Promise<CloverPushResu
     method: "POST",
     body: JSON.stringify({
       state: "open",
-      title: `WEB #${shortId} · ${order.fulfillment === "delivery" ? "DELIVERY" : "PICKUP"}`,
+      title: `WEB #${shortId} · ${order.fulfillment === "delivery" ? "DELIVERY" : "PICKUP"}${containsAlcohol ? " · 21+ ID" : ""}`,
       note: [
+        containsAlcohol ? "*** CONTAINS ALCOHOL — CHECK PHOTO ID (21+) BEFORE HANDING OVER ***" : null,
         paid ? "PAID ONLINE (website / Stripe) — do NOT charge again." : "Website order — NOT paid online, collect payment.",
         order.phone ? `Customer phone: ${order.phone}` : null,
         order.delivery_address

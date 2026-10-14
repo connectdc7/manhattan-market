@@ -24,22 +24,25 @@ export type Category = {
   // The storefront aisle staff picked for it (see lib/aisles.ts), or null
   // to let the site guess from the name.
   group: string | null;
+  // Wine/beer etc. — 21+ check online, ID check at pickup (supabase/alcohol.sql).
+  ageRestricted: boolean;
 };
 
 // Used when Supabase isn't configured yet — mirrors lib/products.ts's own
 // fallbackProducts pattern, and lib/products.ts's fallbackProducts still use
 // these same four names.
 export const fallbackCategories: Category[] = [
-  { name: "Hot Food", sortOrder: 0, showOnStorefront: true, needsReview: false, group: null },
-  { name: "Snacks", sortOrder: 1, showOnStorefront: true, needsReview: false, group: null },
-  { name: "Drinks", sortOrder: 2, showOnStorefront: true, needsReview: false, group: null },
-  { name: "Grocery", sortOrder: 3, showOnStorefront: true, needsReview: false, group: null },
+  { name: "Hot Food", sortOrder: 0, showOnStorefront: true, needsReview: false, group: null, ageRestricted: false },
+  { name: "Snacks", sortOrder: 1, showOnStorefront: true, needsReview: false, group: null, ageRestricted: false },
+  { name: "Drinks", sortOrder: 2, showOnStorefront: true, needsReview: false, group: null, ageRestricted: false },
+  { name: "Grocery", sortOrder: 3, showOnStorefront: true, needsReview: false, group: null, ageRestricted: false },
 ];
 
 const BASE_COLUMNS = "name, sort_order, show_on_storefront, needs_review";
 // group_name comes from supabase/category-aisles.sql — if that hasn't been
 // run yet, reads fall back to the columns above so nothing breaks.
-const CATEGORY_COLUMNS = `${BASE_COLUMNS}, group_name`;
+const CATEGORY_COLUMNS = `${BASE_COLUMNS}, group_name, age_restricted`;
+const MID_COLUMNS = `${BASE_COLUMNS}, group_name`;
 
 type CategoryRow = {
   name: string;
@@ -47,6 +50,7 @@ type CategoryRow = {
   show_on_storefront: boolean;
   needs_review: boolean;
   group_name?: string | null;
+  age_restricted?: boolean | null;
 };
 
 function fromRow(row: CategoryRow): Category {
@@ -56,6 +60,7 @@ function fromRow(row: CategoryRow): Category {
     showOnStorefront: row.show_on_storefront,
     needsReview: row.needs_review,
     group: row.group_name ?? null,
+    ageRestricted: Boolean(row.age_restricted),
   };
 }
 
@@ -67,9 +72,10 @@ export async function getCategories(): Promise<Category[]> {
   const first = await supabase.from("categories").select(CATEGORY_COLUMNS).order("sort_order").order("name");
   let data = first.data as CategoryRow[] | null;
   let error = first.error;
-  if (error) {
-    // Most likely group_name doesn't exist yet — try without it.
-    const retry = await supabase.from("categories").select(BASE_COLUMNS).order("sort_order").order("name");
+  // Newer columns may not exist yet if an SQL file hasn't been run — step back.
+  for (const cols of [MID_COLUMNS, BASE_COLUMNS]) {
+    if (!error) break;
+    const retry = await supabase.from("categories").select(cols).order("sort_order").order("name");
     data = retry.data as CategoryRow[] | null;
     error = retry.error;
   }
@@ -91,11 +97,19 @@ export async function getStorefrontCategoryNames(): Promise<string[]> {
 
 // What the storefront's Order page groups its chips by: each visible
 // category with the aisle it belongs to.
-export async function getStorefrontCategories(): Promise<{ name: string; aisle: Aisle }[]> {
+export async function getStorefrontCategories(): Promise<{ name: string; aisle: Aisle; ageRestricted: boolean }[]> {
   const all = await getCategories();
   return all
     .filter((c) => c.showOnStorefront && !c.needsReview)
-    .map((c) => ({ name: c.name, aisle: aisleFor(c.name, c.group) }));
+    .map((c) => ({ name: c.name, aisle: aisleFor(c.name, c.group), ageRestricted: c.ageRestricted }));
+}
+
+// Marks a category as 21+ (wine, beer…) or not. Staff only (database rules).
+export async function setCategoryAgeRestricted(name: string, ageRestricted: boolean): Promise<boolean> {
+  if (!supabase) return false;
+  const { error } = await supabase.from("categories").update({ age_restricted: ageRestricted }).eq("name", name);
+  if (error) console.error("setCategoryAgeRestricted:", error.message);
+  return !error;
 }
 
 // Moves a category to a different storefront aisle (null = automatic).

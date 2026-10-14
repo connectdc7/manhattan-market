@@ -35,6 +35,7 @@ export type Order = {
   refunded_items?: { id: string; qty: number }[] | null;
   refund_status?: "partial" | "full" | null;
   refunded_at?: string | null;
+  contains_alcohol?: boolean | null; // wine/beer — check 21+ ID (supabase/alcohol.sql)
 };
 
 export type DeliveryAddressFields = {
@@ -69,13 +70,20 @@ export async function getOrders(limit = 300): Promise<Order[]> {
 
   const BASE =
     "id, created_at, fulfillment, items, subtotal, status, phone, clover_order_id, clover_push_error, delivery_address, delivery_fee, service_fee, uber_delivery_id, uber_status, uber_tracking_url, uber_courier, uber_error, stripe_session_id";
+  const REFUNDS = "refunded_amount, refunded_items, refund_status, refunded_at";
   const first = await supabase
     .from("orders")
-    .select(`${BASE}, refunded_amount, refunded_items, refund_status, refunded_at`)
+    .select(`${BASE}, ${REFUNDS}, contains_alcohol`)
     .order("created_at", { ascending: false })
     .limit(limit);
   let data = first.data as Record<string, unknown>[] | null;
   let error = first.error;
+  if (error) {
+    // supabase/alcohol.sql not run yet — try without contains_alcohol.
+    const retry = await supabase.from("orders").select(`${BASE}, ${REFUNDS}`).order("created_at", { ascending: false }).limit(limit);
+    data = retry.data as Record<string, unknown>[] | null;
+    error = retry.error;
+  }
   if (error) {
     // supabase/refunds.sql not run yet — load orders without the refund columns.
     const retry = await supabase.from("orders").select(BASE).order("created_at", { ascending: false }).limit(limit);

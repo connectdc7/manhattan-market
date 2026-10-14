@@ -9,7 +9,7 @@
 // table is seeded once from supabase/seed.sql with the same numbers below,
 // standing in for a live count mirrored from the Clover terminal.
 import { supabase } from "./supabase";
-import { getStorefrontCategoryNames } from "./categories";
+import { getCategories } from "./categories";
 
 // Used to be a fixed 4-value union ("Snacks" | "Drinks" | "Hot Food" |
 // "Grocery"). Categories are data now, kept in Supabase's `categories`
@@ -31,6 +31,7 @@ export type Product = {
   is_special?: boolean; // staff-toggled "Today's Special" flag, shown on the storefront
   is_healthy?: boolean; // staff-toggled "healthy pick" flag — feeds the homepage's Product of the Day
   created_at?: string; // when the row was added — "new" for Product of the Day means recent here
+  age_restricted?: boolean; // wine/beer etc. — 21+ (from its category; see lib/categories.ts)
 };
 
 // created_at values are staggered by hand below (rather than all defaulting
@@ -115,10 +116,13 @@ export async function getProductsByIds(ids: string[]): Promise<Product[]> {
 // Pass inStockOnly for the Order page, which only lists what can be bought.
 export async function getStorefrontProducts(opts: { inStockOnly?: boolean } = {}): Promise<Product[]> {
   const client = supabase;
-  const visibleCategories = await getStorefrontCategoryNames();
+  const cats = await getCategories();
+  const visibleCategories = cats.filter((c) => c.showOnStorefront && !c.needsReview).map((c) => c.name);
+  const restricted = new Set(cats.filter((c) => c.ageRestricted).map((c) => c.name));
+  const tag = (list: Product[]) => list.map((p) => (restricted.has(p.category) ? { ...p, age_restricted: true } : p));
   if (!client) {
     const visible = new Set(visibleCategories);
-    return fallbackProducts.filter((p) => visible.has(p.category) && (!opts.inStockOnly || p.stock > 0));
+    return tag(fallbackProducts.filter((p) => visible.has(p.category) && (!opts.inStockOnly || p.stock > 0)));
   }
   if (visibleCategories.length === 0) return [];
 
@@ -131,7 +135,7 @@ export async function getStorefrontProducts(opts: { inStockOnly?: boolean } = {}
     console.error("getStorefrontProducts:", error);
     return [];
   }
-  return toProducts(rows);
+  return tag(toProducts(rows));
 }
 
 // Best-effort stock decrement after a (mocked) order is placed. Calls a

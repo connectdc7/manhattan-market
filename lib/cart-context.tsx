@@ -4,8 +4,8 @@ import { createContext, useContext, useEffect, useMemo, useState, ReactNode } fr
 
 // Cart lines snapshot the name/price at add-time, so the cart doesn't care
 // whether products came from the local sample data or Supabase.
-type CartLine = { id: string; name: string; price: number; qty: number };
-type AddInput = { id: string; name: string; price: number };
+type CartLine = { id: string; name: string; price: number; qty: number; ageRestricted?: boolean };
+type AddInput = { id: string; name: string; price: number; ageRestricted?: boolean };
 
 type CartContextValue = {
   lines: CartLine[];

@@ -14,6 +14,7 @@ export const AISLES = [
   "Dairy, Fresh & Frozen",
   "Pantry & Grocery",
   "Household & Personal Care",
+  "Wine & Beer",
   "Other",
 ] as const;
 
@@ -23,6 +24,7 @@ export type Aisle = (typeof AISLES)[number];
 // specific aisles come first (e.g. "Coffee & Fresh Bakery" → Hot Food &
 // Coffee before Bakery, "Milk Products" → Dairy before Drinks).
 const KEYWORDS: [Aisle, string[]][] = [
+  ["Wine & Beer", ["wine", "beer", "cider", "ale", "lager", "champagne", "prosecco"]],
   ["Hot Food & Coffee", ["hot food", "hot", "deli", "ready to", "ready-to", "prepared", "sandwich", "grill", "pizza", "coffee"]],
   ["Dairy, Fresh & Frozen", ["dairy", "milk", "butter", "cheese", "cream", "egg", "yogurt", "frozen", "ice", "produce", "fruit", "vegetable", "veggie", "fresh", "meat"]],
   ["Snacks & Candy", ["snack", "chip", "candy", "confection", "chocolate", "cookie", "cracker", "nut", "gum", "mint", "jerky", "popcorn", "sweet"]],
