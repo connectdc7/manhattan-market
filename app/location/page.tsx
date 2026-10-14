@@ -1,10 +1,12 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { HOURS_DISPLAY } from "@/lib/store-hours";
+import { NEIGHBORHOODS } from "@/lib/site";
 
 export const metadata: Metadata = {
-  title: "Hours & Location",
+  title: "Hours & Location — Woodley Park, Washington DC",
   description:
-    "Visit Manhattan Market at 2647 Connecticut Ave NW, Washington, DC 20008. Store hours, directions, and contact info.",
+    "Manhattan Market, 2647 Connecticut Ave NW, Washington, DC 20008 — Woodley Park's corner store by the Woodley Park–Zoo Metro and the National Zoo. Open 9am–9pm every day. Directions, hours and contact info.",
   alternates: {
     canonical: "/location",
   },
@@ -17,7 +19,7 @@ export default function LocationPage() {
     <div className="mx-auto max-w-4xl px-5 py-16">
       <p className="eyebrow text-green">Hours &amp; Location</p>
       <h1 className="mt-2 font-display text-3xl font-bold text-ink sm:text-4xl">
-        Find us
+        Your corner store in Woodley Park
       </h1>
 
       <div className="mt-8 grid gap-8 sm:grid-cols-2">
@@ -76,6 +78,24 @@ export default function LocationPage() {
           </table>
         </div>
       </div>
+
+      <section className="mt-12 max-w-2xl font-body text-sm leading-relaxed text-ink-soft">
+        <h2 className="font-display text-xl font-bold text-ink">Getting here</h2>
+        <p className="mt-2">
+          Manhattan Market is on Connecticut Avenue NW in Woodley Park, a short walk from the Woodley
+          Park–Zoo/Adams Morgan Metro station (Red Line) and on the way to the National Zoo. Stop in for
+          snacks, cold drinks, groceries and everyday essentials — open 9am to 9pm, seven days a week.
+        </p>
+        <h2 className="mt-6 font-display text-xl font-bold text-ink">Pickup &amp; delivery</h2>
+        <p className="mt-2">
+          Order online and pick up at the counter, or get it delivered to nearby neighborhoods including{" "}
+          {NEIGHBORHOODS.slice(0, -1).join(", ")} and {NEIGHBORHOODS[NEIGHBORHOODS.length - 1]}.{" "}
+          <Link href="/order" className="font-semibold text-green-deep underline hover:text-pink-deep">
+            Start an order
+          </Link>
+          .
+        </p>
+      </section>
     </div>
   );
 }
