@@ -113,10 +113,8 @@ export default function InventoryPanel({
   const [togglingHealthy, setTogglingHealthy] = useState<string | null>(null);
   const [generatingPhotos, setGeneratingPhotos] = useState(false);
   const [photoResult, setPhotoResult] = useState<string | null>(null);
-  const [generatingGalleryPhotos, setGeneratingGalleryPhotos] = useState(false);
   const [findingPhotos, setFindingPhotos] = useState(false);
   const [findResult, setFindResult] = useState<string | null>(null);
-  const [galleryPhotoResult, setGalleryPhotoResult] = useState<string | null>(null);
 
   const missingPhotoCount = useMemo(() => products.filter((p) => !p.image_url).length, [products]);
 
@@ -171,34 +169,6 @@ export default function InventoryPanel({
       setFindResult("Couldn't look up photos — check your connection.");
     }
     setFindingPhotos(false);
-  };
-
-  // Same idea, for the public Gallery page's six scene tiles instead of
-  // products — see app/api/gallery/generate-photos/route.ts. These are
-  // deliberately generic placeholder scenes, not real photos of the
-  // actual store; swap in real ones before launch.
-  const handleGenerateGalleryPhotos = async () => {
-    setGeneratingGalleryPhotos(true);
-    setGalleryPhotoResult(null);
-    try {
-      const res = await staffFetch("/api/gallery/generate-photos", { method: "POST" });
-      const body = await res.json();
-      if (res.ok) {
-        if (body.eligible === 0) {
-          setGalleryPhotoResult("Every gallery tile already has a photo.");
-        } else {
-          let message = `${body.generated} of ${body.eligible} gallery photo${body.eligible === 1 ? "" : "s"} generated`;
-          if (body.failed > 0) message += `, ${body.failed} failed — check Vercel's function logs for why`;
-          message += ".";
-          setGalleryPhotoResult(message);
-        }
-      } else {
-        setGalleryPhotoResult(body.error || "Couldn't generate gallery photos.");
-      }
-    } catch {
-      setGalleryPhotoResult("Couldn't generate gallery photos — check your connection.");
-    }
-    setGeneratingGalleryPhotos(false);
   };
 
   const handleToggleSpecial = async (product: Product) => {
@@ -272,19 +242,11 @@ export default function InventoryPanel({
                 : `✦ Generate ${missingPhotoCount} missing product photo${missingPhotoCount === 1 ? "" : "s"}`}
             </button>
           )}
-          <button
-            onClick={handleGenerateGalleryPhotos}
-            disabled={generatingGalleryPhotos}
-            className="rounded-full border border-line bg-paper px-3.5 py-1.5 font-mono text-xs font-semibold text-ink-soft transition hover:border-gold-ink hover:text-gold-ink disabled:opacity-60"
-          >
-            {generatingGalleryPhotos ? "Generating…" : "✦ Generate gallery photos"}
-          </button>
         </div>
-        {(photoResult || galleryPhotoResult || findResult) && (
+        {(photoResult || findResult) && (
           <div className="w-full font-body text-xs text-ink-soft">
             {findResult && <p>{findResult}</p>}
             {photoResult && <p>{photoResult}</p>}
-            {galleryPhotoResult && <p>{galleryPhotoResult}</p>}
           </div>
         )}
       </div>
