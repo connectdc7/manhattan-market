@@ -1186,3 +1186,8 @@ create policy "Staff can delete gallery photos"
   on gallery_photos for delete
   to authenticated
   using (is_staff());
+
+-- Wine & beer online, 21+ (supabase/alcohol.sql)
+alter table categories add column if not exists age_restricted boolean not null default false;
+alter table store_settings add column if not exists alcohol_delivery boolean not null default false;
+alter table orders add column if not exists contains_alcohol boolean not null default false;
