@@ -6,8 +6,8 @@ import {
   HeroEffect,
   HeroMedia,
   deleteHeroMedia,
-  setActiveHeroMedia,
   setHeroEffect,
+  setHeroMediaInRotation,
   uploadHeroMedia,
 } from "@/lib/hero";
 
@@ -42,20 +42,19 @@ function MediaThumb({
         </span>
       </div>
       <div className="flex items-center justify-between gap-2">
-        {media.isActive ? (
-          <span className="font-mono text-[0.6rem] font-semibold uppercase tracking-wide text-green-deep">
-            Live now
-          </span>
-        ) : (
-          <button
-            type="button"
-            onClick={onSetActive}
-            disabled={busy}
-            className="rounded-full border border-line px-2.5 py-1 font-mono text-[0.6rem] font-semibold uppercase tracking-wide text-ink-soft transition hover:border-green hover:text-green disabled:opacity-60"
-          >
-            Set live
-          </button>
-        )}
+        <button
+          type="button"
+          onClick={onSetActive}
+          disabled={busy}
+          title={media.isActive ? "Take off the homepage" : "Show on the homepage"}
+          className={`rounded-full border px-2.5 py-1 font-mono text-[0.6rem] font-semibold uppercase tracking-wide transition disabled:opacity-60 ${
+            media.isActive
+              ? "border-green bg-green text-white hover:bg-green-deep"
+              : "border-line text-ink-soft hover:border-green hover:text-green"
+          }`}
+        >
+          {media.isActive ? (media.kind === "video" ? "✓ Live" : "✓ In rotation") : media.kind === "video" ? "Set live" : "Add to rotation"}
+        </button>
         <button
           type="button"
           onClick={onDelete}
@@ -123,36 +122,59 @@ export default function HeroPanel({
     else setError("Couldn't save that — try again.");
   };
 
-  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    e.target.value = "";
-    if (!file) return;
-    setError(null);
+  const [uploadNote, setUploadNote] = useState<string | null>(null);
 
-    const kind = file.type.startsWith("video/") ? "video" : "photo";
-    if (!file.type.startsWith("video/") && !file.type.startsWith("image/")) {
-      setError("That file isn't a photo or video.");
-      return;
-    }
-    if (file.size > MAX_UPLOAD_BYTES) {
-      setError("That file's over the 60MB limit — try a smaller photo/video.");
+  // Several photos (or a video) at once. New photos join the homepage
+  // rotation straight away, so "upload a few and they rotate" just works;
+  // a video is added to the library but has to be set live on purpose.
+  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files ?? []);
+    e.target.value = "";
+    if (files.length === 0) return;
+    setError(null);
+    setUploadNote(null);
+
+    const valid = files.filter((f) => (f.type.startsWith("video/") || f.type.startsWith("image/")) && f.size <= MAX_UPLOAD_BYTES);
+    const skipped = files.length - valid.length;
+    if (valid.length === 0) {
+      setError("Those files aren't photos/videos, or are over the 60MB limit.");
       return;
     }
 
     setUploading(true);
-    const result = await uploadHeroMedia(file, kind);
+    const videoLive = media.some((m) => m.isActive && m.kind === "video");
+    let added = 0;
+    let current = media;
+    for (const file of valid) {
+      const kind = file.type.startsWith("video/") ? "video" : "photo";
+      const result = await uploadHeroMedia(file, kind);
+      if (!result) continue;
+      added++;
+      if (kind === "photo" && !videoLive) {
+        await setHeroMediaInRotation(result, true, current);
+        current = [...current, { ...result, isActive: true }];
+      }
+    }
     setUploading(false);
-    if (result) onRefresh();
-    else setError("Couldn't upload that — try again.");
+    onRefresh();
+    const failed = valid.length - added;
+    setUploadNote(
+      `Added ${added} file${added === 1 ? "" : "s"}` +
+        (videoLive ? " — a video is live, so tap \"Add to rotation\" on the photos to use them instead." : ".") +
+        (failed ? ` ${failed} couldn't upload.` : "") +
+        (skipped ? ` ${skipped} skipped (not a photo/video, or over 60MB).` : "")
+    );
   };
 
   const handleSetActive = async (id: string) => {
+    const item = media.find((m) => m.id === id);
+    if (!item) return;
     setError(null);
     setBusyId(id);
-    const ok = await setActiveHeroMedia(id);
+    const ok = await setHeroMediaInRotation(item, !item.isActive, media);
     setBusyId(null);
     if (ok) onRefresh();
-    else setError("Couldn't set that live — try again.");
+    else setError("Couldn't change that — try again.");
   };
 
   const handleDelete = async (item: HeroMedia) => {
@@ -227,24 +249,31 @@ export default function HeroPanel({
             Photo &amp; Video Library
           </p>
           <p className="mt-1 font-body text-sm text-ink-soft">
-            Upload as many photos and videos as you want, then pick which one is live. A video
-            plays muted and on a loop; up to 60MB per file, straight from your phone&apos;s camera
-            or your photo library. Setting one live here works right away — it doesn&apos;t need
-            the Save button above, only choosing &quot;Your Photo / Video&quot; as the background does.
+            Add several photos at once — every photo marked &quot;In rotation&quot; takes turns on the
+            homepage, changing every few seconds. Or set one video live instead (it plays muted, on a
+            loop). Up to 60MB per file. Changes here go live right away; only choosing &quot;Your Photo
+            / Video&quot; above needs the Save button.
           </p>
 
           <label className="mt-3 inline-block w-fit cursor-pointer rounded-full border border-line px-3.5 py-1.5 font-mono text-xs font-semibold text-ink-soft transition hover:border-green hover:text-green">
-            {uploading ? "Uploading…" : "Add Photo / Video"}
+            {uploading ? "Uploading…" : "+ Add photos / video"}
             <input
               ref={fileInputRef}
               type="file"
               accept="image/*,video/*"
-              capture="environment"
+              multiple
               onChange={handleUpload}
               disabled={uploading}
               className="hidden"
             />
           </label>
+
+          {uploadNote && <p className="mt-2 font-body text-xs text-ink-soft">{uploadNote}</p>}
+          {media.some((m) => m.isActive && m.kind === "photo") && (
+            <p className="mt-2 font-mono text-[0.6rem] uppercase tracking-wide text-green-deep">
+              {media.filter((m) => m.isActive && m.kind === "photo").length} photo(s) in rotation
+            </p>
+          )}
 
           {media.length > 0 && (
             <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
