@@ -48,11 +48,6 @@ export default function LocationPage() {
           <p className="mt-2 font-body text-sm text-ink-soft">
             <a href="tel:+12029864774" className="hover:text-pink-deep">(202) 986-4774</a>
           </p>
-          <p className="font-body text-sm text-ink-soft">
-            <a href="mailto:order@manhattanmarketdc.com" className="hover:text-pink-deep">
-              order@manhattanmarketdc.com
-            </a>
-          </p>
           <p className="mt-2 flex gap-4 font-body text-sm text-ink-soft">
             <a href="https://www.instagram.com/manhattanmarketdc" target="_blank" rel="noopener noreferrer" className="hover:text-pink-deep">
               Instagram @manhattanmarketdc
@@ -60,7 +55,7 @@ export default function LocationPage() {
           </p>
           <p className="font-body text-sm text-ink-soft">
             <a href="https://www.facebook.com/manhattan.market.2025" target="_blank" rel="noopener noreferrer" className="hover:text-pink-deep">
-              Facebook @manhattanmarketdc
+              Facebook · Manhattan Market
             </a>
           </p>
         </div>
