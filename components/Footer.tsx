@@ -33,7 +33,7 @@ export default function Footer() {
               <a href="https://www.instagram.com/manhattanmarketdc" target="_blank" rel="noopener noreferrer" className="hover:text-gold">
                 Instagram
               </a>
-              <a href="https://www.facebook.com/manhattanmarketdc" target="_blank" rel="noopener noreferrer" className="hover:text-gold">
+              <a href="https://www.facebook.com/manhattan.market.2025" target="_blank" rel="noopener noreferrer" className="hover:text-gold">
                 Facebook
               </a>
             </p>
