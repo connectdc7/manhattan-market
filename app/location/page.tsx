@@ -59,7 +59,7 @@ export default function LocationPage() {
             </a>
           </p>
           <p className="font-body text-sm text-ink-soft">
-            <a href="https://www.facebook.com/manhattanmarketdc" target="_blank" rel="noopener noreferrer" className="hover:text-pink-deep">
+            <a href="https://www.facebook.com/manhattan.market.2025" target="_blank" rel="noopener noreferrer" className="hover:text-pink-deep">
               Facebook @manhattanmarketdc
             </a>
           </p>
