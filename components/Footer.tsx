@@ -24,10 +24,6 @@ export default function Footer() {
             </p>
             <p className="mt-3 font-body text-sm text-white/80">
               <a href="tel:+12029864774" className="hover:text-gold">(202) 986-4774</a>
-              <br />
-              <a href="mailto:order@manhattanmarketdc.com" className="hover:text-gold">
-                order@manhattanmarketdc.com
-              </a>
             </p>
             <p className="mt-3 flex gap-4 font-body text-sm text-white/80">
               <a href="https://www.instagram.com/manhattanmarketdc" target="_blank" rel="noopener noreferrer" className="hover:text-gold">
