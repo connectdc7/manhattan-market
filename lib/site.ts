@@ -44,7 +44,6 @@ export function localBusinessJsonLd() {
     name: SITE_NAME,
     url: SITE_URL,
     telephone: BUSINESS.telephone,
-    email: BUSINESS.email,
     address: {
       "@type": "PostalAddress",
       streetAddress: BUSINESS.streetAddress,
