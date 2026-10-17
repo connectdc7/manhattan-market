@@ -27,7 +27,7 @@ export const BUSINESS = {
   addressRegion: "DC",
   postalCode: "20008",
   instagram: "https://www.instagram.com/manhattanmarketdc",
-  facebook: "https://www.facebook.com/manhattanmarketdc",
+  facebook: "https://www.facebook.com/manhattan.market.2025",
   addressCountry: "US",
 };
 
@@ -73,7 +73,8 @@ export function localBusinessJsonLd() {
       target: `${SITE_URL}/order`,
       deliveryMethod: ["http://purl.org/goodrelations/v1#DeliveryModePickUp", "http://purl.org/goodrelations/v1#DeliveryModeOwnFleet"],
     },
-    // Add the store's real Instagram/Facebook page URLs here once confirmed:
-    // sameAs: [BUSINESS.instagram, BUSINESS.facebook],
+    // The store's own social pages (confirmed by the owner) — helps Google
+    // connect them to this business.
+    sameAs: [BUSINESS.instagram, BUSINESS.facebook],
   };
 }
