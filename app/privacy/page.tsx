@@ -90,11 +90,7 @@ export default function PrivacyPage() {
         <section>
           <h2 className="font-display text-lg font-semibold text-ink">Questions</h2>
           <p className="mt-2">
-            Contact us at 
-            <a href="mailto:order@manhattanmarketdc.com" className="text-green-deep hover:text-pink-deep">
-              order@manhattanmarketdc.com
-            </a>
-            , by phone at 
+            Contact us by phone at{" "}
             <a href="tel:+12029864774" className="text-green-deep hover:text-pink-deep">
               (202) 986-4774
             </a>
