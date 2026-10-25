@@ -4,7 +4,7 @@
 // added to delivery orders on top of Uber's delivery fee. Takes effect on
 // the next checkout — orders already placed keep what they paid.
 import { useEffect, useState } from "react";
-import { getStoreSettings, setAlcoholDelivery, setDeliveryServiceFee } from "@/lib/settings";
+import { getStoreSettings, PaymentProvider, setAlcoholDelivery, setDeliveryServiceFee, setPaymentProvider } from "@/lib/settings";
 import { inputClass, labelClass } from "./StaffGate";
 
 export default function SettingsPanel() {
@@ -14,14 +14,44 @@ export default function SettingsPanel() {
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
   const [alcoholDelivery, setAlcoholDeliveryState] = useState<boolean | null>(null);
   const [alcoholMsg, setAlcoholMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const [provider, setProvider] = useState<PaymentProvider | null>(null);
+  const [ready, setReady] = useState<{ stripe: boolean; clover: boolean; active: string } | null>(null);
+  const [payMsg, setPayMsg] = useState<{ ok: boolean; text: string } | null>(null);
+
+  const loadPaymentStatus = () =>
+    fetch("/api/checkout/status")
+      .then((r) => r.json())
+      .then((b) => setReady({ stripe: Boolean(b.stripeReady), clover: Boolean(b.cloverCheckoutReady), active: String(b.provider ?? "none") }))
+      .catch(() => {});
 
   useEffect(() => {
     getStoreSettings().then((s) => {
       setSaved(s.deliveryServiceFee);
       setValue(s.deliveryServiceFee.toFixed(2));
       setAlcoholDeliveryState(s.alcoholDelivery);
+      setProvider(s.paymentProvider);
     });
+    loadPaymentStatus();
   }, []);
+
+  const choosePayments = async (next: PaymentProvider) => {
+    if (provider === null || next === provider) return;
+    if (
+      next === "clover" &&
+      !window.confirm(
+        "Switch online payments to Clover? New online orders will be paid through Clover's secure payment page. You can switch back to Stripe anytime."
+      )
+    )
+      return;
+    setPayMsg(null);
+    const err = await setPaymentProvider(next);
+    if (err) setPayMsg({ ok: false, text: err });
+    else {
+      setProvider(next);
+      setPayMsg({ ok: true, text: next === "clover" ? "Online payments now go through Clover." : "Online payments now go through Stripe." });
+      loadPaymentStatus();
+    }
+  };
 
   const toggleAlcoholDelivery = async () => {
     if (alcoholDelivery === null) return;
@@ -151,6 +181,41 @@ export default function SettingsPanel() {
         {alcoholMsg && (
           <p className={`mt-3 font-body text-sm ${alcoholMsg.ok ? "text-green" : "text-[#a8461a]"}`}>{alcoholMsg.text}</p>
         )}
+      </div>
+
+      <div className="mt-5 rounded-lg border border-line bg-panel p-5">
+        <p className={labelClass}>Online payments</p>
+        <p className="mt-2 font-body text-sm text-ink-soft">
+          Which company processes card payments for website orders. With Clover, the money goes straight into the
+          store&apos;s Clover account and orders show as paid on the Clover device.
+        </p>
+        <div className="mt-4 inline-flex rounded-full border border-line bg-paper p-1">
+          {(["stripe", "clover"] as const).map((p) => (
+            <button
+              key={p}
+              type="button"
+              onClick={() => choosePayments(p)}
+              disabled={provider === null}
+              className={`rounded-full px-4 py-1.5 font-mono text-xs font-semibold transition disabled:opacity-50 ${
+                provider === p ? "bg-green text-white" : "text-ink-soft hover:text-ink"
+              }`}
+            >
+              {p === "stripe" ? "Stripe" : "Clover"}
+            </button>
+          ))}
+        </div>
+        {ready && (
+          <p className="mt-3 font-body text-xs text-ink-soft">
+            Stripe: {ready.stripe ? "connected" : "not set up"} · Clover online payments:{" "}
+            {ready.clover ? "connected" : "not set up yet (needs the Clover ecommerce keys in Vercel)"}
+            {provider === "clover" && !ready.clover && " — until then customers keep paying through Stripe."}
+            {" "}Customers are paying through:{" "}
+            <span className="font-semibold text-ink">
+              {ready.active === "clover" ? "Clover" : ready.active === "stripe" ? "Stripe" : "nothing (test mode)"}
+            </span>
+          </p>
+        )}
+        {payMsg && <p className={`mt-3 font-body text-sm ${payMsg.ok ? "text-green" : "text-[#a8461a]"}`}>{payMsg.text}</p>}
       </div>
     </div>
   );

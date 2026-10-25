@@ -69,7 +69,7 @@ export default function RefundBox({ order, onDone }: { order: Order; onDone: () 
         setConfirming(false);
       }
     } catch {
-      setResult({ ok: false, lines: ["Couldn't reach the server — check your connection. Nothing was refunded unless Stripe shows it."] });
+      setResult({ ok: false, lines: ["Couldn't reach the server — check your connection. Nothing was refunded unless Stripe or Clover shows it."] });
       setConfirming(false);
     }
     setBusy(false);

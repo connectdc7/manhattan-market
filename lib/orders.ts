@@ -31,6 +31,9 @@ export type Order = {
   uber_error?: string | null;
   // Online payment + refunds (supabase/refunds.sql).
   stripe_session_id?: string | null;
+  // Clover Hosted Checkout payments (supabase/clover-payments.sql).
+  payment_provider?: "stripe" | "clover" | null;
+  clover_payment_id?: string | null;
   refunded_amount?: number | null;
   refunded_items?: { id: string; qty: number }[] | null;
   refund_status?: "partial" | "full" | null;
@@ -73,11 +76,21 @@ export async function getOrders(limit = 300): Promise<Order[]> {
   const REFUNDS = "refunded_amount, refunded_items, refund_status, refunded_at";
   const first = await supabase
     .from("orders")
-    .select(`${BASE}, ${REFUNDS}, contains_alcohol`)
+    .select(`${BASE}, ${REFUNDS}, contains_alcohol, payment_provider, clover_payment_id`)
     .order("created_at", { ascending: false })
     .limit(limit);
   let data = first.data as Record<string, unknown>[] | null;
   let error = first.error;
+  if (error) {
+    // supabase/clover-payments.sql not run yet.
+    const retry = await supabase
+      .from("orders")
+      .select(`${BASE}, ${REFUNDS}, contains_alcohol`)
+      .order("created_at", { ascending: false })
+      .limit(limit);
+    data = retry.data as Record<string, unknown>[] | null;
+    error = retry.error;
+  }
   if (error) {
     // supabase/alcohol.sql not run yet — try without contains_alcohol.
     const retry = await supabase.from("orders").select(`${BASE}, ${REFUNDS}`).order("created_at", { ascending: false }).limit(limit);

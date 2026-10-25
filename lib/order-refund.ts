@@ -15,6 +15,7 @@ import { supabaseAdmin } from "./supabase-admin";
 import { stripe, isStripeConfigured } from "./stripe";
 import { cloverUrls, getFreshCloverConnection, isCloverConfigured } from "./clover";
 import { cancelUberDelivery, isUberConfigured } from "./uber";
+import { refundCloverPayment } from "./clover-checkout";
 import type { OrderItem } from "./orders";
 
 export type RefundRequest = {
@@ -34,6 +35,8 @@ type RefundOrder = {
   items: OrderItem[];
   fulfillment: "pickup" | "delivery";
   stripe_session_id: string | null;
+  clover_payment_id: string | null;
+  subtotal: number;
   clover_order_id: string | null;
   delivery_fee: number | null;
   service_fee: number | null;
@@ -63,12 +66,11 @@ const cents = (n: number) => Math.round(n * 100);
 export async function refundOrder(req: RefundRequest): Promise<RefundResult> {
   const admin = supabaseAdmin;
   if (!admin) return { ok: false, error: "SUPABASE_SERVICE_ROLE_KEY is missing." };
-  if (!isStripeConfigured() || !stripe) return { ok: false, error: "Stripe isn't set up." };
 
   const { data: order, error: readError } = await admin
     .from("orders")
     .select(
-      "id, items, fulfillment, stripe_session_id, clover_order_id, delivery_fee, service_fee, uber_delivery_id, uber_status, refunded_amount, refunded_items, refund_status"
+      "id, items, fulfillment, subtotal, stripe_session_id, clover_payment_id, clover_order_id, delivery_fee, service_fee, uber_delivery_id, uber_status, refunded_amount, refunded_items, refund_status"
     )
     .eq("id", req.orderId)
     .maybeSingle<RefundOrder>();
@@ -77,7 +79,10 @@ export async function refundOrder(req: RefundRequest): Promise<RefundResult> {
     return { ok: false, error: `Couldn't read the order.${hint}` };
   }
   if (!order) return { ok: false, error: "Order not found." };
-  if (!order.stripe_session_id) return { ok: false, error: "This order wasn't paid online, so there's nothing to refund by card." };
+  const paidByClover = Boolean(order.clover_payment_id);
+  if (!order.stripe_session_id && !paidByClover) {
+    return { ok: false, error: "This order wasn't paid online, so there's nothing to refund by card." };
+  }
   if (order.refund_status === "full") return { ok: false, error: "This order has already been fully refunded." };
 
   // What's already been refunded, per product.
@@ -96,33 +101,50 @@ export async function refundOrder(req: RefundRequest): Promise<RefundResult> {
   }
   if (!full && refundLines.length === 0) return { ok: false, error: "Pick at least one item to refund." };
 
-  // 1. Stripe.
-  let paymentIntentId: string | null = null;
-  try {
-    const session = await stripe.checkout.sessions.retrieve(order.stripe_session_id);
-    paymentIntentId = typeof session.payment_intent === "string" ? session.payment_intent : session.payment_intent?.id ?? null;
-  } catch (err) {
-    console.error("[refund] session retrieve failed", err);
-  }
-  if (!paymentIntentId) return { ok: false, error: "Couldn't find the Stripe payment for this order." };
-
   let amountCents: number | undefined;
   if (!full) {
     const fees = req.includeFees ? (order.delivery_fee ?? 0) + (order.service_fee ?? 0) : 0;
     amountCents = refundLines.reduce((s, l) => s + cents(l.price) * l.qty, 0) + cents(fees);
   }
+  const idempotencyKey = `refund-${order.id}-${full ? "full" : JSON.stringify(refundLines.map((l) => [l.id, l.qty]))}-${Number(order.refunded_amount ?? 0)}`;
 
   let refundedCents = 0;
-  try {
-    const refund = await stripe.refunds.create(
-      { payment_intent: paymentIntentId, ...(amountCents ? { amount: amountCents } : {}), reason: "requested_by_customer" },
-      { idempotencyKey: `refund-${order.id}-${full ? "full" : JSON.stringify(refundLines.map((l) => [l.id, l.qty]))}-${Number(order.refunded_amount ?? 0)}` }
-    );
-    refundedCents = refund.amount;
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    console.error("[refund] stripe refund failed", msg);
-    return { ok: false, error: `Stripe couldn't refund it: ${msg}` };
+  if (paidByClover) {
+    // 1a. Clover Hosted Checkout payment.
+    let cloverAmount = amountCents;
+    if (full && Number(order.refunded_amount ?? 0) > 0) {
+      // Whatever hasn't been refunded yet.
+      const paidTotal = Number(order.subtotal) + (order.delivery_fee ?? 0) + (order.service_fee ?? 0);
+      cloverAmount = Math.max(0, cents(paidTotal) - cents(Number(order.refunded_amount)));
+    }
+    const r = await refundCloverPayment(order.clover_payment_id!, cloverAmount, idempotencyKey);
+    if (!r.ok) return { ok: false, error: r.error };
+    refundedCents = r.amountCents;
+    if (!refundedCents && full) {
+      refundedCents = cents(Number(order.subtotal) + (order.delivery_fee ?? 0) + (order.service_fee ?? 0));
+    }
+  } else {
+    // 1b. Stripe.
+    if (!isStripeConfigured() || !stripe) return { ok: false, error: "Stripe isn't set up." };
+    let paymentIntentId: string | null = null;
+    try {
+      const session = await stripe.checkout.sessions.retrieve(order.stripe_session_id!);
+      paymentIntentId = typeof session.payment_intent === "string" ? session.payment_intent : session.payment_intent?.id ?? null;
+    } catch (err) {
+      console.error("[refund] session retrieve failed", err);
+    }
+    if (!paymentIntentId) return { ok: false, error: "Couldn't find the Stripe payment for this order." };
+    try {
+      const refund = await stripe.refunds.create(
+        { payment_intent: paymentIntentId, ...(amountCents ? { amount: amountCents } : {}), reason: "requested_by_customer" },
+        { idempotencyKey }
+      );
+      refundedCents = refund.amount;
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error("[refund] stripe refund failed", msg);
+      return { ok: false, error: `Stripe couldn't refund it: ${msg}` };
+    }
   }
   const amount = refundedCents / 100;
   const notes: string[] = [`Refunded $${amount.toFixed(2)} to the customer's card.`];
@@ -136,7 +158,14 @@ export async function refundOrder(req: RefundRequest): Promise<RefundResult> {
     if (conn) {
       const mId = conn.merchant_id;
       if (order.clover_order_id) {
-        if (full) {
+        if (full && paidByClover) {
+          // The refund already shows on this order in Clover — keep it, just label it.
+          await cloverCall(`/v3/merchants/${mId}/orders/${order.clover_order_id}`, conn.access_token, {
+            method: "POST",
+            body: JSON.stringify({ note: `FULLY REFUNDED ONLINE $${amount.toFixed(2)}.` }),
+          });
+          notes.push("Marked the order as refunded in Clover.");
+        } else if (full) {
           const del = await cloverCall(`/v3/merchants/${mId}/orders/${order.clover_order_id}`, conn.access_token, { method: "DELETE" });
           if (del.ok) {
             notes.push("Removed the order from Clover.");

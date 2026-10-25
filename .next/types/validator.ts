@@ -128,15 +128,6 @@ type RouteHandlerConfig<Route extends AppRouteHandlerRoutes = AppRouteHandlerRou
   type __Unused = __Check
 }
 
-// Validate ../../app/rewards/page.tsx
-{
-  type __IsExpected<Specific extends AppPageConfig<"/rewards">> = Specific
-  const handler = {} as typeof import("../../app/rewards/page.js")
-  type __Check = __IsExpected<typeof handler>
-  // @ts-ignore
-  type __Unused = __Check
-}
-
 // Validate ../../app/terms/page.tsx
 {
   type __IsExpected<Specific extends AppPageConfig<"/terms">> = Specific
@@ -168,6 +159,15 @@ type RouteHandlerConfig<Route extends AppRouteHandlerRoutes = AppRouteHandlerRou
 {
   type __IsExpected<Specific extends RouteHandlerConfig<"/api/clover/callback">> = Specific
   const handler = {} as typeof import("../../app/api/clover/callback/route.js")
+  type __Check = __IsExpected<typeof handler>
+  // @ts-ignore
+  type __Unused = __Check
+}
+
+// Validate ../../app/api/clover/checkout-webhook/route.ts
+{
+  type __IsExpected<Specific extends RouteHandlerConfig<"/api/clover/checkout-webhook">> = Specific
+  const handler = {} as typeof import("../../app/api/clover/checkout-webhook/route.js")
   type __Check = __IsExpected<typeof handler>
   // @ts-ignore
   type __Unused = __Check
@@ -415,15 +415,6 @@ type RouteHandlerConfig<Route extends AppRouteHandlerRoutes = AppRouteHandlerRou
 {
   type __IsExpected<Specific extends LayoutConfig<"/">> = Specific
   const handler = {} as typeof import("../../app/layout.js")
-  type __Check = __IsExpected<typeof handler>
-  // @ts-ignore
-  type __Unused = __Check
-}
-
-// Validate ../../app/rewards/layout.tsx
-{
-  type __IsExpected<Specific extends LayoutConfig<"/rewards">> = Specific
-  const handler = {} as typeof import("../../app/rewards/layout.js")
   type __Check = __IsExpected<typeof handler>
   // @ts-ignore
   type __Unused = __Check

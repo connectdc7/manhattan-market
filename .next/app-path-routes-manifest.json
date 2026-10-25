@@ -4,6 +4,7 @@
   "/api/checkout/session/route": "/api/checkout/session",
   "/api/checkout/status/route": "/api/checkout/status",
   "/api/clover/callback/route": "/api/clover/callback",
+  "/api/clover/checkout-webhook/route": "/api/clover/checkout-webhook",
   "/api/clover/complete-order/route": "/api/clover/complete-order",
   "/api/clover/connect/route": "/api/clover/connect",
   "/api/clover/disconnect/route": "/api/clover/disconnect",
@@ -40,7 +41,6 @@
   "/order/page": "/order",
   "/page": "/",
   "/privacy/page": "/privacy",
-  "/rewards/page": "/rewards",
   "/robots.txt/route": "/robots.txt",
   "/sitemap.xml/route": "/sitemap.xml",
   "/terms/page": "/terms"

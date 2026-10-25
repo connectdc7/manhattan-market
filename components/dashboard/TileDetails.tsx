@@ -3,12 +3,11 @@
 import { useState } from "react";
 import type { CloverSale } from "@/lib/clover-stats";
 import type { Product } from "@/lib/products";
-import type { RewardsSignup } from "@/lib/rewards";
 
 // The drop-down under the dashboard's stat tiles: the list behind each
 // number, with every row clickable for its details.
 
-export type TileKey = "sales" | "orders" | "lowstock" | "signups";
+export type TileKey = "sales" | "orders" | "lowstock";
 
 const money = (n: number) => `$${n.toFixed(2)}`;
 const timeOf = (iso: string) => new Date(iso).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
@@ -166,39 +165,11 @@ function LowStockList({ products, onOpenInInventory }: { products: Product[]; on
   );
 }
 
-function SignupsList({ signups }: { signups: RewardsSignup[] }) {
-  const [openId, setOpenId] = useState<string | null>(null);
-  if (signups.length === 0) return <p className="p-4 font-body text-sm text-ink-soft">No new rewards signups today.</p>;
-  return (
-    <>
-      {signups.map((s) => (
-        <Row
-          key={s.id}
-          open={openId === s.id}
-          onToggle={() => setOpenId(openId === s.id ? null : s.id)}
-          detail={
-            <div className="rounded-md border border-line bg-paper p-3 font-body text-sm">
-              <p className="break-all text-ink">{s.contact}</p>
-              <p className="mt-1 font-mono text-[0.6rem] uppercase tracking-wide text-ink-soft">
-                Signed up {new Date(s.created_at).toLocaleString()}
-              </p>
-            </div>
-          }
-        >
-          <span className="w-16 shrink-0 font-mono text-xs text-ink-soft">{timeOf(s.created_at)}</span>
-          <span className="min-w-0 flex-1 truncate font-body text-sm text-ink">{s.contact}</span>
-        </Row>
-      ))}
-    </>
-  );
-}
-
 export default function TileDetails({
   which,
   sales,
   salesSource,
   lowStock,
-  signupsToday,
   onOpenInInventory,
   onClose,
 }: {
@@ -206,16 +177,13 @@ export default function TileDetails({
   sales: CloverSale[];
   salesSource: string;
   lowStock: Product[];
-  signupsToday: RewardsSignup[];
   onOpenInInventory: (name: string) => void;
   onClose: () => void;
 }) {
   const title =
     which === "sales" || which === "orders"
       ? `Today's sales · ${sales.length}`
-      : which === "lowstock"
-        ? `Running low (3 or fewer) · ${lowStock.length}`
-        : `Today's rewards signups · ${signupsToday.length}`;
+      : `Running low (3 or fewer) · ${lowStock.length}`;
 
   return (
     <div className="mt-3 overflow-hidden rounded-lg border border-green/40 bg-paper shadow-sm">
@@ -230,7 +198,6 @@ export default function TileDetails({
           <SalesList sales={sales} emptyText="No sales yet today." />
         )}
         {which === "lowstock" && <LowStockList products={lowStock} onOpenInInventory={onOpenInInventory} />}
-        {which === "signups" && <SignupsList signups={signupsToday} />}
       </div>
       {(which === "sales" || which === "orders") && (
         <p className="border-t border-line px-3 py-2 font-mono text-[0.6rem] uppercase tracking-wide text-ink-soft">

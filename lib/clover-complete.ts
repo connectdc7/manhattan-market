@@ -84,11 +84,13 @@ export async function completeCloverOrder(orderId: string): Promise<CloverComple
 
   const { data: order } = await admin
     .from("orders")
-    .select("id, clover_order_id, stripe_session_id")
+    .select("id, clover_order_id, stripe_session_id, clover_payment_id")
     .eq("id", orderId)
-    .maybeSingle<{ id: string; clover_order_id: string | null; stripe_session_id: string | null }>();
+    .maybeSingle<{ id: string; clover_order_id: string | null; stripe_session_id: string | null; clover_payment_id: string | null }>();
   if (!order) return { ok: false, error: "Order not found." };
   if (!order.clover_order_id) return { ok: true, skipped: "Not on Clover." };
+  // Paid with Clover's own online checkout — Clover already shows it Paid.
+  if (order.clover_payment_id) return { ok: true, skipped: "Paid through Clover already." };
   // Only orders actually paid online get marked paid — anything else still
   // needs paying at the register.
   if (!order.stripe_session_id) return { ok: true, skipped: "Not paid online." };

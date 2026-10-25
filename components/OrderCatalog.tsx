@@ -30,11 +30,23 @@ const PAGE_SIZE = 60;
 type StoreCategory = { name: string; aisle: string };
 const ALL = "All";
 
-export default function OrderCatalog({ products, categories }: { products: Product[]; categories: StoreCategory[] }) {
-  const [active, setActive] = useState<string>(ALL); // aisle
+export default function OrderCatalog({
+  products,
+  categories,
+  initialSearch = "",
+  initialAisle = "",
+}: {
+  products: Product[];
+  categories: StoreCategory[];
+  initialSearch?: string;
+  initialAisle?: string;
+}) {
+  const [active, setActive] = useState<string>(
+    initialAisle && (AISLES as readonly string[]).includes(initialAisle) ? initialAisle : ALL
+  ); // aisle
   const [sub, setSub] = useState<string>(ALL); // department within the aisle
   const [highlightId, setHighlightId] = useState<string | null>(null);
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useState(initialSearch);
   const [limit, setLimit] = useState(PAGE_SIZE);
 
   const aisleOf = useMemo(() => new Map(categories.map((c) => [c.name, c.aisle])), [categories]);

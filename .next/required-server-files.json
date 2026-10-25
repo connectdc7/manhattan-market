@@ -324,7 +324,14 @@
     "turbopack": {
       "root": "/home/user/manhattan-market"
     },
-    "distDirRoot": ".next"
+    "distDirRoot": ".next",
+    "_originalRedirects": [
+      {
+        "source": "/rewards",
+        "destination": "/",
+        "permanent": true
+      }
+    ]
   },
   "appDir": "/home/user/manhattan-market",
   "relativeAppDir": "",

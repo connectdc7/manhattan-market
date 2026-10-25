@@ -116,20 +116,6 @@
       }
     }
   },
-  "/rewards": {
-    "hints": 0,
-    "slots": {
-      "children": {
-        "hints": 64,
-        "slots": {
-          "children": {
-            "hints": 160,
-            "slots": null
-          }
-        }
-      }
-    }
-  },
   "/terms": {
     "hints": 0,
     "slots": {

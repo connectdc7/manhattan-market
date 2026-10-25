@@ -335,7 +335,7 @@ export default function OrdersPanel({
                     </button>
                   )}
                 </div>
-                {isOwner && o.stripe_session_id && (
+                {isOwner && (o.stripe_session_id || o.clover_payment_id) && (
                   <div className="mt-2">
                     <RefundBox order={o} onDone={() => onRefunded?.()} />
                   </div>

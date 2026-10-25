@@ -12,6 +12,12 @@
       "priority": true,
       "statusCode": 308,
       "regex": "^(?:/((?:[^/]+?)(?:/(?:[^/]+?))*))/$"
+    },
+    {
+      "source": "/rewards",
+      "destination": "/",
+      "statusCode": 308,
+      "regex": "^(?!/_next)/rewards(?:/)?$"
     }
   ],
   "headers": [],
@@ -67,6 +73,12 @@
       "regex": "^/api/clover/callback(?:/)?$",
       "routeKeys": {},
       "namedRegex": "^/api/clover/callback(?:/)?$"
+    },
+    {
+      "page": "/api/clover/checkout-webhook",
+      "regex": "^/api/clover/checkout\\-webhook(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/api/clover/checkout\\-webhook(?:/)?$"
     },
     {
       "page": "/api/clover/complete-order",
@@ -271,12 +283,6 @@
       "regex": "^/privacy(?:/)?$",
       "routeKeys": {},
       "namedRegex": "^/privacy(?:/)?$"
-    },
-    {
-      "page": "/rewards",
-      "regex": "^/rewards(?:/)?$",
-      "routeKeys": {},
-      "namedRegex": "^/rewards(?:/)?$"
     },
     {
       "page": "/robots.txt",

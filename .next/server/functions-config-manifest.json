@@ -1,6 +1,7 @@
 {
   "version": 1,
   "functions": {
+    "/api/clover/checkout-webhook": {},
     "/api/clover/complete-order": {},
     "/api/clover/push-order": {},
     "/api/clover/stats": {

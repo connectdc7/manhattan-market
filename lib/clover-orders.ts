@@ -26,6 +26,7 @@ type OrderRow = {
   subtotal: number;
   phone: string | null;
   stripe_session_id: string | null;
+  clover_payment_id?: string | null;
   clover_order_id: string | null;
   delivery_address: { name?: string; street?: string; apt?: string; city?: string } | null;
 };
@@ -56,7 +57,7 @@ export async function pushOrderToClover(orderId: string): Promise<CloverPushResu
 
   const { data: order, error: orderError } = await admin
     .from("orders")
-    .select("id, fulfillment, items, subtotal, phone, stripe_session_id, clover_order_id, delivery_address")
+    .select("id, fulfillment, items, subtotal, phone, stripe_session_id, clover_payment_id, clover_order_id, delivery_address")
     .eq("id", orderId)
     .maybeSingle<OrderRow>();
   if (orderError || !order) return { ok: false, error: "Order not found." };
@@ -83,18 +84,30 @@ export async function pushOrderToClover(orderId: string): Promise<CloverPushResu
     if (row.clover_item_id) cloverIdFor.set(row.id, row.clover_item_id);
   }
 
-  const paid = Boolean(order.stripe_session_id);
+  const paidByClover = Boolean(order.clover_payment_id);
+  const paid = Boolean(order.stripe_session_id) || paidByClover;
   const shortId = order.id.slice(0, 6).toUpperCase();
 
-  // 1. Create the order shell.
-  const created = await cloverFetch(`/v3/merchants/${mId}/orders`, token, {
+  // Paid through Clover Hosted Checkout: Clover already made an order for
+  // that payment. Use it (rename + note + print) instead of a second one.
+  let existingCloverOrderId: string | null = null;
+  if (paidByClover) {
+    const payment = await cloverFetch(`/v3/merchants/${mId}/payments/${order.clover_payment_id}?expand=order`, token);
+    existingCloverOrderId = (payment.body as { order?: { id?: string } } | null)?.order?.id ?? null;
+    if (!existingCloverOrderId) console.error("[clover] no order found for Clover payment", { orderId, status: payment.status });
+  }
+
+  // 1. Create the order shell (or update Clover's own one).
+  const created = await cloverFetch(existingCloverOrderId ? `/v3/merchants/${mId}/orders/${existingCloverOrderId}` : `/v3/merchants/${mId}/orders`, token, {
     method: "POST",
     body: JSON.stringify({
-      state: "open",
+      ...(existingCloverOrderId ? {} : { state: "open" }),
       title: `WEB #${shortId} · ${order.fulfillment === "delivery" ? "DELIVERY" : "PICKUP"}${containsAlcohol ? " · 21+ ID" : ""}`,
       note: [
         containsAlcohol ? "*** CONTAINS ALCOHOL — CHECK PHOTO ID (21+) BEFORE HANDING OVER ***" : null,
-        paid ? "PAID ONLINE (website / Stripe) — do NOT charge again." : "Website order — NOT paid online, collect payment.",
+        paid
+          ? `PAID ONLINE (website / ${paidByClover ? "Clover card payment" : "Stripe"}) — do NOT charge again.`
+          : "Website order — NOT paid online, collect payment.",
         order.phone ? `Customer phone: ${order.phone}` : null,
         order.delivery_address
           ? `Deliver to: ${order.delivery_address.name ?? ""}, ${order.delivery_address.street ?? ""}${order.delivery_address.apt ? ` ${order.delivery_address.apt}` : ""} (Uber courier)`
@@ -105,7 +118,7 @@ export async function pushOrderToClover(orderId: string): Promise<CloverPushResu
         .join("\n"),
     }),
   });
-  const cloverOrderId = (created.body as { id?: string } | null)?.id;
+  const cloverOrderId = existingCloverOrderId ?? (created.body as { id?: string } | null)?.id;
   if (!created.ok || !cloverOrderId) {
     const error = `Clover rejected the order (HTTP ${created.status}).${created.status === 401 || created.status === 403 ? " Check the app has Write Orders permission, then reconnect." : ""}`;
     console.error("[clover] create order failed", { orderId, status: created.status, body: created.body });
@@ -117,7 +130,8 @@ export async function pushOrderToClover(orderId: string): Promise<CloverPushResu
   // order on Clover if someone retries.
   await recordResult(orderId, { clover_order_id: cloverOrderId, clover_push_error: null });
 
-  // 2. Line items — Clover uses one line item per unit sold.
+  // 2. Line items — Clover uses one line item per unit sold. (Clover's own
+  //    order for a Clover payment already has them.)
   const lineItems = order.items.flatMap((item) => {
     const cloverItemId = cloverIdFor.get(item.id);
     const line = {
@@ -127,10 +141,12 @@ export async function pushOrderToClover(orderId: string): Promise<CloverPushResu
     };
     return Array.from({ length: Math.max(1, Math.min(item.qty, 50)) }, () => line);
   });
-  const lines = await cloverFetch(`/v3/merchants/${mId}/orders/${cloverOrderId}/bulk_line_items`, token, {
-    method: "POST",
-    body: JSON.stringify({ items: lineItems }),
-  });
+  const lines = existingCloverOrderId
+    ? { ok: true, status: 200, body: null }
+    : await cloverFetch(`/v3/merchants/${mId}/orders/${cloverOrderId}/bulk_line_items`, token, {
+        method: "POST",
+        body: JSON.stringify({ items: lineItems }),
+      });
   if (!lines.ok) {
     console.error("[clover] add line items failed", { orderId, status: lines.status, body: lines.body });
     const error = `Order created on Clover but items failed to add (HTTP ${lines.status}).`;

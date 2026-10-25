@@ -23,9 +23,8 @@ export default function PrivacyPage() {
         <section>
           <h2 className="font-display text-lg font-semibold text-ink">What we collect</h2>
           <p className="mt-2">
-            When you place an order or sign up for Rewards, we ask for a phone number and/or
-            email address so we can text or email you when your order is ready and track your
-            Rewards points. When you check out, order details (items, quantities, and whether
+            When you place an order, we ask for a phone number so we can text you when your
+            order is ready (and, for delivery, so the courier can reach you). When you check out, order details (items, quantities, and whether
             you chose pickup or delivery) are saved so we can prepare and fulfill your order.
           </p>
         </section>
@@ -73,8 +72,7 @@ export default function PrivacyPage() {
         <section>
           <h2 className="font-display text-lg font-semibold text-ink">Data retention</h2>
           <p className="mt-2">
-            We keep order and Rewards information for as long as needed to run the store and
-            our Rewards program. You can ask us to delete your information at any time using
+            We keep order information for as long as needed to run the store. You can ask us to delete your information at any time using
             the contact details below.
           </p>
         </section>

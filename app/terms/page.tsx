@@ -40,14 +40,6 @@ export default function TermsPage() {
         </section>
 
         <section>
-          <h2 className="font-display text-lg font-semibold text-ink">Rewards program</h2>
-          <p className="mt-2">
-            Rewards points have no cash value, are tied to the phone number or email you sign up
-            with, and may be changed or discontinued at any time.
-          </p>
-        </section>
-
-        <section>
           <h2 className="font-display text-lg font-semibold text-ink">No warranty</h2>
           <p className="mt-2">
             The site is provided &quot;as is.&quot; We do our best to keep information accurate
