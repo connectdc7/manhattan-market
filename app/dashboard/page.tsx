@@ -20,6 +20,8 @@ import GalleryPanel from "@/components/dashboard/GalleryPanel";
 import StaffPanel from "@/components/dashboard/StaffPanel";
 import SettingsPanel from "@/components/dashboard/SettingsPanel";
 import StaffGate from "@/components/dashboard/StaffGate";
+import OrderAlerts from "@/components/dashboard/OrderAlerts";
+import { turnOffAlerts } from "@/lib/push-client";
 import { signOutStaff, staffFetch, StaffMember } from "@/lib/staff-auth";
 import type { CloverStats } from "@/lib/clover-stats";
 
@@ -152,6 +154,14 @@ function Dashboard({ staff }: { staff: StaffMember }) {
     if (status === "ready" && order?.fulfillment !== "delivery") {
       notifyOrderReady(id, order?.phone);
     }
+    // Completed → mark it Paid and closed on Clover too (lib/clover-complete.ts).
+    if (status === "completed" && order?.clover_order_id) {
+      staffFetch("/api/clover/complete-order", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ orderId: id }),
+      }).catch(() => {});
+    }
   };
 
   // Units sold per product over the last 7 days, in units/day — lets the
@@ -213,7 +223,7 @@ function Dashboard({ staff }: { staff: StaffMember }) {
             </span>
           )}
           <button
-            onClick={() => signOutStaff()}
+            onClick={() => turnOffAlerts().finally(() => signOutStaff())}
             className="rounded-full border border-line px-3.5 py-1.5 font-mono text-xs font-semibold text-ink-soft transition hover:border-green hover:text-green"
           >
             Sign out
@@ -224,6 +234,7 @@ function Dashboard({ staff }: { staff: StaffMember }) {
         Signed in as <span className="font-semibold text-ink">{staff.name || staff.email}</span>
         {staff.role === "owner" ? " · Owner" : ""}
       </p>
+      {isSupabaseConfigured && <OrderAlerts />}
 
       {!isSupabaseConfigured ? (
         <div className="mt-10 rounded-lg border border-line bg-panel p-8 text-center">

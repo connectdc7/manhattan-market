@@ -1,0 +1,7 @@
+User-Agent: *
+Allow: /
+Disallow: /checkout
+Disallow: /dashboard
+Disallow: /api/
+
+Sitemap: https://www.manhattanmarketdc.com/sitemap.xml

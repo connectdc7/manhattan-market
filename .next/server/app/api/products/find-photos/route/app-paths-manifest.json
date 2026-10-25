@@ -1,0 +1,3 @@
+{
+  "/api/products/find-photos/route": "app/api/products/find-photos/route.js"
+}

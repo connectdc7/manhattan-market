@@ -15,6 +15,7 @@ import { getProductsByIds } from "@/lib/products";
 import { createOrderAdmin, decrementStockAdmin } from "@/lib/orders-admin";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { pushOrderToClover } from "@/lib/clover-orders";
+import { isPushConfigured, notifyAllStaff } from "@/lib/push";
 import { isCloverConfigured } from "@/lib/clover";
 
 export const runtime = "nodejs";
@@ -95,6 +96,23 @@ async function fulfillCheckoutSession(session: Stripe.Checkout.Session) {
       if (error) console.error("[stripe webhook] couldn't flag alcohol order", error.message);
     }
     await decrementStockAdmin(cartLines);
+
+    // Alert every staff phone that has order alerts on (lib/push.ts).
+    if (isPushConfigured()) {
+      try {
+        const count = items.reduce((n, i) => n + i.qty, 0);
+        const total = typeof session.amount_total === "number" ? session.amount_total / 100 : subtotal;
+        const isDelivery = meta.fulfillment === "delivery";
+        await notifyAllStaff({
+          title: `New ${isDelivery ? "delivery" : "pickup"} order · $${total.toFixed(2)}`,
+          body: `${count} item${count === 1 ? "" : "s"} · #${createdId.slice(0, 6).toUpperCase()}${meta.alcohol === "1" ? " · 21+ check ID" : ""}`,
+          url: "/dashboard",
+          tag: `order-${createdId}`,
+        });
+      } catch (err) {
+        console.error("[stripe webhook] staff alert failed", err);
+      }
+    }
 
     // Send it to the Clover device/printer and lower Clover's stock. Best-
     // effort: a Clover hiccup must never fail the webhook (the order is

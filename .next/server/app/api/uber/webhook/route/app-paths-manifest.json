@@ -1,0 +1,3 @@
+{
+  "/api/uber/webhook/route": "app/api/uber/webhook/route.js"
+}

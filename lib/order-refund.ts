@@ -138,7 +138,17 @@ export async function refundOrder(req: RefundRequest): Promise<RefundResult> {
       if (order.clover_order_id) {
         if (full) {
           const del = await cloverCall(`/v3/merchants/${mId}/orders/${order.clover_order_id}`, conn.access_token, { method: "DELETE" });
-          notes.push(del.ok ? "Removed the order from Clover." : `Couldn't remove it from Clover (HTTP ${del.status}) — delete it on the Clover device.`);
+          if (del.ok) {
+            notes.push("Removed the order from Clover.");
+          } else {
+            // Already closed out as Paid on Clover (lib/clover-complete.ts) —
+            // Clover may refuse to delete it, so label it instead.
+            await cloverCall(`/v3/merchants/${mId}/orders/${order.clover_order_id}`, conn.access_token, {
+              method: "POST",
+              body: JSON.stringify({ note: `FULLY REFUNDED ONLINE $${amount.toFixed(2)} (Stripe) — not a sale.` }),
+            });
+            notes.push(`Couldn't remove it from Clover (HTTP ${del.status}) — added a "fully refunded" note; refund or delete it on the Clover device so it stops counting as a sale.`);
+          }
         } else {
           const cur = await cloverCall(`/v3/merchants/${mId}/orders/${order.clover_order_id}`, conn.access_token);
           const oldNote = ((cur.body as { note?: string } | null)?.note ?? "").trim();
