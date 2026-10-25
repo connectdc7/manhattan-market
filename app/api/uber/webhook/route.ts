@@ -10,6 +10,7 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { verifyUberSignature } from "@/lib/uber";
+import { completeCloverOrder } from "@/lib/clover-complete";
 
 export const runtime = "nodejs";
 
@@ -61,6 +62,14 @@ export async function POST(request: Request) {
     ({ data } = await supabaseAdmin.from("orders").update(update).eq("id", event.data.external_id).select("id"));
   }
   if (!data || data.length === 0) console.warn("[uber webhook] no order matched", { deliveryId, status });
+
+  // Delivered = completed → mark it Paid and closed on Clover too.
+  if (status === "delivered") {
+    for (const row of data ?? []) {
+      const r = await completeCloverOrder(row.id as string);
+      if (!r.ok) console.error("[uber webhook] clover complete failed", { orderId: row.id, error: r.error });
+    }
+  }
 
   return NextResponse.json({ received: true });
 }
