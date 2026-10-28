@@ -4,11 +4,13 @@ import { maybeAutoSyncClover } from "@/lib/clover-autosync";
 import { getStorefrontProducts } from "@/lib/products";
 import { getStorefrontCategories } from "@/lib/categories";
 import OrderCatalog from "@/components/OrderCatalog";
+import PageHero from "@/components/PageHero";
+import DeliveryAreas from "@/components/DeliveryAreas";
+import { NEIGHBORHOODS } from "@/lib/site";
 
 export const metadata: Metadata = {
-  title: "Order Online — Pickup or Delivery",
-  description:
-    "Browse hot food, snacks, drinks, and grocery essentials at Manhattan Market and order ahead for pickup or delivery in Woodley Park, Washington, DC.",
+  title: "Order Online — Pickup or Delivery in Woodley Park & Cleveland Park",
+  description: `Order snacks, drinks, groceries, wine & beer and everyday essentials from Manhattan Market online. Pickup in about 15 minutes at 2647 Connecticut Ave NW, or delivery by Uber to ${NEIGHBORHOODS.slice(0, 5).join(", ")} and nearby DC neighborhoods.`,
   alternates: {
     canonical: "/order",
   },
@@ -37,16 +39,35 @@ export default async function OrderPage({ searchParams }: PageProps<"/order">) {
   const initialAisle = one(params.aisle).slice(0, 60);
 
   return (
-    <div className="mx-auto max-w-6xl px-5 py-12">
-      <p className="eyebrow text-green">Order Online</p>
-      <h1 className="mt-2 font-display text-3xl font-bold text-ink sm:text-4xl">
-        Pickup or delivery — your call
-      </h1>
-      <p className="mt-2 max-w-xl font-body text-sm text-ink-soft">
-        Order ahead and skip the line — pick it up at the counter or have it delivered.
-      </p>
+    <div>
+      <PageHero
+        eyebrow="Order online · open 9am–9pm daily"
+        title={
+          <>
+            Pickup or delivery — <span className="text-gold">your call.</span>
+          </>
+        }
+        subtitle="Everything below is in stock on our shelves right now. Pick it up at the counter in about 15 minutes, or have it delivered by Uber."
+      >
+        <div className="flex flex-wrap gap-2">
+          {["Ready in ~15 min", "Delivered by Uber", "Wine & beer for pickup (21+)"].map((t) => (
+            <span
+              key={t}
+              className="rounded-full border border-white/30 bg-white/10 px-3.5 py-1.5 font-mono text-[0.68rem] font-bold uppercase tracking-wide text-white"
+            >
+              {t}
+            </span>
+          ))}
+        </div>
+      </PageHero>
 
-      <OrderCatalog products={inStock} categories={categories} initialSearch={initialSearch} initialAisle={initialAisle} />
+      <div className="mx-auto max-w-6xl px-5 py-10">
+        <OrderCatalog products={inStock} categories={categories} initialSearch={initialSearch} initialAisle={initialAisle} />
+
+        <section className="mt-16 rounded-[2rem] border-2 border-ink bg-green-tint p-6 sm:p-8">
+          <DeliveryAreas />
+        </section>
+      </div>
     </div>
   );
 }

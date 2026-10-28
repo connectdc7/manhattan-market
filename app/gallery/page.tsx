@@ -1,64 +1,98 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { getGalleryPhotos, getGalleryTiles } from "@/lib/gallery";
+import PageHero from "@/components/PageHero";
+import { BUSINESS } from "@/lib/site";
 
 export const metadata: Metadata = {
-  title: "Gallery",
+  title: "Gallery — Inside Manhattan Market, Woodley Park DC",
   description:
-    "A look inside Manhattan Market — our storefront, hot food counter, and shelves in Woodley Park, Washington, DC.",
+    "Photos from inside Manhattan Market at 2647 Connecticut Ave NW — our shelves, drinks, snacks, wine & beer and the counter, steps from the Woodley Park–Zoo Metro in Washington, DC.",
   alternates: {
     canonical: "/gallery",
   },
 };
 
-// Photos come from Supabase and can change any time staff generate or
-// upload new ones from the dashboard, so this needs a fresh read on every
-// request rather than being baked in once at build time.
+// Photos change whenever staff upload new ones from the dashboard.
 export const dynamic = "force-dynamic";
 
 export default async function GalleryPage() {
   const [photos, tiles] = await Promise.all([getGalleryPhotos(), getGalleryTiles()]);
 
   return (
-    <div className="mx-auto max-w-6xl px-5 py-16">
-      <p className="eyebrow text-green">Gallery</p>
-      <h1 className="mt-2 font-display text-3xl font-bold text-ink sm:text-4xl">
-        A look inside Manhattan Market
-      </h1>
-      {photos.length > 0 ? (
-        <div className="mt-8 columns-1 gap-4 sm:columns-2 lg:columns-3">
-          {photos.map((p) => (
-            <figure key={p.id} className="mb-4 break-inside-avoid overflow-hidden rounded-lg border border-line bg-paper">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={p.url} alt={p.caption || "Manhattan Market"} loading="lazy" className="w-full" />
-              {p.caption && (
-                <figcaption className="px-3 py-2 font-body text-sm text-ink-soft">{p.caption}</figcaption>
-              )}
-            </figure>
-          ))}
-        </div>
-      ) : (
-        <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {tiles.map((tile) =>
-            tile.image_url ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                key={tile.key}
-                src={tile.image_url}
-                alt={tile.label}
-                className="h-48 w-full rounded-lg object-cover"
-              />
-            ) : (
-              <div
-                key={tile.key}
-                className="flex h-48 items-center justify-center rounded-lg font-mono text-xs uppercase tracking-widest text-white/80"
-                style={{ backgroundColor: tile.color }}
+    <div>
+      <PageHero
+        eyebrow="Gallery"
+        title={
+          <>
+            A look inside <span className="text-gold">Manhattan Market</span>
+          </>
+        }
+        subtitle={`Your corner store at ${BUSINESS.streetAddress} — come see us, or order online.`}
+      />
+
+      <div className="mx-auto max-w-6xl px-5 py-12">
+        {photos.length > 0 ? (
+          <div className="columns-1 gap-5 sm:columns-2 lg:columns-3">
+            {photos.map((p, i) => (
+              <figure
+                key={p.id}
+                className={`mb-5 break-inside-avoid overflow-hidden rounded-2xl border-2 border-ink bg-paper shadow-[5px_5px_0_var(--ink)] ${
+                  i % 3 === 1 ? "sm:rotate-[0.6deg]" : i % 3 === 2 ? "sm:-rotate-[0.6deg]" : ""
+                }`}
               >
-                {tile.label}
-              </div>
-            )
-          )}
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={p.url} alt={p.caption || "Inside Manhattan Market, Woodley Park"} loading="lazy" className="w-full" />
+                {p.caption && (
+                  <figcaption className="border-t-2 border-ink px-4 py-2.5 font-body text-sm font-medium text-ink">{p.caption}</figcaption>
+                )}
+              </figure>
+            ))}
+          </div>
+        ) : (
+          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+            {tiles.map((tile) =>
+              tile.image_url ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  key={tile.key}
+                  src={tile.image_url}
+                  alt={tile.label}
+                  className="h-56 w-full rounded-2xl border-2 border-ink object-cover shadow-[5px_5px_0_var(--ink)]"
+                />
+              ) : (
+                <div
+                  key={tile.key}
+                  className="font-poster flex h-56 items-center justify-center rounded-2xl border-2 border-ink text-2xl uppercase text-white shadow-[5px_5px_0_var(--ink)]"
+                  style={{ backgroundColor: tile.color }}
+                >
+                  {tile.label}
+                </div>
+              )
+            )}
+          </div>
+        )}
+
+        <div className="mt-12 flex flex-col items-center gap-3 text-center">
+          <p className="font-poster text-3xl uppercase text-ink sm:text-4xl">Like what you see?</p>
+          <div className="flex flex-wrap justify-center gap-3">
+            <Link
+              href="/order"
+              className="shadow-sticker rounded-full border-2 border-ink bg-pink-deep px-7 py-3.5 font-mono text-sm font-bold uppercase tracking-wide text-white transition hover:-translate-y-0.5 active:translate-y-0 active:shadow-none"
+            >
+              Order online
+            </Link>
+            <a
+              href={BUSINESS.instagram}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="rounded-full border-2 border-ink bg-paper px-7 py-3.5 font-mono text-sm font-bold uppercase tracking-wide text-ink transition hover:bg-gold-tint"
+            >
+              Follow on Instagram
+            </a>
+          </div>
         </div>
-      )}
+      </div>
     </div>
   );
 }

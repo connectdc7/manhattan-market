@@ -4,7 +4,7 @@
 // (with a temporary password you hand them), reset a password, change
 // someone's role, or remove them. All changes go through app/api/staff/**.
 import { useCallback, useEffect, useState } from "react";
-import { staffFetch, StaffMember, StaffRole } from "@/lib/staff-auth";
+import { openDashboardAs, staffFetch, StaffMember, StaffRole } from "@/lib/staff-auth";
 import { inputClass, labelClass } from "./StaffGate";
 
 type Row = { user_id: string; email: string; name: string | null; role: StaffRole; created_at: string };
@@ -26,6 +26,22 @@ export default function StaffPanel({ me }: { me: StaffMember }) {
   const [resetFor, setResetFor] = useState<string | null>(null);
   const [resetPassword, setResetPassword] = useState("");
   const [confirmRemove, setConfirmRemove] = useState<string | null>(null);
+  const [switching, setSwitching] = useState<string | null>(null);
+
+  // Owner: open the dashboard exactly as this staff member sees it.
+  const handleViewAs = async (row: Row) => {
+    const label = row.name || row.email;
+    if (!window.confirm(`Open the dashboard as ${label}? You'll see exactly what they see. Use "Back to my account" at the top to return.`)) return;
+    setSwitching(row.user_id);
+    setError(null);
+    const err = await openDashboardAs(row.user_id, label);
+    if (err) {
+      setError(err);
+      setSwitching(null);
+      return;
+    }
+    window.location.reload();
+  };
 
   const load = useCallback(async () => {
     try {
@@ -154,6 +170,15 @@ export default function StaffPanel({ me }: { me: StaffMember }) {
                     >
                       Set password
                     </button>
+                    {!isMe && me.role === "owner" && row.role === "staff" && (
+                      <button
+                        className="rounded-full bg-green px-3 py-1 font-mono text-[0.65rem] font-semibold uppercase tracking-wide text-white transition hover:bg-green-deep disabled:opacity-60"
+                        onClick={() => handleViewAs(row)}
+                        disabled={switching !== null}
+                      >
+                        {switching === row.user_id ? "Opening…" : "Open dashboard as them"}
+                      </button>
+                    )}
                     {!isMe && (
                       <>
                         <button className={smallButton} onClick={() => handleRole(row)}>

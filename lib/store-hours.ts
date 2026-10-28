@@ -109,3 +109,8 @@ export function getStoreStatus(now: Date = new Date()): StoreStatus {
 
   return { isOpen: false, opensAt: formatTime(HOURS[0].open), opensDay: HOURS[0].day };
 }
+
+// Today's weekday name in the store's timezone (e.g. "Tuesday").
+export function storeTodayName(now: Date = new Date()): string {
+  return new Intl.DateTimeFormat("en-US", { timeZone: STORE_TIMEZONE, weekday: "long" }).format(now);
+}

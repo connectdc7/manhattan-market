@@ -27,6 +27,7 @@ export type PaidCheckout = {
     service?: number;
   } | null;
   alcohol: boolean;
+  discount?: { code: string; cents: number } | null; // welcome offer
   amountTotalCents: number | null; // what the customer actually paid, if known
   payment:
     | { provider: "stripe"; stripeSessionId: string }
@@ -87,6 +88,14 @@ export async function fulfillPaidCheckout(c: PaidCheckout, logTag: string): Prom
   // null = a retry for a payment that was already recorded — do nothing more.
   if (!createdId) return null;
 
+  if (c.discount && c.discount.cents > 0) {
+    const { error } =
+      (await supabaseAdmin
+        ?.from("orders")
+        .update({ discount_code: c.discount.code, discount_amount: c.discount.cents / 100 })
+        .eq("id", createdId)) ?? {};
+    if (error) console.error(`[${logTag}] couldn't record discount`, error.message);
+  }
   if (c.alcohol) {
     const { error } = (await supabaseAdmin?.from("orders").update({ contains_alcohol: true }).eq("id", createdId)) ?? {};
     if (error) console.error(`[${logTag}] couldn't flag alcohol order`, error.message);
@@ -99,7 +108,9 @@ export async function fulfillPaidCheckout(c: PaidCheckout, logTag: string): Prom
       const total = typeof c.amountTotalCents === "number" ? c.amountTotalCents / 100 : subtotal + deliveryFee + serviceFee;
       await notifyAllStaff({
         title: `New ${c.fulfillment === "delivery" ? "delivery" : "pickup"} order · $${total.toFixed(2)}`,
-        body: `${count} item${count === 1 ? "" : "s"} · #${createdId.slice(0, 6).toUpperCase()}${c.alcohol ? " · 21+ check ID" : ""}`,
+        body: `${count} item${count === 1 ? "" : "s"} · #${createdId.slice(0, 6).toUpperCase()}${c.alcohol ? " · 21+ check ID" : ""}${
+          c.discount ? ` · ${c.discount.code}` : ""
+        }`,
         url: "/dashboard",
         tag: `order-${createdId}`,
       });

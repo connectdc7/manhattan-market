@@ -20,7 +20,7 @@ import SettingsPanel from "@/components/dashboard/SettingsPanel";
 import StaffGate from "@/components/dashboard/StaffGate";
 import OrderAlerts from "@/components/dashboard/OrderAlerts";
 import { turnOffAlerts } from "@/lib/push-client";
-import { signOutStaff, staffFetch, StaffMember } from "@/lib/staff-auth";
+import { returnToOwner, signOutStaff, staffFetch, StaffMember, viewingAsStaff } from "@/lib/staff-auth";
 import type { CloverStats } from "@/lib/clover-stats";
 
 type Tab = "orders" | "inventory" | "analytics" | "homepage" | "gallery" | "staff" | "settings";
@@ -42,6 +42,8 @@ export default function DashboardPage() {
 
 function Dashboard({ staff }: { staff: StaffMember }) {
   const [tab, setTab] = useState<Tab>("orders");
+  // Set when an owner opened this dashboard "as" a staff member (Staff tab).
+  const [viewingAs] = useState(() => viewingAsStaff());
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
@@ -216,10 +218,14 @@ function Dashboard({ staff }: { staff: StaffMember }) {
             </span>
           )}
           <button
-            onClick={() => turnOffAlerts().finally(() => signOutStaff())}
+            onClick={() =>
+              viewingAs
+                ? returnToOwner().finally(() => window.location.reload())
+                : turnOffAlerts().finally(() => signOutStaff())
+            }
             className="rounded-full border border-line px-3.5 py-1.5 font-mono text-xs font-semibold text-ink-soft transition hover:border-green hover:text-green"
           >
-            Sign out
+            {viewingAs ? "Back to my account" : "Sign out"}
           </button>
         </div>
       </div>
@@ -227,7 +233,21 @@ function Dashboard({ staff }: { staff: StaffMember }) {
         Signed in as <span className="font-semibold text-ink">{staff.name || staff.email}</span>
         {staff.role === "owner" ? " · Owner" : ""}
       </p>
-      {isSupabaseConfigured && <OrderAlerts />}
+      {viewingAs && (
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border-2 border-ink bg-gold px-4 py-3">
+          <p className="font-body text-sm font-semibold text-gold-ink">
+            You&apos;re viewing the dashboard as {viewingAs.viewing}. Anything you change is saved as them.
+          </p>
+          <button
+            type="button"
+            onClick={() => returnToOwner().finally(() => window.location.reload())}
+            className="rounded-full bg-ink px-4 py-2 font-mono text-xs font-bold uppercase tracking-wide text-white hover:bg-green-deep"
+          >
+            Back to my account
+          </button>
+        </div>
+      )}
+      {isSupabaseConfigured && !viewingAs && <OrderAlerts />}
 
       {!isSupabaseConfigured ? (
         <div className="mt-10 rounded-lg border border-line bg-panel p-8 text-center">

@@ -45,6 +45,7 @@ async function fulfillCheckoutSession(session: Stripe.Checkout.Session) {
       phone: meta.phone || null,
       delivery,
       alcohol: meta.alcohol === "1",
+      discount: meta.promo ? { code: meta.promo, cents: Number(meta.discount) || 0 } : null,
       amountTotalCents: typeof session.amount_total === "number" ? session.amount_total : null,
       payment: { provider: "stripe", stripeSessionId: session.id },
     },

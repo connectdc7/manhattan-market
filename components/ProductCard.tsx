@@ -59,63 +59,62 @@ export default function ProductCard({
   return (
     <div
       id={`product-${product.id}`}
-      className={`group flex flex-col overflow-hidden rounded-lg border bg-paper transition-all duration-300 hover:-translate-y-1 hover:border-green/40 hover:shadow-lg ${
-        highlighted ? "border-green shadow-lg ring-2 ring-green/30" : "border-line"
+      className={`group flex h-full flex-col overflow-hidden rounded-2xl border-2 bg-paper transition-all duration-300 hover:-translate-y-1 hover:shadow-[5px_5px_0_var(--ink)] ${
+        highlighted ? "border-green shadow-[5px_5px_0_var(--green)]" : "border-ink"
       }`}
     >
-      {highlighted && (
-        <div className="stripe-bar h-1" />
-      )}
-      {product.image_url ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={product.image_url}
-          alt={product.name}
-          className={`h-32 w-full object-cover transition-transform duration-500 group-hover:scale-105 ${
-            outOfStock ? "grayscale" : ""
-          }`}
-        />
-      ) : (
-        <ProductPlaceholder
-          name={product.name}
-          category={product.category}
-          swatch={product.swatch}
-          grayscale={outOfStock}
-          className="h-32 w-full transition-transform duration-500 group-hover:scale-105"
-        />
-      )}
-      <div className="flex flex-1 flex-col gap-2 p-4">
-        <div className="flex items-start justify-between gap-2">
-          <h3 className="font-body text-[0.95rem] font-semibold leading-snug text-ink">
-            {product.name}
-            {product.age_restricted && (
-              <span className="ml-1.5 inline-block rounded bg-ink px-1.5 py-0.5 align-middle font-mono text-[0.55rem] font-semibold text-white">
-                21+
-              </span>
-            )}
-          </h3>
-          <span className="price-tag font-mono text-sm font-semibold text-ink">
-            ${product.price.toFixed(2)}
-          </span>
-        </div>
-        <p className="font-body text-xs text-ink-soft">{product.blurb}</p>
-
-        <div className="mt-auto flex items-center justify-between pt-2">
-          <span
-            className={`font-mono text-[0.68rem] font-semibold uppercase tracking-wide ${
-              outOfStock ? "text-ink-soft" : lowStock ? "text-[#a8461a]" : "text-green"
+      {highlighted && <div className="stripe-bar h-1" />}
+      <div className="relative border-b-2 border-ink bg-white">
+        {product.image_url ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={product.image_url}
+            alt={product.name}
+            loading="lazy"
+            className={`h-32 w-full object-contain p-3 transition-transform duration-500 group-hover:scale-105 sm:h-36 ${
+              outOfStock ? "grayscale" : ""
             }`}
-          >
-            {outOfStock ? "Out of stock" : lowStock ? `Only ${product.stock} left` : `${product.stock} in stock`}
+          />
+        ) : (
+          <ProductPlaceholder
+            name={product.name}
+            category={product.category}
+            swatch={product.swatch}
+            grayscale={outOfStock}
+            className="h-32 w-full transition-transform duration-500 group-hover:scale-105 sm:h-36"
+          />
+        )}
+        {product.age_restricted && (
+          <span className="absolute left-2 top-2 rounded-md bg-ink px-1.5 py-0.5 font-mono text-[0.6rem] font-bold text-white">21+</span>
+        )}
+        {product.is_special && (
+          <span className="absolute right-2 top-2 -rotate-3 rounded-md border-2 border-ink bg-gold px-1.5 py-0.5 font-mono text-[0.6rem] font-bold uppercase text-gold-ink">
+            Special
           </span>
+        )}
+      </div>
+      <div className="flex flex-1 flex-col gap-1.5 p-3 sm:p-4">
+        <h3 className="line-clamp-2 font-body text-[0.92rem] font-semibold leading-snug text-ink">{product.name}</h3>
+        {product.blurb && <p className="line-clamp-2 hidden font-body text-xs text-ink-soft sm:block">{product.blurb}</p>}
+        <span
+          className={`font-mono text-[0.62rem] font-semibold uppercase tracking-wide ${
+            outOfStock ? "text-ink-soft" : lowStock ? "text-[#a8461a]" : "text-green"
+          }`}
+        >
+          {outOfStock ? "Out of stock" : lowStock ? `Only ${product.stock} left` : "In stock"}
+        </span>
+
+        <div className="mt-auto flex items-center justify-between gap-2 pt-2">
+          <span className="font-mono text-base font-bold text-ink">${product.price.toFixed(2)}</span>
           <button
             disabled={outOfStock}
             onClick={handleAdd}
-            className={`rounded-full px-3.5 py-1.5 font-mono text-xs font-semibold text-white transition-all active:scale-90 disabled:cursor-not-allowed disabled:bg-line disabled:text-ink-soft ${
-              justAdded ? "bg-green-deep" : "bg-green hover:bg-green-deep"
+            aria-label={`Add ${product.name} to cart`}
+            className={`rounded-full border-2 border-ink px-3.5 py-1.5 font-mono text-xs font-bold uppercase text-white transition-all active:scale-90 disabled:cursor-not-allowed disabled:border-line disabled:bg-line disabled:text-ink-soft ${
+              justAdded ? "bg-green" : "bg-pink-deep hover:brightness-110"
             }`}
           >
-            {justAdded ? "Added ✓" : "Add"}
+            {justAdded ? "Added ✓" : "+ Add"}
           </button>
         </div>
       </div>
