@@ -62,7 +62,7 @@ function StorefrontHeader() {
   return (
     <header className="sticky top-0 z-40">
       <div className="stripe-bar h-1.5" />
-      <div className="border-b-2 border-ink bg-paper/95 backdrop-blur">
+      <div className="border-b-2 border-ink bg-paper">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-5 py-3.5">
           <Link href="/" className="skyline-hover-zone flex items-center text-ink" aria-label="Manhattan Market home">
             <SkylineWordmark className="h-11 w-auto shrink-0 sm:h-12" />
