@@ -74,6 +74,7 @@ type CloverOrder = {
   state?: string;
   paymentState?: string;
   lineItems?: { elements?: { price?: number; refunded?: boolean }[] };
+  discounts?: { elements?: { amount?: number }[] };
   payments?: { elements?: { id: string }[] };
 };
 
@@ -100,7 +101,7 @@ export async function completeCloverOrder(orderId: string): Promise<CloverComple
   const { merchant_id: mId, access_token: token } = conn;
   const path = `/v3/merchants/${mId}/orders/${order.clover_order_id}`;
 
-  const current = await cloverFetch(`${path}?expand=lineItems,payments`, token);
+  const current = await cloverFetch(`${path}?expand=lineItems,payments,discounts`, token);
   if (!current.ok) {
     return { ok: false, error: `Couldn't read the order on Clover (HTTP ${current.status}).` };
   }
@@ -113,7 +114,9 @@ export async function completeCloverOrder(orderId: string): Promise<CloverComple
   const lineTotal = (co.lineItems?.elements ?? [])
     .filter((l) => !l.refunded)
     .reduce((sum, l) => sum + (Number(l.price) || 0), 0);
-  const amount = co.total && co.total > 0 ? co.total : lineTotal;
+  // Order discounts (e.g. the welcome offer) are stored as negative amounts.
+  const discountTotal = (co.discounts?.elements ?? []).reduce((sum, d) => sum + (Number(d.amount) || 0), 0);
+  const amount = co.total && co.total > 0 ? co.total : Math.max(0, lineTotal + discountTotal);
   if (amount <= 0) return { ok: false, error: "The Clover order has no items to mark paid." };
   if (!co.total || co.total !== amount) {
     await cloverFetch(path, token, { method: "POST", body: JSON.stringify({ total: amount }) });

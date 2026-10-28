@@ -72,3 +72,68 @@ export async function staffFetch(input: string, init: RequestInit = {}): Promise
   if (session) headers.set("Authorization", `Bearer ${session.access_token}`);
   return fetch(input, { ...init, headers });
 }
+
+// ── Owner: "Open dashboard as…" (Staff tab) ───────────────────────────
+// The owner's own session is set aside in this tab (sessionStorage), the
+// browser signs in as the staff member with a one-time token from
+// app/api/staff/[id]/view-as, and "Back to my account" restores the owner.
+const OWNER_KEY = "mm-owner-session";
+
+type SavedOwner = { access_token: string; refresh_token: string; email: string; viewing: string };
+
+export function viewingAsStaff(): SavedOwner | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = sessionStorage.getItem(OWNER_KEY);
+    return raw ? (JSON.parse(raw) as SavedOwner) : null;
+  } catch {
+    return null;
+  }
+}
+
+export async function openDashboardAs(staffUserId: string, label: string): Promise<string | null> {
+  if (!supabase) return "Supabase isn't configured.";
+  const { data } = await supabase.auth.getSession();
+  const owner = data.session;
+  if (!owner) return "Please sign in again.";
+  const res = await staffFetch(`/api/staff/${encodeURIComponent(staffUserId)}/view-as`, { method: "POST" });
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok || !body.tokenHash) return body.error || "Couldn't open that dashboard.";
+  try {
+    sessionStorage.setItem(
+      OWNER_KEY,
+      JSON.stringify({
+        access_token: owner.access_token,
+        refresh_token: owner.refresh_token,
+        email: owner.user.email ?? "",
+        viewing: label,
+      })
+    );
+  } catch {
+    return "This browser blocked saving your session — can't switch safely.";
+  }
+  const { error } = await supabase.auth.verifyOtp({ token_hash: body.tokenHash, type: "magiclink" });
+  if (error) {
+    sessionStorage.removeItem(OWNER_KEY);
+    return error.message;
+  }
+  return null;
+}
+
+export async function returnToOwner(): Promise<string | null> {
+  if (!supabase) return "Supabase isn't configured.";
+  const saved = viewingAsStaff();
+  if (!saved) return null;
+  const { error } = await supabase.auth.setSession({ access_token: saved.access_token, refresh_token: saved.refresh_token });
+  try {
+    sessionStorage.removeItem(OWNER_KEY);
+  } catch {
+    // ignore
+  }
+  if (error) {
+    // Owner session expired meanwhile — sign out so they can sign back in.
+    await supabase.auth.signOut();
+    return "Your session expired — please sign in again.";
+  }
+  return null;
+}

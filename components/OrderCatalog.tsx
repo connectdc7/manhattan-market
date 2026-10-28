@@ -119,9 +119,9 @@ export default function OrderCatalog({
             setSearch(e.target.value);
             setLimit(PAGE_SIZE);
           }}
-          placeholder="Search the store…"
+          placeholder="Search the store — chips, milk, coffee…"
           aria-label="Search products"
-          className="w-full max-w-md rounded-full border border-line bg-paper px-5 py-2.5 font-body text-sm text-ink outline-none focus:border-green"
+          className="w-full max-w-xl rounded-full border-2 border-ink bg-paper px-5 py-3 font-body text-base text-ink shadow-[4px_4px_0_var(--gold)] outline-none focus:shadow-[4px_4px_0_var(--green)]"
         />
       </div>
 
@@ -137,10 +137,10 @@ export default function OrderCatalog({
               type="button"
               onClick={() => changeSub(c)}
               aria-pressed={sub === c}
-              className={`rounded-full border px-3 py-1 font-body text-xs transition ${
+              className={`rounded-full border-2 px-3 py-1 font-body text-xs font-semibold transition ${
                 sub === c
-                  ? "border-green bg-green-tint text-green-deep"
-                  : "border-line text-ink-soft hover:border-green hover:text-green"
+                  ? "border-ink bg-gold text-gold-ink"
+                  : "border-line bg-paper text-ink-soft hover:border-ink hover:text-ink"
               }`}
             >
               {c === ALL ? `All ${active}` : c}
@@ -154,7 +154,7 @@ export default function OrderCatalog({
           Nothing matches {search.trim() ? <>&ldquo;{search.trim()}&rdquo;</> : "that"} right now — try another search or category.
         </p>
       ) : (
-        <div className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="mt-8 grid grid-cols-2 gap-3 sm:gap-5 lg:grid-cols-4">
           {shown.map((product, i) => (
             <Reveal key={product.id} delayMs={Math.min(i % PAGE_SIZE, 8) * 60}>
               <ProductCard product={product} highlighted={product.id === highlightId} />
@@ -168,7 +168,7 @@ export default function OrderCatalog({
           <button
             type="button"
             onClick={() => setLimit((n) => n + PAGE_SIZE)}
-            className="rounded-full border border-green px-6 py-2.5 font-mono text-sm font-semibold text-green transition hover:bg-green hover:text-white"
+            className="shadow-sticker rounded-full border-2 border-ink bg-gold px-7 py-3 font-mono text-sm font-bold uppercase tracking-wide text-gold-ink transition hover:-translate-y-0.5 active:translate-y-0 active:shadow-none"
           >
             Show more
           </button>

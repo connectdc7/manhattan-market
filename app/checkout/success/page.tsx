@@ -80,7 +80,7 @@ function CheckoutSuccessInner() {
         <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-green text-2xl text-white [animation:stamp-in_0.5s_cubic-bezier(0.2,1.4,0.4,1)_forwards]">
           ✓
         </div>
-        <h1 className="mt-5 font-display text-2xl font-bold text-ink">Order placed</h1>
+        <h1 className="mt-5 font-poster text-4xl uppercase leading-none text-ink sm:text-5xl">Order placed</h1>
         <p className="mt-2 font-body text-sm text-ink-soft">
           Payment received — thanks! We&apos;re getting your order ready now. If you left a phone number,
           we&apos;ll text you when it&apos;s ready (or when your courier is on the way).
@@ -97,7 +97,7 @@ function CheckoutSuccessInner() {
 
   return (
     <div className="mx-auto max-w-lg px-5 py-20 text-center">
-      <h1 className="font-display text-2xl font-bold text-ink">We couldn&apos;t confirm that payment</h1>
+      <h1 className="font-poster text-4xl uppercase leading-none text-ink sm:text-5xl">We couldn&apos;t confirm that payment</h1>
       <p className="mt-2 font-body text-sm text-ink-soft">
         If you just finished checking out, this can take a few seconds — try refreshing. Otherwise, your card
         wasn&apos;t charged and nothing was ordered.

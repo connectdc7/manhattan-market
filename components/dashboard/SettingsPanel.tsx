@@ -4,7 +4,15 @@
 // added to delivery orders on top of Uber's delivery fee. Takes effect on
 // the next checkout — orders already placed keep what they paid.
 import { useEffect, useState } from "react";
-import { getStoreSettings, PaymentProvider, setAlcoholDelivery, setDeliveryServiceFee, setPaymentProvider } from "@/lib/settings";
+import {
+  getStoreSettings,
+  PaymentProvider,
+  setAlcoholDelivery,
+  setDeliveryServiceFee,
+  setPaymentProvider,
+  setWelcomeOffer,
+  WelcomeOffer,
+} from "@/lib/settings";
 import { inputClass, labelClass } from "./StaffGate";
 
 export default function SettingsPanel() {
@@ -17,6 +25,10 @@ export default function SettingsPanel() {
   const [provider, setProvider] = useState<PaymentProvider | null>(null);
   const [ready, setReady] = useState<{ stripe: boolean; clover: boolean; active: string } | null>(null);
   const [payMsg, setPayMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const [welcome, setWelcome] = useState<WelcomeOffer | null>(null);
+  const [welcomeForm, setWelcomeForm] = useState({ code: "", amount: "", min: "" });
+  const [welcomeMsg, setWelcomeMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const [welcomeBusy, setWelcomeBusy] = useState(false);
 
   const loadPaymentStatus = () =>
     fetch("/api/checkout/status")
@@ -30,9 +42,39 @@ export default function SettingsPanel() {
       setValue(s.deliveryServiceFee.toFixed(2));
       setAlcoholDeliveryState(s.alcoholDelivery);
       setProvider(s.paymentProvider);
+      setWelcome(s.welcomeOffer);
+      setWelcomeForm({
+        code: s.welcomeOffer.code,
+        amount: s.welcomeOffer.amount.toFixed(2),
+        min: s.welcomeOffer.min.toFixed(2),
+      });
     });
     loadPaymentStatus();
   }, []);
+
+  const saveWelcome = async (enabled: boolean) => {
+    const next: WelcomeOffer = {
+      enabled,
+      code: welcomeForm.code,
+      amount: Number(welcomeForm.amount),
+      min: Number(welcomeForm.min),
+    };
+    setWelcomeBusy(true);
+    setWelcomeMsg(null);
+    const err = await setWelcomeOffer(next);
+    setWelcomeBusy(false);
+    if (err) setWelcomeMsg({ ok: false, text: err });
+    else {
+      const saved = { ...next, code: next.code.trim().toUpperCase() };
+      setWelcome(saved);
+      setWelcomeMsg({
+        ok: true,
+        text: enabled
+          ? `On — new customers get $${saved.amount.toFixed(2)} off orders of $${saved.min.toFixed(2)}+ with ${saved.code}.`
+          : "Welcome offer is off.",
+      });
+    }
+  };
 
   const choosePayments = async (next: PaymentProvider) => {
     if (provider === null || next === provider) return;
@@ -180,6 +222,69 @@ export default function SettingsPanel() {
         </div>
         {alcoholMsg && (
           <p className={`mt-3 font-body text-sm ${alcoholMsg.ok ? "text-green" : "text-[#a8461a]"}`}>{alcoholMsg.text}</p>
+        )}
+      </div>
+
+      <div className="mt-5 rounded-lg border border-line bg-panel p-5">
+        <p className={labelClass}>Welcome offer (first order)</p>
+        <p className="mt-2 font-body text-sm text-ink-soft">
+          A discount code for new customers, shown on the homepage. Each phone number can use it once, on its first
+          online order. The store pays for the discount.
+        </p>
+        <div className="mt-4 grid gap-3 sm:grid-cols-3">
+          <label className="flex flex-col gap-1">
+            <span className="font-body text-xs text-ink-soft">Code</span>
+            <input
+              className={`${inputClass} font-mono uppercase`}
+              value={welcomeForm.code}
+              onChange={(e) => setWelcomeForm((f) => ({ ...f, code: e.target.value.toUpperCase() }))}
+              maxLength={20}
+            />
+          </label>
+          <label className="flex flex-col gap-1">
+            <span className="font-body text-xs text-ink-soft">Discount ($)</span>
+            <input
+              className={inputClass}
+              inputMode="decimal"
+              value={welcomeForm.amount}
+              onChange={(e) => setWelcomeForm((f) => ({ ...f, amount: e.target.value }))}
+            />
+          </label>
+          <label className="flex flex-col gap-1">
+            <span className="font-body text-xs text-ink-soft">Minimum order ($)</span>
+            <input
+              className={inputClass}
+              inputMode="decimal"
+              value={welcomeForm.min}
+              onChange={(e) => setWelcomeForm((f) => ({ ...f, min: e.target.value }))}
+            />
+          </label>
+        </div>
+        <div className="mt-4 flex flex-wrap items-center gap-3">
+          <button
+            type="button"
+            onClick={() => saveWelcome(true)}
+            disabled={welcome === null || welcomeBusy}
+            className="rounded-full bg-green px-4 py-2 font-mono text-xs font-semibold text-white hover:bg-green-deep disabled:opacity-60"
+          >
+            {welcome?.enabled ? "Save changes" : "Turn on offer"}
+          </button>
+          {welcome?.enabled && (
+            <button
+              type="button"
+              onClick={() => saveWelcome(false)}
+              disabled={welcomeBusy}
+              className="rounded-full border border-line px-4 py-2 font-mono text-xs font-semibold text-ink-soft hover:border-ink hover:text-ink disabled:opacity-60"
+            >
+              Turn off
+            </button>
+          )}
+          <span className="font-body text-xs text-ink-soft">
+            Status: <span className="font-semibold text-ink">{welcome === null ? "…" : welcome.enabled ? "On" : "Off"}</span>
+          </span>
+        </div>
+        {welcomeMsg && (
+          <p className={`mt-3 font-body text-sm ${welcomeMsg.ok ? "text-green" : "text-[#a8461a]"}`}>{welcomeMsg.text}</p>
         )}
       </div>
 

@@ -31,6 +31,8 @@ type Pending = {
     delivery: PaidCheckout["delivery"];
     alcohol: boolean;
     totalCents: number;
+    promo?: string;
+    discountCents?: number;
   };
 };
 
@@ -80,6 +82,7 @@ export async function POST(request: Request) {
       phone: p.phone || null,
       delivery: p.delivery ?? null,
       alcohol: Boolean(p.alcohol),
+      discount: p.promo ? { code: p.promo, cents: Number(p.discountCents) || 0 } : null,
       amountTotalCents: typeof p.totalCents === "number" ? p.totalCents : null,
       payment: { provider: "clover", checkoutId, paymentId },
     },

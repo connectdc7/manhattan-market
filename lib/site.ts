@@ -13,7 +13,22 @@ export const SITE_URL = "https://www.manhattanmarketdc.com";
 export const SITE_NAME = "Manhattan Market";
 // Nearby neighborhoods the store serves (walk-in, pickup and delivery) —
 // used in the page copy and in Google's structured data.
-export const NEIGHBORHOODS = ["Woodley Park", "Cleveland Park", "Adams Morgan", "Kalorama", "Mount Pleasant"];
+// The first five are the core area right around the store; the rest are
+// close enough for Uber delivery (checkout confirms each address with Uber).
+export const NEIGHBORHOODS = [
+  "Woodley Park",
+  "Cleveland Park",
+  "Adams Morgan",
+  "Kalorama",
+  "Mount Pleasant",
+  "Dupont Circle",
+  "Van Ness",
+  "Glover Park",
+  "Cathedral Heights",
+  "McLean Gardens",
+];
+// ZIP codes those neighborhoods cover (shown on the Delivery page).
+export const DELIVERY_ZIPS = ["20008", "20009", "20010", "20016", "20036", "20007"];
 
 export const SITE_DESCRIPTION =
   "Manhattan Market is Woodley Park's neighborhood convenience store at 2647 Connecticut Ave NW, Washington, DC — by the Woodley Park–Zoo Metro. Snacks, drinks, groceries and everyday essentials, open 9am–9pm daily. Order online for pickup or delivery.";
@@ -70,7 +85,7 @@ export function localBusinessJsonLd() {
     potentialAction: {
       "@type": "OrderAction",
       target: `${SITE_URL}/order`,
-      deliveryMethod: ["http://purl.org/goodrelations/v1#DeliveryModePickUp", "http://purl.org/goodrelations/v1#DeliveryModeOwnFleet"],
+      deliveryMethod: ["http://purl.org/goodrelations/v1#DeliveryModePickUp"],
     },
     // The store's own social pages (confirmed by the owner) — helps Google
     // connect them to this business.

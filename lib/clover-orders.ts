@@ -66,6 +66,10 @@ export async function pushOrderToClover(orderId: string): Promise<CloverPushResu
   // database without the column still pushes orders fine.
   const { data: alcoholRow } = await admin.from("orders").select("contains_alcohol").eq("id", orderId).maybeSingle();
   const containsAlcohol = Boolean((alcoholRow as { contains_alcohol?: boolean } | null)?.contains_alcohol);
+  // Welcome-offer discount (supabase/welcome-offer.sql), read the same way.
+  const { data: discountRow } = await admin.from("orders").select("discount_code, discount_amount").eq("id", orderId).maybeSingle();
+  const discount = discountRow as { discount_code?: string | null; discount_amount?: number | null } | null;
+  const discountCents = discount?.discount_code ? Math.round(Number(discount.discount_amount ?? 0) * 100) : 0;
 
   // Never create the same order on Clover twice (Stripe retries, double-clicks).
   if (order.clover_order_id) {
@@ -112,6 +116,7 @@ export async function pushOrderToClover(orderId: string): Promise<CloverPushResu
         order.delivery_address
           ? `Deliver to: ${order.delivery_address.name ?? ""}, ${order.delivery_address.street ?? ""}${order.delivery_address.apt ? ` ${order.delivery_address.apt}` : ""} (Uber courier)`
           : null,
+        discountCents > 0 ? `Welcome offer ${discount!.discount_code}: -$${(discountCents / 100).toFixed(2)}` : null,
         `Website total: $${Number(order.subtotal).toFixed(2)}`,
       ]
         .filter(Boolean)
@@ -152,6 +157,16 @@ export async function pushOrderToClover(orderId: string): Promise<CloverPushResu
     const error = `Order created on Clover but items failed to add (HTTP ${lines.status}).`;
     await recordResult(orderId, { clover_push_error: error });
     return { ok: false, error };
+  }
+
+  // 2b. Welcome offer: an order discount, so Clover's total matches what the
+  //     customer paid. (A Clover-paid order already has it in its prices.)
+  if (discountCents > 0 && !existingCloverOrderId) {
+    const d = await cloverFetch(`/v3/merchants/${mId}/orders/${cloverOrderId}/discounts`, token, {
+      method: "POST",
+      body: JSON.stringify({ name: `Welcome offer (${discount!.discount_code})`, amount: -discountCents }),
+    });
+    if (!d.ok) console.error("[clover] add discount failed", { orderId, status: d.status, body: d.body });
   }
 
   // 3. Print it on the store's order printer (best-effort).

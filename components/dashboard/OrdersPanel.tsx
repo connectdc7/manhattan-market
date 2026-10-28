@@ -237,6 +237,11 @@ export default function OrdersPanel({
                         21+ · Check ID
                       </span>
                     )}
+                    {o.discount_code && (
+                      <span className="rounded-full bg-pink-tint px-2.5 py-0.5 font-mono text-[0.6rem] font-semibold uppercase tracking-wide text-pink-deep">
+                        {o.discount_code} −${Number(o.discount_amount ?? 0).toFixed(2)}
+                      </span>
+                    )}
                     {o.refund_status && (
                       <span className="rounded-full bg-[#a8461a]/10 px-2.5 py-0.5 font-mono text-[0.6rem] font-semibold uppercase tracking-wide text-[#a8461a]">
                         {o.refund_status === "full" ? "Refunded" : "Partly refunded"} ${Number(o.refunded_amount ?? 0).toFixed(2)}

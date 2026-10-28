@@ -16,6 +16,7 @@ import { stripe, isStripeConfigured } from "@/lib/stripe";
 import { activePaymentProvider } from "@/lib/payments";
 import { createHostedCheckout, HostedCheckoutLine } from "@/lib/clover-checkout";
 import { supabaseAdmin } from "@/lib/supabase-admin";
+import { checkWelcomeCode, discountLines } from "@/lib/welcome-offer";
 import { getProductsByIds } from "@/lib/products";
 import { getStoreSettings } from "@/lib/settings";
 import { getCategories } from "@/lib/categories";
@@ -36,6 +37,7 @@ export async function POST(request: Request) {
     phone?: string | null;
     delivery?: Partial<DeliveryAddress> | null;
     ageConfirmed?: boolean;
+    promoCode?: string | null;
   };
   try {
     body = await request.json();
@@ -66,6 +68,15 @@ export async function POST(request: Request) {
       );
     }
     lineItems.push({ name: product.name, unitAmount: Math.round(product.price * 100), qty: line.qty });
+  }
+
+  // First-order welcome code (lib/welcome-offer.ts) — checked again here.
+  let promo: { code: string; discountCents: number } | null = null;
+  if (body.promoCode?.trim()) {
+    const itemsSubtotalCents = lineItems.reduce((sum, i) => sum + i.unitAmount * i.qty, 0);
+    const check = await checkWelcomeCode({ code: body.promoCode, phone: body.phone, itemsSubtotalCents });
+    if (!check.ok) return NextResponse.json({ error: check.error, promoInvalid: true }, { status: 400 });
+    promo = { code: check.code, discountCents: check.discountCents };
   }
 
   // Wine/beer (21+ categories): customer must confirm age, and delivery is
@@ -138,6 +149,7 @@ export async function POST(request: Request) {
       phone: body.phone?.trim() || "",
       delivery: deliveryInfo,
       alcohol: containsAlcohol,
+      promo,
     });
   }
   if (!stripe) return NextResponse.json({ mock: true });
@@ -179,6 +191,7 @@ export async function POST(request: Request) {
             ]
           : []),
       ],
+      ...(promo ? { discounts: [{ coupon: await welcomeCoupon(promo.discountCents) }] } : {}),
       success_url: `${origin}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${origin}/checkout`,
       metadata: {
@@ -189,6 +202,7 @@ export async function POST(request: Request) {
         // the product list at fulfillment time rather than trusting this.
         cart: JSON.stringify(requestedLines.map((l) => ({ id: l.id, qty: l.qty }))),
         ...(containsAlcohol ? { alcohol: "1" } : {}),
+        ...(promo ? { promo: promo.code, discount: String(promo.discountCents) } : {}),
         ...(deliveryMeta ? { delivery: deliveryMeta } : {}),
       },
     });
@@ -204,6 +218,17 @@ export async function POST(request: Request) {
   }
 }
 
+// One reusable Stripe coupon per discount amount ("$5 off, once").
+async function welcomeCoupon(discountCents: number): Promise<string> {
+  const id = `mm-welcome-${discountCents}`;
+  try {
+    await stripe!.coupons.retrieve(id);
+  } catch {
+    await stripe!.coupons.create({ id, amount_off: discountCents, currency: "usd", duration: "once", name: "Welcome offer" });
+  }
+  return id;
+}
+
 // Clover Hosted Checkout: remember the cart (the webhook only tells us the
 // checkout id), then send the customer to Clover's payment page.
 async function startCloverCheckout(c: {
@@ -216,10 +241,13 @@ async function startCloverCheckout(c: {
   phone: string;
   delivery: Record<string, string | number> | null;
   alcohol: boolean;
+  promo: { code: string; discountCents: number } | null;
 }) {
   if (!supabaseAdmin) return NextResponse.json({ error: "Checkout isn't available right now." }, { status: 503 });
+  // Clover's checkout has no coupons — the welcome discount comes off item prices.
+  const itemLines = c.lineItems.map((i) => ({ name: i.name, priceCents: i.unitAmount, qty: i.qty }));
   const lines: HostedCheckoutLine[] = [
-    ...c.lineItems.map((i) => ({ name: i.name, priceCents: i.unitAmount, qty: i.qty })),
+    ...(c.promo ? discountLines(itemLines, c.promo.discountCents) : itemLines),
     ...(c.deliveryFee > 0 ? [{ name: "Delivery (Uber)", priceCents: Math.round(c.deliveryFee * 100), qty: 1 }] : []),
     ...(c.serviceFee > 0 ? [{ name: "Service fee", priceCents: Math.round(c.serviceFee * 100), qty: 1 }] : []),
   ];
@@ -244,6 +272,7 @@ async function startCloverCheckout(c: {
       delivery: c.delivery,
       alcohol: c.alcohol,
       totalCents,
+      ...(c.promo ? { promo: c.promo.code, discountCents: c.promo.discountCents } : {}),
     },
   });
   if (error) {

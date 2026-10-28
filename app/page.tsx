@@ -11,6 +11,7 @@ import { getPopularProducts } from "@/lib/popular";
 import { getGalleryPhotos } from "@/lib/gallery";
 import { AISLES } from "@/lib/aisles";
 import { BUSINESS } from "@/lib/site";
+import { getStoreSettings } from "@/lib/settings";
 import HeroBackground from "@/components/hero/HeroBackground";
 import CustomHeroMedia from "@/components/hero/CustomHeroMedia";
 import ProductPlaceholder from "@/components/ProductPlaceholder";
@@ -18,6 +19,7 @@ import ReorderCard from "@/components/ReorderCard";
 import Reveal from "@/components/Reveal";
 import PopularRow from "@/components/home/PopularRow";
 import MobileOrderBar from "@/components/home/MobileOrderBar";
+import DeliveryAreas from "@/components/DeliveryAreas";
 
 // Stock, the order queue and open/closed status are read fresh on every request.
 export const dynamic = "force-dynamic";
@@ -50,14 +52,16 @@ function countLabel(n: number) {
 export default async function Home() {
   // Keep the menu in step with Clover — runs after the page is sent.
   after(maybeAutoSyncClover);
-  const [products, categories, activeOrders, heroEffect, heroMedia, gallery] = await Promise.all([
+  const [products, categories, activeOrders, heroEffect, heroMedia, gallery, settings] = await Promise.all([
     getStorefrontProducts({ inStockOnly: true }),
     getStorefrontCategories(),
     getActiveOrderCount(),
     getHeroEffect(),
     getActiveHeroMedia(),
     getGalleryPhotos(),
+    getStoreSettings(),
   ]);
+  const welcome = settings.welcomeOffer;
   const status = getStoreStatus();
   const popular = await getPopularProducts(products, 12);
   const specials = products.filter((p) => p.is_special && p.stock > 0).slice(0, 6);
@@ -228,6 +232,34 @@ export default async function Home() {
         </div>
       </div>
 
+      {/* ── First-order offer (owner switches it on in Dashboard → Settings) ── */}
+      {welcome.enabled && (
+        <section className="mx-auto max-w-6xl px-5 pt-10">
+          <div className="shadow-sticker flex flex-col items-start gap-4 rounded-[2rem] border-2 border-ink bg-pink p-6 sm:flex-row sm:items-center sm:justify-between sm:p-8">
+            <div>
+              <p className="font-mono text-[0.68rem] font-bold uppercase tracking-widest text-ink/70">New here?</p>
+              <p className="font-poster mt-1 text-4xl uppercase leading-none text-ink sm:text-5xl">
+                ${welcome.amount % 1 === 0 ? welcome.amount.toFixed(0) : welcome.amount.toFixed(2)} off your first order
+              </p>
+              <p className="mt-2 font-body text-sm text-ink/80">
+                {welcome.min > 0 ? `On orders of $${welcome.min.toFixed(0)} or more. ` : ""}Enter the code at checkout — one per customer.
+              </p>
+            </div>
+            <div className="flex flex-col items-start gap-2 sm:items-end">
+              <span className="rounded-xl border-2 border-dashed border-ink bg-white px-5 py-2.5 font-mono text-2xl font-bold tracking-widest text-ink">
+                {welcome.code}
+              </span>
+              <Link
+                href="/order"
+                className="rounded-full bg-ink px-5 py-2.5 font-mono text-xs font-bold uppercase tracking-wide text-white transition hover:bg-green-deep active:scale-95"
+              >
+                Start shopping →
+              </Link>
+            </div>
+          </div>
+        </section>
+      )}
+
       <ReorderCard />
 
       {/* ── Shop by aisle ───────────────────────────────────── */}
@@ -396,6 +428,15 @@ export default async function Home() {
             >
               Start your order
             </Link>
+          </div>
+        </section>
+      </Reveal>
+
+      {/* ── Where we deliver ────────────────────────────────── */}
+      <Reveal>
+        <section className="mx-auto max-w-6xl px-5 pt-16">
+          <div className="rounded-[2rem] border-2 border-ink bg-gold-tint p-6 sm:p-10">
+            <DeliveryAreas />
           </div>
         </section>
       </Reveal>

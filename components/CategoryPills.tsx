@@ -35,7 +35,7 @@ export default function CategoryPills<T extends string>({
     <div ref={containerRef} className="relative flex flex-wrap gap-2">
       {indicator && (
         <span
-          className="pointer-events-none absolute rounded-full bg-green transition-all duration-300 ease-out"
+          className="pointer-events-none absolute rounded-full border-2 border-ink bg-green shadow-[3px_3px_0_var(--ink)] transition-all duration-300 ease-out"
           style={{ left: indicator.left, top: indicator.top, width: indicator.width, height: indicator.height }}
         />
       )}
@@ -46,8 +46,8 @@ export default function CategoryPills<T extends string>({
             btnRefs.current[opt] = el ?? undefined;
           }}
           onClick={() => onChange(opt)}
-          className={`relative z-10 rounded-full border px-4 py-1.5 font-mono text-xs font-semibold transition-colors duration-300 ${
-            active === opt ? "border-green text-white" : "border-line text-ink-soft hover:border-green hover:text-green"
+          className={`relative z-10 rounded-full border-2 px-4 py-2 font-mono text-xs font-bold uppercase tracking-wide transition-colors duration-300 ${
+            active === opt ? "border-transparent text-white" : "border-ink bg-paper text-ink hover:bg-gold-tint"
           }`}
         >
           {opt}

@@ -55,7 +55,39 @@ export default function CheckoutPage() {
 
   const deliveryFee = fulfillment === "delivery" && quote ? quote.fee : 0;
   const appliedServiceFee = fulfillment === "delivery" ? serviceFee : 0;
-  const total = subtotal + deliveryFee + appliedServiceFee;
+  // Welcome offer (first order): checked by /api/checkout/promo, and again
+  // by the server when payment starts. Drops off if the cart falls below the minimum.
+  const [promoInput, setPromoInput] = useState("");
+  const [promo, setPromo] = useState<{ code: string; discount: number; min: number } | null>(null);
+  const [promoMsg, setPromoMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const [promoBusy, setPromoBusy] = useState(false);
+  const promoApplied = promo !== null && subtotal >= promo.min;
+  const discount = promoApplied ? promo.discount : 0;
+  const total = subtotal - discount + deliveryFee + appliedServiceFee;
+
+  const applyPromo = async () => {
+    if (!promoInput.trim()) return;
+    setPromoBusy(true);
+    setPromoMsg(null);
+    try {
+      const res = await fetch("/api/checkout/promo", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code: promoInput.trim(), phone: phone.trim(), items: lines.map((l) => ({ id: l.id, qty: l.qty })) }),
+      });
+      const body = await res.json();
+      if (res.ok && body.ok) {
+        setPromo({ code: body.code, discount: Number(body.discount), min: Number(body.min) });
+        setPromoMsg({ ok: true, text: `${body.code} applied — $${Number(body.discount).toFixed(2)} off your first order.` });
+      } else {
+        setPromo(null);
+        setPromoMsg({ ok: false, text: body.error || "That code isn't valid." });
+      }
+    } catch {
+      setPromoMsg({ ok: false, text: "Couldn't check the code — try again." });
+    }
+    setPromoBusy(false);
+  };
   const needsQuote = fulfillment === "delivery" && uberReady !== false && !quote;
 
   const getQuote = async () => {
@@ -159,11 +191,16 @@ export default function CheckoutPage() {
           phone: phone.trim() || null,
           delivery: fulfillment === "delivery" ? addr : null,
           ageConfirmed: hasAlcohol ? ageConfirmed : undefined,
+          promoCode: promoApplied ? promo.code : undefined,
         }),
       });
       const body = await res.json();
 
       if (!res.ok) {
+        if (body.promoInvalid) {
+          setPromo(null);
+          setPromoMsg({ ok: false, text: body.error });
+        }
         setError(
           body.undeliverable
             ? `${body.error || "We can't deliver there."} Switch to pickup to continue.`
@@ -192,7 +229,7 @@ export default function CheckoutPage() {
   if (lines.length === 0 && stage === "review") {
     return (
       <div className="mx-auto max-w-lg px-5 py-20 text-center">
-        <h1 className="font-display text-2xl font-bold text-ink">Your cart is empty</h1>
+        <h1 className="font-poster text-4xl uppercase leading-none text-ink sm:text-5xl">Your cart is empty</h1>
         <p className="mt-2 font-body text-sm text-ink-soft">Add something from the menu first.</p>
         <Link
           href="/order"
@@ -210,7 +247,7 @@ export default function CheckoutPage() {
         <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-green text-2xl text-white [animation:stamp-in_0.5s_cubic-bezier(0.2,1.4,0.4,1)_forwards]">
           ✓
         </div>
-        <h1 className="mt-5 font-display text-2xl font-bold text-ink">Order placed</h1>
+        <h1 className="mt-5 font-poster text-4xl uppercase leading-none text-ink sm:text-5xl">Order placed</h1>
         <p className="mt-2 font-body text-sm text-ink-soft">
           {isSupabaseConfigured
             ? "Stock for what you ordered just updated — check the menu and you'll see it. Once Clover is wired in, that same update will happen automatically whenever a customer orders online."
@@ -232,7 +269,7 @@ export default function CheckoutPage() {
   return (
     <div className="mx-auto max-w-2xl px-5 py-12">
       <p className="eyebrow text-green">Checkout</p>
-      <h1 className="mt-2 font-display text-3xl font-bold text-ink">Review your order</h1>
+      <h1 className="mt-2 font-poster text-4xl uppercase leading-none text-ink sm:text-5xl">Review your order</h1>
 
       <div className="mt-8 rounded-lg border border-line bg-paper p-5">
         <div className="flex flex-col gap-2.5">
@@ -252,6 +289,13 @@ export default function CheckoutPage() {
           <span className="receipt-fill" />
           <span className="font-mono">${subtotal.toFixed(2)}</span>
         </div>
+        {promoApplied && (
+          <div className="receipt-line mt-2 font-body text-sm text-green">
+            <span>Welcome offer ({promo.code})</span>
+            <span className="receipt-fill" />
+            <span className="font-mono">−${discount.toFixed(2)}</span>
+          </div>
+        )}
         {fulfillment === "delivery" && (
           <div className="receipt-line mt-2 font-body text-sm text-ink">
             <span>Delivery (Uber)</span>
@@ -381,6 +425,40 @@ export default function CheckoutPage() {
         />
       </label>
 
+      <div className="mt-6">
+        <span className="font-body text-sm font-semibold text-ink">
+          Promo code <span className="font-normal text-ink-soft">(optional)</span>
+        </span>
+        <div className="mt-1 flex gap-2 sm:max-w-xs">
+          <input
+            type="text"
+            value={promoInput}
+            onChange={(e) => setPromoInput(e.target.value.toUpperCase())}
+            onKeyDown={(e) => e.key === "Enter" && applyPromo()}
+            placeholder="WELCOME5"
+            autoCapitalize="characters"
+            className="min-w-0 flex-1 rounded border border-line bg-paper px-3 py-2 font-mono text-sm uppercase text-ink outline-none focus:border-green"
+          />
+          <button
+            type="button"
+            onClick={applyPromo}
+            disabled={promoBusy || !promoInput.trim()}
+            className="rounded border border-green px-4 py-2 font-mono text-xs font-semibold text-green hover:bg-green hover:text-white disabled:opacity-50"
+          >
+            {promoBusy ? "Checking…" : "Apply"}
+          </button>
+        </div>
+        {promoMsg && (
+          <p className={`mt-1.5 font-body text-xs ${promoMsg.ok ? "text-green" : "text-[#a8461a]"}`}>{promoMsg.text}</p>
+        )}
+        {promo && !promoApplied && (
+          <p className="mt-1.5 font-body text-xs text-[#a8461a]">
+            Add ${(promo.min - subtotal).toFixed(2)} more to use {promo.code} (orders of ${promo.min.toFixed(2)}+).
+          </p>
+        )}
+        <p className="mt-1 font-body text-xs text-ink-soft">Welcome offers need your phone number — one per customer.</p>
+      </div>
+
       {hasAlcohol && (
         <label className="mt-6 flex items-start gap-2.5 rounded-lg border border-line bg-paper p-4">
           <input
@@ -408,7 +486,7 @@ export default function CheckoutPage() {
       <button
         onClick={placeOrder}
         disabled={stage === "processing"}
-        className="mt-8 w-full rounded-full bg-green py-3.5 text-center font-mono text-sm font-semibold text-white transition-all hover:bg-green-deep active:scale-[0.98] disabled:opacity-60"
+        className="shadow-sticker mt-8 w-full rounded-full border-2 border-ink bg-pink-deep py-4 text-center font-mono text-sm font-bold uppercase tracking-wide text-white transition-all hover:-translate-y-0.5 active:translate-y-0 active:shadow-none disabled:opacity-60"
       >
         {stage === "processing"
           ? stripeConfigured
