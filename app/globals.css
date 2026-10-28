@@ -679,3 +679,40 @@ h1, h2, h3, h4 {
   55% { transform: scale(1.15) rotate(3deg); opacity: 1; }
   100% { transform: scale(1) rotate(0deg); opacity: 1; }
 }
+
+/* ── Homepage (bold city-bodega look) ─────────────────────────────── */
+.font-poster {
+  font-family: "Anton", "IBM Plex Sans", Impact, sans-serif;
+  font-weight: 400;
+  letter-spacing: 0.01em;
+}
+/* Subtle tiled-floor pattern behind the hero. */
+.bg-bodega-tiles {
+  background-color: var(--green-deep);
+  background-image:
+    linear-gradient(45deg, rgba(255, 255, 255, 0.035) 25%, transparent 25%, transparent 75%, rgba(255, 255, 255, 0.035) 75%),
+    linear-gradient(45deg, rgba(255, 255, 255, 0.035) 25%, transparent 25%, transparent 75%, rgba(255, 255, 255, 0.035) 75%);
+  background-size: 56px 56px;
+  background-position: 0 0, 28px 28px;
+}
+/* Hard "sticker" shadow used on cards and buttons. */
+.shadow-sticker {
+  box-shadow: 5px 5px 0 var(--ink);
+}
+/* Scrolling ticker strip ("OPEN DAILY 9–9 ★ PICKUP IN 15 MIN ★ …"). */
+@keyframes ticker {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+.ticker-track {
+  animation: ticker 38s linear infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .ticker-track {
+    animation: none;
+  }
+}

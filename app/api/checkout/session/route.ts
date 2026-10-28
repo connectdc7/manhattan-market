@@ -11,7 +11,11 @@
 // or the local fallback catalog) rather than trusted from the request body
 // — the cart in the browser only ever supplies product ids and quantities.
 import { NextResponse } from "next/server";
+import { randomUUID } from "crypto";
 import { stripe, isStripeConfigured } from "@/lib/stripe";
+import { activePaymentProvider } from "@/lib/payments";
+import { createHostedCheckout, HostedCheckoutLine } from "@/lib/clover-checkout";
+import { supabaseAdmin } from "@/lib/supabase-admin";
 import { getProductsByIds } from "@/lib/products";
 import { getStoreSettings } from "@/lib/settings";
 import { getCategories } from "@/lib/categories";
@@ -20,7 +24,9 @@ import { getDeliveryQuote, isUberConfigured, toE164, validateDeliveryAddress, De
 type RequestLine = { id: string; qty: number };
 
 export async function POST(request: Request) {
-  if (!isStripeConfigured() || !stripe) {
+  // Stripe or Clover (owner's choice, Dashboard → Settings → Online payments).
+  const provider = await activePaymentProvider();
+  if (provider === "none" || (provider === "stripe" && !stripe)) {
     return NextResponse.json({ mock: true });
   }
 
@@ -87,6 +93,7 @@ export async function POST(request: Request) {
   let deliveryFee = 0;
   let serviceFee = 0;
   let deliveryMeta = "";
+  let deliveryInfo: Record<string, string | number> | null = null;
   if (fulfillment === "delivery") {
     const invalid = validateDeliveryAddress(body.delivery);
     if (invalid) return NextResponse.json({ error: invalid }, { status: 400 });
@@ -104,7 +111,7 @@ export async function POST(request: Request) {
     // Owner-set flat service fee (dashboard → Settings), read from the
     // database here — never from the browser.
     serviceFee = (await getStoreSettings()).deliveryServiceFee;
-    deliveryMeta = JSON.stringify({
+    deliveryInfo = {
       name: address.name.trim().slice(0, 60),
       street: address.street.trim().slice(0, 100),
       apt: (address.apt ?? "").trim().slice(0, 30),
@@ -114,10 +121,26 @@ export async function POST(request: Request) {
       notes: (address.notes ?? "").trim().slice(0, 150),
       fee: deliveryFee,
       service: serviceFee,
-    });
+    };
+    deliveryMeta = JSON.stringify(deliveryInfo);
   }
 
   const origin = request.headers.get("origin") ?? new URL(request.url).origin;
+
+  if (provider === "clover") {
+    return startCloverCheckout({
+      origin,
+      lineItems,
+      deliveryFee,
+      serviceFee,
+      cart: requestedLines.map((l) => ({ id: l.id, qty: l.qty })),
+      fulfillment,
+      phone: body.phone?.trim() || "",
+      delivery: deliveryInfo,
+      alcohol: containsAlcohol,
+    });
+  }
+  if (!stripe) return NextResponse.json({ mock: true });
 
   try {
     const session = await stripe.checkout.sessions.create({
@@ -181,12 +204,75 @@ export async function POST(request: Request) {
   }
 }
 
+// Clover Hosted Checkout: remember the cart (the webhook only tells us the
+// checkout id), then send the customer to Clover's payment page.
+async function startCloverCheckout(c: {
+  origin: string;
+  lineItems: { name: string; unitAmount: number; qty: number }[];
+  deliveryFee: number;
+  serviceFee: number;
+  cart: { id: string; qty: number }[];
+  fulfillment: "pickup" | "delivery";
+  phone: string;
+  delivery: Record<string, string | number> | null;
+  alcohol: boolean;
+}) {
+  if (!supabaseAdmin) return NextResponse.json({ error: "Checkout isn't available right now." }, { status: 503 });
+  const lines: HostedCheckoutLine[] = [
+    ...c.lineItems.map((i) => ({ name: i.name, priceCents: i.unitAmount, qty: i.qty })),
+    ...(c.deliveryFee > 0 ? [{ name: "Delivery (Uber)", priceCents: Math.round(c.deliveryFee * 100), qty: 1 }] : []),
+    ...(c.serviceFee > 0 ? [{ name: "Service fee", priceCents: Math.round(c.serviceFee * 100), qty: 1 }] : []),
+  ];
+  const totalCents = lines.reduce((sum, l) => sum + l.priceCents * l.qty, 0);
+  const ref = randomUUID();
+
+  const created = await createHostedCheckout({
+    lines,
+    successUrl: `${c.origin}/checkout/success?ref=${ref}`,
+    failureUrl: `${c.origin}/checkout?payment=failed`,
+    firstName: typeof c.delivery?.name === "string" ? c.delivery.name : undefined,
+  });
+  if (!created.ok) return NextResponse.json({ error: "Couldn't start checkout — try again." }, { status: 502 });
+
+  const { error } = await supabaseAdmin.from("pending_checkouts").insert({
+    id: created.checkoutSessionId,
+    ref,
+    payload: {
+      cart: c.cart,
+      fulfillment: c.fulfillment,
+      phone: c.phone,
+      delivery: c.delivery,
+      alcohol: c.alcohol,
+      totalCents,
+    },
+  });
+  if (error) {
+    console.error("[clover checkout] couldn't save pending checkout", error.message);
+    return NextResponse.json({ error: "Couldn't start checkout — try again." }, { status: 502 });
+  }
+  return NextResponse.json({ url: created.href });
+}
+
 // Polled once by the success page after Stripe redirects back, to confirm
 // payment actually went through before showing "Order placed" — Stripe
 // documents this as the right way to close the loop on a redirect-based
 // Checkout integration, since a customer can land on the success URL
 // without having actually completed payment (e.g. the back button).
 export async function GET(request: Request) {
+  // Clover: the webhook marks the pending checkout paid (it can land a few
+  // seconds after the customer is sent back — the success page re-checks).
+  const ref = new URL(request.url).searchParams.get("ref");
+  if (ref) {
+    if (!supabaseAdmin || !/^[0-9a-f-]{36}$/i.test(ref)) return NextResponse.json({ error: "not-found" }, { status: 404 });
+    const { data } = await supabaseAdmin.from("pending_checkouts").select("status, payload").eq("ref", ref).maybeSingle();
+    if (!data) return NextResponse.json({ error: "not-found" }, { status: 404 });
+    const payload = data.payload as { fulfillment?: string } | null;
+    return NextResponse.json({
+      status: data.status === "paid" ? "paid" : data.status === "declined" ? "unpaid" : "pending",
+      fulfillment: payload?.fulfillment === "delivery" ? "delivery" : "pickup",
+    });
+  }
+
   if (!isStripeConfigured() || !stripe) {
     return NextResponse.json({ error: "not-configured" }, { status: 501 });
   }

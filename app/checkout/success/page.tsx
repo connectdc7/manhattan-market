@@ -1,6 +1,6 @@
 "use client";
 
-// Where Stripe's hosted Checkout redirects back to after payment. The order
+// Where Stripe's (or Clover's) hosted checkout redirects back to after payment. The order
 // itself was already created by the webhook (app/api/stripe/webhook) by the
 // time a shopper lands here — this page's only job is to confirm that with
 // Stripe directly (rather than just trusting the URL, which anyone could
@@ -21,15 +21,35 @@ function CheckoutSuccessInner() {
   const clearedCart = useRef(false);
 
   useEffect(() => {
-    const sessionId = searchParams.get("session_id");
-    if (!sessionId) {
-      setStatus("error");
+    const sessionId = searchParams.get("session_id"); // Stripe
+    const ref = searchParams.get("ref"); // Clover
+    if (!sessionId && !ref) {
+      Promise.resolve().then(() => setStatus("error"));
       return;
     }
-    fetch(`/api/checkout/session?session_id=${encodeURIComponent(sessionId)}`)
-      .then((r) => r.json())
-      .then((body) => setStatus(body.status === "paid" ? "paid" : "unpaid"))
-      .catch(() => setStatus("error"));
+    let cancelled = false;
+    let tries = 0;
+    const check = () => {
+      const q = sessionId ? `session_id=${encodeURIComponent(sessionId)}` : `ref=${encodeURIComponent(ref!)}`;
+      fetch(`/api/checkout/session?${q}`)
+        .then((r) => r.json())
+        .then((body) => {
+          if (cancelled) return;
+          // Clover's payment notice can arrive a few seconds after the
+          // customer is sent back here — keep checking for up to ~30s.
+          if (body.status === "pending" && tries < 15) {
+            tries++;
+            setTimeout(check, 2000);
+            return;
+          }
+          setStatus(body.status === "paid" ? "paid" : "unpaid");
+        })
+        .catch(() => !cancelled && setStatus("error"));
+    };
+    check();
+    return () => {
+      cancelled = true;
+    };
   }, [searchParams]);
 
   // Only clear the cart once payment is actually confirmed — cancelling

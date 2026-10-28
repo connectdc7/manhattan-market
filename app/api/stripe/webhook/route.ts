@@ -11,12 +11,7 @@
 import { NextResponse } from "next/server";
 import Stripe from "stripe";
 import { stripe, isStripeConfigured } from "@/lib/stripe";
-import { getProductsByIds } from "@/lib/products";
-import { createOrderAdmin, decrementStockAdmin } from "@/lib/orders-admin";
-import { supabaseAdmin } from "@/lib/supabase-admin";
-import { pushOrderToClover } from "@/lib/clover-orders";
-import { isPushConfigured, notifyAllStaff } from "@/lib/push";
-import { isCloverConfigured } from "@/lib/clover";
+import { fulfillPaidCheckout, PaidCheckout } from "@/lib/fulfill-order";
 
 export const runtime = "nodejs";
 
@@ -30,23 +25,9 @@ async function fulfillCheckoutSession(session: Stripe.Checkout.Session) {
     console.error("[stripe webhook] couldn't parse cart metadata", { sessionId: session.id });
     return;
   }
-  if (cartLines.length === 0) return;
-
-  // Re-derive name/price from the current product list rather than trusting
-  // anything from the session — mirrors how the session was priced in the
-  // first place (see app/api/checkout/session/route.ts).
-  const products = await getProductsByIds(cartLines.map((l) => l.id));
-  const items = cartLines
-    .map((line) => {
-      const product = products.find((p) => p.id === line.id);
-      if (!product) return null;
-      return { id: product.id, name: product.name, price: product.price, qty: line.qty };
-    })
-    .filter((item): item is { id: string; name: string; price: number; qty: number } => item !== null);
-  if (items.length === 0) return;
 
   // Delivery details captured at checkout (see app/api/checkout/session).
-  let delivery: { name: string; street: string; apt?: string; city: string; state: string; zip: string; notes?: string; fee?: number; service?: number } | null = null;
+  let delivery: PaidCheckout["delivery"] = null;
   if (meta.delivery) {
     try {
       delivery = JSON.parse(meta.delivery);
@@ -54,79 +35,21 @@ async function fulfillCheckoutSession(session: Stripe.Checkout.Session) {
       console.error("[stripe webhook] couldn't parse delivery metadata", { sessionId: session.id });
     }
   }
-  const deliveryFee = Number(delivery?.fee ?? 0) || 0;
-  const serviceFee = Number(delivery?.service ?? 0) || 0;
 
-  // Items only — the delivery fee is stored separately so sales numbers
-  // aren't inflated by what goes to Uber.
-  const subtotal =
-    typeof session.amount_total === "number"
-      ? Math.max(0, session.amount_total / 100 - deliveryFee - serviceFee)
-      : items.reduce((sum, item) => sum + item.price * item.qty, 0);
-
-  const createdId = await createOrderAdmin({
-    fulfillment: meta.fulfillment === "delivery" ? "delivery" : "pickup",
-    items,
-    subtotal,
-    phone: meta.phone || null,
-    stripe_session_id: session.id,
-    delivery_address: delivery
-      ? {
-          name: delivery.name,
-          street: delivery.street,
-          apt: delivery.apt ?? "",
-          city: delivery.city,
-          state: delivery.state,
-          zip: delivery.zip,
-          notes: delivery.notes ?? "",
-        }
-      : null,
-    delivery_fee: delivery ? deliveryFee : null,
-    service_fee: delivery && serviceFee > 0 ? serviceFee : null,
-  });
-
-  // Only touch stock the first time this session is fulfilled — createOrderAdmin
-  // returns false on a Stripe retry for a session already recorded (see its
-  // own comment), which keeps a redelivered webhook from double-decrementing.
-  if (createdId) {
-    // Flag wine/beer orders so staff check ID (column from supabase/alcohol.sql;
-    // a separate best-effort update so a missing column can't block the order).
-    if (meta.alcohol === "1") {
-      const { error } = (await supabaseAdmin?.from("orders").update({ contains_alcohol: true }).eq("id", createdId)) ?? {};
-      if (error) console.error("[stripe webhook] couldn't flag alcohol order", error.message);
-    }
-    await decrementStockAdmin(cartLines);
-
-    // Alert every staff phone that has order alerts on (lib/push.ts).
-    if (isPushConfigured()) {
-      try {
-        const count = items.reduce((n, i) => n + i.qty, 0);
-        const total = typeof session.amount_total === "number" ? session.amount_total / 100 : subtotal;
-        const isDelivery = meta.fulfillment === "delivery";
-        await notifyAllStaff({
-          title: `New ${isDelivery ? "delivery" : "pickup"} order · $${total.toFixed(2)}`,
-          body: `${count} item${count === 1 ? "" : "s"} · #${createdId.slice(0, 6).toUpperCase()}${meta.alcohol === "1" ? " · 21+ check ID" : ""}`,
-          url: "/dashboard",
-          tag: `order-${createdId}`,
-        });
-      } catch (err) {
-        console.error("[stripe webhook] staff alert failed", err);
-      }
-    }
-
-    // Send it to the Clover device/printer and lower Clover's stock. Best-
-    // effort: a Clover hiccup must never fail the webhook (the order is
-    // already saved and paid) — staff can retry with "Send to Clover" on
-    // the dashboard, which shows the error.
-    if (isCloverConfigured()) {
-      try {
-        const result = await pushOrderToClover(createdId);
-        if (!result.ok) console.error("[stripe webhook] Clover push failed", { orderId: createdId, error: result.error });
-      } catch (err) {
-        console.error("[stripe webhook] Clover push threw", err);
-      }
-    }
-  }
+  // Creating the order, stock, staff alerts and Clover all live in
+  // lib/fulfill-order.ts (shared with Clover payments).
+  await fulfillPaidCheckout(
+    {
+      cartLines,
+      fulfillment: meta.fulfillment === "delivery" ? "delivery" : "pickup",
+      phone: meta.phone || null,
+      delivery,
+      alcohol: meta.alcohol === "1",
+      amountTotalCents: typeof session.amount_total === "number" ? session.amount_total : null,
+      payment: { provider: "stripe", stripeSessionId: session.id },
+    },
+    "stripe webhook"
+  );
 }
 
 export async function POST(request: Request) {

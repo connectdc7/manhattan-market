@@ -44,7 +44,6 @@ export default function Footer() {
             <p className="eyebrow text-white/50">Site</p>
             <div className="mt-2 flex flex-col gap-1 font-body text-sm text-white/80">
               <Link href="/order" className="hover:text-gold">Order Online</Link>
-              <Link href="/rewards" className="hover:text-gold">Rewards</Link>
               <Link href="/gallery" className="hover:text-gold">Gallery</Link>
               <Link href="/location" className="hover:text-gold">Hours &amp; Location</Link>
             </div>

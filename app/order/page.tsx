@@ -19,7 +19,7 @@ export const metadata: Metadata = {
 // inventory instead of a build-time snapshot.
 export const dynamic = "force-dynamic";
 
-export default async function OrderPage() {
+export default async function OrderPage({ searchParams }: PageProps<"/order">) {
   // Keep the menu in step with Clover (API-token mode) — runs after the
   // page is sent, at most every few minutes. See lib/clover-autosync.ts.
   after(maybeAutoSyncClover);
@@ -29,6 +29,12 @@ export default async function OrderPage() {
   // the live inventory, so a sold-out item just isn't on the menu rather
   // than sitting there unbuyable.
   const inStock = products.filter((p) => p.stock > 0);
+
+  // From the homepage: /order?q=milk (search) or /order?aisle=Drinks.
+  const params = await searchParams;
+  const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v) ?? "";
+  const initialSearch = one(params.q).slice(0, 80);
+  const initialAisle = one(params.aisle).slice(0, 60);
 
   return (
     <div className="mx-auto max-w-6xl px-5 py-12">
@@ -40,7 +46,7 @@ export default async function OrderPage() {
         Order ahead and skip the line — pick it up at the counter or have it delivered.
       </p>
 
-      <OrderCatalog products={inStock} categories={categories} />
+      <OrderCatalog products={inStock} categories={categories} initialSearch={initialSearch} initialAisle={initialAisle} />
     </div>
   );
 }

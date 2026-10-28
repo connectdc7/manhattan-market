@@ -1,3 +1,0 @@
-module.exports=[46927,a=>{"use strict";a.s(["default",0,function({children:a}){return a},"metadata",0,{title:"Staff Dashboard",manifest:"/dashboard.webmanifest",robots:{index:!1,follow:!1},appleWebApp:{capable:!0,title:"MM Staff",statusBarStyle:"default"},icons:{apple:"/apple-touch-icon-staff.png"}}])},22882,function(a){a.n(a.i(46927))}];
-
-//# sourceMappingURL=app_dashboard_layout_tsx_1vvxykh._.js.map

@@ -20,7 +20,12 @@ export async function createOrderAdmin(order: {
   items: OrderItem[];
   subtotal: number;
   phone?: string | null;
-  stripe_session_id: string;
+  stripe_session_id?: string | null;
+  // Clover Hosted Checkout orders (supabase/clover-payments.sql) — the
+  // unique clover_checkout_id plays the same no-duplicates role.
+  payment_provider?: "stripe" | "clover";
+  clover_checkout_id?: string | null;
+  clover_payment_id?: string | null;
   delivery_address?: Record<string, string> | null;
   delivery_fee?: number | null;
   service_fee?: number | null;

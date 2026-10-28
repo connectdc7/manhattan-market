@@ -4,7 +4,6 @@ import { useEffect, useMemo, useState } from "react";
 import { getProducts, Product } from "@/lib/products";
 import { getCategories, Category } from "@/lib/categories";
 import { getOrders, updateOrderStatus, notifyOrderReady, Order, OrderStatus } from "@/lib/orders";
-import { getRewardsSignups, RewardsSignup } from "@/lib/rewards";
 import { getHeroEffect, getHeroMedia, HeroEffect, HeroMedia } from "@/lib/hero";
 import { isSupabaseConfigured } from "@/lib/supabase";
 import { subscribeToDashboardChanges } from "@/lib/realtime";
@@ -13,7 +12,6 @@ import TileDetails, { TileKey } from "@/components/dashboard/TileDetails";
 import type { CloverSale } from "@/lib/clover-stats";
 import InventoryPanel from "@/components/dashboard/InventoryPanel";
 import OrdersPanel from "@/components/dashboard/OrdersPanel";
-import RewardsPanel from "@/components/dashboard/RewardsPanel";
 import AnalyticsPanel from "@/components/dashboard/AnalyticsPanel";
 import HeroPanel from "@/components/dashboard/HeroPanel";
 import GalleryPanel from "@/components/dashboard/GalleryPanel";
@@ -25,7 +23,7 @@ import { turnOffAlerts } from "@/lib/push-client";
 import { signOutStaff, staffFetch, StaffMember } from "@/lib/staff-auth";
 import type { CloverStats } from "@/lib/clover-stats";
 
-type Tab = "orders" | "inventory" | "rewards" | "analytics" | "homepage" | "gallery" | "staff" | "settings";
+type Tab = "orders" | "inventory" | "analytics" | "homepage" | "gallery" | "staff" | "settings";
 
 function isToday(iso: string) {
   const d = new Date(iso);
@@ -47,7 +45,6 @@ function Dashboard({ staff }: { staff: StaffMember }) {
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
-  const [signups, setSignups] = useState<RewardsSignup[]>([]);
   const [heroEffect, setHeroEffectState] = useState<HeroEffect>("petals");
   const [heroMedia, setHeroMedia] = useState<HeroMedia[]>([]);
   const [loading, setLoading] = useState(true);
@@ -92,14 +89,12 @@ function Dashboard({ staff }: { staff: StaffMember }) {
       getProducts(),
       getCategories(),
       getOrders(),
-      getRewardsSignups(),
       getHeroEffect(),
       getHeroMedia(),
-    ]).then(([p, c, o, s, he, hm]) => {
+    ]).then(([p, c, o, he, hm]) => {
       setProducts(p);
       setCategories(c);
       setOrders(o);
-      setSignups(s);
       setHeroEffectState(he);
       setHeroMedia(hm);
       setLoading(false);
@@ -189,8 +184,6 @@ function Dashboard({ staff }: { staff: StaffMember }) {
   const ordersTodayCount = cloverStats ? cloverStats.ordersToday : ordersToday.length;
   const lowStockProducts = products.filter((p) => p.stock > 0 && p.stock <= 3);
   const lowStockCount = lowStockProducts.length;
-  const signupsTodayList = signups.filter((s) => isToday(s.created_at));
-  const signupsToday = signupsTodayList.length;
 
   // What the Sales/Orders Today drop-down lists: Clover's sales when
   // connected, otherwise today's website orders in the same shape.
@@ -240,8 +233,7 @@ function Dashboard({ staff }: { staff: StaffMember }) {
         <div className="mt-10 rounded-lg border border-line bg-panel p-8 text-center">
           <p className="font-display text-lg font-bold text-ink">Connect Supabase to use this page</p>
           <p className="mt-2 font-body text-sm text-ink-soft">
-            The dashboard reads and writes real data — inventory, orders, rewards
-            signups — so it needs Supabase configured to show anything. Follow the
+            The dashboard reads and writes real data — inventory, orders and settings — so it needs Supabase configured to show anything. Follow the
             setup steps in the README, then reload this page.
           </p>
         </div>
@@ -249,7 +241,7 @@ function Dashboard({ staff }: { staff: StaffMember }) {
         <p className="mt-10 font-mono text-xs uppercase tracking-wide text-ink-soft">Loading dashboard…</p>
       ) : (
         <>
-          <div className="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <div className="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-3">
             <StatTile
               label="Sales Today"
               value={`$${salesToday.toFixed(2)}`}
@@ -269,12 +261,6 @@ function Dashboard({ staff }: { staff: StaffMember }) {
               onClick={() => toggleTile("lowstock")}
               active={openTile === "lowstock"}
             />
-            <StatTile
-              label="New Signups Today"
-              value={String(signupsToday)}
-              onClick={() => toggleTile("signups")}
-              active={openTile === "signups"}
-            />
           </div>
 
           {openTile && (
@@ -287,7 +273,6 @@ function Dashboard({ staff }: { staff: StaffMember }) {
                   : "From website orders only — Clover sales couldn't be loaded."
               }
               lowStock={lowStockProducts}
-              signupsToday={signupsTodayList}
               onOpenInInventory={(name) => {
                 setInventorySearch(name);
                 setTab("inventory");
@@ -309,7 +294,6 @@ function Dashboard({ staff }: { staff: StaffMember }) {
               [
                 ["orders", `Orders${activeOrderCount ? ` (${activeOrderCount})` : ""}`],
                 ["inventory", "Inventory"],
-                ["rewards", "Rewards"],
                 ["analytics", "Analytics"],
                 ["homepage", "Homepage"],
                 ["gallery", "Gallery"],
@@ -355,7 +339,6 @@ function Dashboard({ staff }: { staff: StaffMember }) {
                 salesVelocity={salesVelocity}
               />
             )}
-            {tab === "rewards" && <RewardsPanel signups={signups} />}
             {tab === "analytics" && <AnalyticsPanel orders={orders} cloverStats={cloverStats} cloverError={cloverStatsError} />}
             {tab === "homepage" && <HeroPanel effect={heroEffect} media={heroMedia} onRefresh={loadAll} />}
             {tab === "gallery" && <GalleryPanel />}

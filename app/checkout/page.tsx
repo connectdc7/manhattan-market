@@ -85,11 +85,15 @@ export default function CheckoutPage() {
   // the actual mock-vs-real decision happens server-side in placeOrder,
   // this is purely so the page doesn't claim to be a preview once it isn't.
   const [stripeConfigured, setStripeConfigured] = useState(false);
+  const [payProvider, setPayProvider] = useState<"stripe" | "clover" | "none">("none");
 
   useEffect(() => {
     fetch("/api/checkout/status")
       .then((r) => r.json())
-      .then((body) => setStripeConfigured(Boolean(body.stripeConfigured)))
+      .then((body) => {
+        setStripeConfigured(Boolean(body.stripeConfigured));
+        setPayProvider(body.provider === "clover" ? "clover" : body.provider === "stripe" ? "stripe" : "none");
+      })
       .catch(() => {});
   }, []);
 
@@ -414,7 +418,7 @@ export default function CheckoutPage() {
       </button>
       <p className="mt-2 text-center font-mono text-[0.62rem] uppercase tracking-wide text-ink-soft">
         {stripeConfigured
-          ? "Payment is handled securely by Stripe — you'll be redirected to complete it"
+          ? `Payment is handled securely by ${payProvider === "clover" ? "Clover" : "Stripe"} — you'll be redirected to complete it`
           : "Preview build — Stripe isn't connected yet, so this places an instant test order"}
       </p>
     </div>

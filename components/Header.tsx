@@ -9,7 +9,6 @@ import { SkylineWordmark } from "@/components/Logo";
 
 const NAV = [
   { href: "/order", label: "Order Online" },
-  { href: "/rewards", label: "Rewards" },
   { href: "/gallery", label: "Gallery" },
   { href: "/location", label: "Hours & Location" },
 ];
