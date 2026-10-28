@@ -12,10 +12,10 @@ import { getStoreSettings } from "@/lib/settings";
 type Stage = "review" | "processing" | "done";
 
 const fieldClass =
-  "rounded border border-line bg-paper px-3 py-2 font-body text-sm text-ink outline-none focus:border-green";
+  "rounded-xl border-2 border-ink bg-paper px-3.5 py-2.5 font-body text-base text-ink outline-none focus:shadow-[3px_3px_0_var(--gold)] sm:text-sm";
 
 export default function CheckoutPage() {
-  const { lines, subtotal, clear } = useCart();
+  const { lines, subtotal, clear, count } = useCart();
   const [stage, setStage] = useState<Stage>("review");
   const [chosenFulfillment, setFulfillment] = useState<"pickup" | "delivery">("pickup");
   const [phone, setPhone] = useState("");
@@ -268,10 +268,12 @@ export default function CheckoutPage() {
 
   return (
     <div className="mx-auto max-w-2xl px-5 py-12">
-      <p className="eyebrow text-green">Checkout</p>
+      <p className="inline-block rounded-full border-2 border-ink bg-gold px-3 py-1 font-mono text-[0.65rem] font-bold uppercase tracking-widest text-gold-ink">
+        Checkout · {count} item{count === 1 ? "" : "s"}
+      </p>
       <h1 className="mt-2 font-poster text-4xl uppercase leading-none text-ink sm:text-5xl">Review your order</h1>
 
-      <div className="mt-8 rounded-lg border border-line bg-paper p-5">
+      <div className="mt-8 overflow-hidden rounded-2xl border-2 border-ink bg-paper p-5 shadow-[5px_5px_0_var(--ink)]">
         <div className="flex flex-col gap-2.5">
           {lines.map((line) => (
             <div key={line.id} className="receipt-line font-mono text-sm text-ink">
@@ -320,20 +322,22 @@ export default function CheckoutPage() {
       </div>
 
       <div className="mt-6">
-        <p className="font-body text-sm font-semibold text-ink">Fulfillment</p>
-        <div className="mt-2 flex gap-2">
+        <p className="font-poster text-2xl uppercase text-ink">How do you want it?</p>
+        <div className="mt-3 grid grid-cols-2 gap-3">
           {(["pickup", "delivery"] as const).map((f) => (
             <button
               key={f}
               onClick={() => setFulfillment(f)}
               disabled={f === "delivery" && deliveryBlocked}
-              className={`rounded-full border px-4 py-1.5 font-mono text-xs font-semibold capitalize transition-all active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 ${
-                fulfillment === f
-                  ? "border-green bg-green text-white"
-                  : "border-line text-ink-soft hover:border-green hover:text-green"
+              aria-pressed={fulfillment === f}
+              className={`rounded-2xl border-2 border-ink p-4 text-left transition-all active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40 ${
+                fulfillment === f ? "bg-green text-white shadow-[4px_4px_0_var(--ink)]" : "bg-paper text-ink hover:bg-gold-tint"
               }`}
             >
-              {f}
+              <span className="font-poster block text-2xl uppercase leading-none">{f === "pickup" ? "Pickup" : "Delivery"}</span>
+              <span className={`mt-1 block font-body text-xs ${fulfillment === f ? "text-white/85" : "text-ink-soft"}`}>
+                {f === "pickup" ? "Ready in ~15 min at 2647 Connecticut Ave" : "By Uber · fee shown below"}
+              </span>
             </button>
           ))}
         </div>
@@ -343,7 +347,7 @@ export default function CheckoutPage() {
           </p>
         )}
         {fulfillment === "delivery" && (
-          <div className="mt-4 rounded-lg border border-line bg-paper p-4">
+          <div className="mt-4 rounded-2xl border-2 border-ink bg-panel p-4">
             <p className="font-body text-xs text-ink-soft">
               Delivered by an Uber courier. The fee is Uber&apos;s live price for your address.
             </p>
@@ -421,7 +425,7 @@ export default function CheckoutPage() {
           value={phone}
           onChange={(e) => setPhone(e.target.value)}
           placeholder="(555) 555-0123"
-          className="rounded border border-line bg-paper px-3 py-2 font-body text-sm text-ink outline-none focus:border-green sm:max-w-xs"
+          className={`${fieldClass} sm:max-w-xs`}
         />
       </label>
 
@@ -437,13 +441,13 @@ export default function CheckoutPage() {
             onKeyDown={(e) => e.key === "Enter" && applyPromo()}
             placeholder="WELCOME5"
             autoCapitalize="characters"
-            className="min-w-0 flex-1 rounded border border-line bg-paper px-3 py-2 font-mono text-sm uppercase text-ink outline-none focus:border-green"
+            className={`${fieldClass} min-w-0 flex-1 font-mono uppercase`}
           />
           <button
             type="button"
             onClick={applyPromo}
             disabled={promoBusy || !promoInput.trim()}
-            className="rounded border border-green px-4 py-2 font-mono text-xs font-semibold text-green hover:bg-green hover:text-white disabled:opacity-50"
+            className="rounded-xl border-2 border-ink bg-gold px-4 py-2 font-mono text-xs font-bold uppercase text-gold-ink hover:brightness-95 disabled:opacity-50"
           >
             {promoBusy ? "Checking…" : "Apply"}
           </button>

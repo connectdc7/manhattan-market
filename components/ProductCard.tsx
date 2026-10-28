@@ -24,7 +24,13 @@ export default function ProductCard({
   const [askAge, setAskAge] = useState(false);
 
   const doAdd = () => {
-    add({ id: product.id, name: product.name, price: product.price, ageRestricted: product.age_restricted });
+    add({
+      id: product.id,
+      name: product.name,
+      price: product.price,
+      ageRestricted: product.age_restricted,
+      image: product.image_url || undefined,
+    });
     setJustAdded(true);
     setTimeout(() => setJustAdded(false), 900);
   };
