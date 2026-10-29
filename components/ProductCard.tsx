@@ -65,7 +65,7 @@ export default function ProductCard({
   return (
     <div
       id={`product-${product.id}`}
-      className={`group flex h-full flex-col overflow-hidden rounded-2xl border-2 bg-paper transition-all duration-300 hover:-translate-y-1 hover:shadow-[5px_5px_0_var(--ink)] ${
+      className={`group flex h-full flex-col overflow-hidden rounded-2xl border-2 bg-paper transition-all duration-200 hover:-translate-y-1 hover:border-green hover:bg-gold-tint hover:shadow-[6px_6px_0_var(--green)] focus-within:border-green focus-within:shadow-[6px_6px_0_var(--green)] ${
         highlighted ? "border-green shadow-[5px_5px_0_var(--green)]" : "border-ink"
       }`}
     >
@@ -100,7 +100,7 @@ export default function ProductCard({
         )}
       </div>
       <div className="flex flex-1 flex-col gap-1.5 p-3 sm:p-4">
-        <h3 className="line-clamp-2 font-body text-[0.92rem] font-semibold leading-snug text-ink">{product.name}</h3>
+        <h3 className="line-clamp-2 font-body text-[0.92rem] font-semibold leading-snug text-ink group-hover:text-green-deep">{product.name}</h3>
         {product.blurb && <p className="line-clamp-2 hidden font-body text-xs text-ink-soft sm:block">{product.blurb}</p>}
         <span
           className={`font-mono text-[0.62rem] font-semibold uppercase tracking-wide ${

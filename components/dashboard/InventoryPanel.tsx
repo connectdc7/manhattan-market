@@ -370,7 +370,7 @@ export default function InventoryPanel({
           still squeezing the column. This layout sidesteps that entirely. */}
       <div className="mt-4 flex flex-col gap-2.5 sm:hidden">
         {shown.map((p) => {
-          const outOfStock = p.stock === 0;
+          const outOfStock = p.stock === 0 && !p.stock_unknown;
           const lowStock = p.stock > 0 && p.stock <= 3;
           const velocity = salesVelocity[p.id] ?? 0;
           const daysLeft = velocity > 0 ? p.stock / velocity : null;
@@ -412,6 +412,11 @@ export default function InventoryPanel({
                   {outOfStock && (
                     <span className="font-mono text-[0.62rem] font-semibold uppercase tracking-wide text-[#a8461a]">
                       Out
+                    </span>
+                  )}
+                  {p.stock_unknown && (
+                    <span title="Clover has no count for this item, so the website shows it as available" className="font-mono text-[0.62rem] font-semibold uppercase tracking-wide text-green">
+                      Not counted · on sale
                     </span>
                   )}
                   {lowStock && (
@@ -473,7 +478,7 @@ export default function InventoryPanel({
           </thead>
           <tbody>
             {shown.map((p) => {
-              const outOfStock = p.stock === 0;
+              const outOfStock = p.stock === 0 && !p.stock_unknown;
               const lowStock = p.stock > 0 && p.stock <= 3;
               const velocity = salesVelocity[p.id] ?? 0;
               const daysLeft = velocity > 0 ? p.stock / velocity : null;
@@ -524,6 +529,11 @@ export default function InventoryPanel({
                         {outOfStock && (
                           <span className="font-mono text-[0.62rem] font-semibold uppercase tracking-wide text-[#a8461a]">
                             Out
+                          </span>
+                        )}
+                        {p.stock_unknown && (
+                          <span title="Clover has no count for this item, so the website shows it as available" className="font-mono text-[0.62rem] font-semibold uppercase tracking-wide text-green">
+                            Not counted · on sale
                           </span>
                         )}
                         {lowStock && (

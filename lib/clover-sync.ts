@@ -78,7 +78,17 @@ export async function syncAllCloverItems(): Promise<CloverSyncResult> {
   }
 
   const ctx = await loadCloverCategoryContext();
-  type Row = { id: string; name: string; category: string; price: number; stock: number; clover_item_id: string; barcode?: string | null };
+  type Row = {
+    id: string;
+    name: string;
+    category: string;
+    price: number;
+    stock: number;
+    stock_unknown: boolean;
+    clover_quantity: number | null;
+    clover_item_id: string;
+    barcode?: string | null;
+  };
   const rows = new Map<string, Row>();
   const needsPhoto: CloverSyncResult["needsPhoto"] = [];
 

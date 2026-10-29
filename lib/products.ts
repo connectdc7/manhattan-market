@@ -32,6 +32,8 @@ export type Product = {
   is_healthy?: boolean; // staff-toggled "healthy pick" flag — feeds the homepage's Product of the Day
   created_at?: string; // when the row was added — "new" for Product of the Day means recent here
   age_restricted?: boolean; // wine/beer etc. — 21+ (from its category; see lib/categories.ts)
+  // Clover keeps no count for it (or the count went below zero) — sold as available.
+  stock_unknown?: boolean;
 };
 
 // created_at values are staggered by hand below (rather than all defaulting
@@ -55,7 +57,17 @@ export const fallbackProducts: Product[] = [
 ];
 
 const PRODUCT_COLUMNS =
-  "id, name, category, price, stock, blurb, swatch, image_url, restocked_at, is_special, is_healthy, created_at";
+  "id, name, category, price, stock, blurb, swatch, image_url, restocked_at, is_special, is_healthy, created_at, stock_unknown";
+
+// Items without a real Clover count are sold as available; the website
+// works with this many "in stock" for them (it's never shown as a number).
+export const UNCOUNTED_STOCK = 50;
+
+// What customers can buy right now: the real count, or UNCOUNTED_STOCK
+// for items Clover doesn't count (see lib/clover.ts).
+function withSellableStock(list: Product[]): Product[] {
+  return list.map((p) => (p.stock_unknown && p.stock <= 0 ? { ...p, stock: UNCOUNTED_STOCK } : p));
+}
 
 // Supabase returns at most 1,000 rows per request, and the store's real
 // Clover catalog is several thousand items — so read it in pages.
@@ -105,7 +117,7 @@ export async function getProductsByIds(ids: string[]): Promise<Product[]> {
     if (error) console.error("getProductsByIds:", error.message);
     return [];
   }
-  return toProducts(data);
+  return withSellableStock(toProducts(data));
 }
 
 // Only what customers should see: products in categories staff have
@@ -128,14 +140,14 @@ export async function getStorefrontProducts(opts: { inStockOnly?: boolean } = {}
 
   const { rows, error } = await fetchAllPages((from, to) => {
     let q = client.from("products").select(PRODUCT_COLUMNS).in("category", visibleCategories);
-    if (opts.inStockOnly) q = q.gt("stock", 0);
+    if (opts.inStockOnly) q = q.or("stock.gt.0,stock_unknown.eq.true");
     return q.order("name").order("id").range(from, to);
   });
   if (error) {
     console.error("getStorefrontProducts:", error);
     return [];
   }
-  return tag(toProducts(rows));
+  return tag(withSellableStock(toProducts(rows)));
 }
 
 // Best-effort stock decrement after a (mocked) order is placed. Calls a

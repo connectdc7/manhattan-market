@@ -6,6 +6,8 @@ import ProductCard from "@/components/ProductCard";
 import CategoryPills from "@/components/CategoryPills";
 import Reveal from "@/components/Reveal";
 import { AISLES } from "@/lib/aisles";
+import { rankProducts } from "@/lib/search";
+import { BUSINESS } from "@/lib/site";
 
 // The interactive part of the Order page — category filtering, and the
 // "jump to and highlight this product" deep link (used by the homepage's
@@ -47,6 +49,30 @@ export default function OrderCatalog({
   const [sub, setSub] = useState<string>(ALL); // department within the aisle
   const [highlightId, setHighlightId] = useState<string | null>(null);
   const [search, setSearch] = useState(initialSearch);
+  // Matches that are out of stock right now (from /api/products/search).
+  const [soldOut, setSoldOut] = useState<{ q: string; items: { id: string; name: string; price: number; image_url: string | null }[] }>({
+    q: "",
+    items: [],
+  });
+
+  useEffect(() => {
+    const q = search.trim();
+    let cancelled = false;
+    const t = setTimeout(() => {
+      if (q.length < 2) {
+        setSoldOut({ q: "", items: [] });
+        return;
+      }
+      fetch(`/api/products/search?q=${encodeURIComponent(q)}`)
+        .then((r) => r.json())
+        .then((b) => !cancelled && setSoldOut({ q, items: Array.isArray(b.items) ? b.items : [] }))
+        .catch(() => {});
+    }, 300);
+    return () => {
+      cancelled = true;
+      clearTimeout(t);
+    };
+  }, [search]);
   const [limit, setLimit] = useState(PAGE_SIZE);
 
   const aisleOf = useMemo(() => new Map(categories.map((c) => [c.name, c.aisle])), [categories]);
@@ -93,8 +119,8 @@ export default function OrderCatalog({
     let list = products;
     if (active !== ALL) list = list.filter((p) => aisleOf.get(p.category) === active);
     if (sub !== ALL) list = list.filter((p) => p.category === sub);
-    const q = search.trim().toLowerCase();
-    if (q) list = list.filter((p) => p.name.toLowerCase().includes(q));
+    // Best matches first (whole words, then partial) — see lib/search.ts.
+    if (search.trim()) list = rankProducts(list, search);
     return list;
   }, [products, active, sub, search, aisleOf]);
   const shown = matching.slice(0, limit);
@@ -149,10 +175,35 @@ export default function OrderCatalog({
         </div>
       )}
 
-      {matching.length === 0 ? (
-        <p className="mt-10 font-body text-sm text-ink-soft">
-          Nothing matches {search.trim() ? <>&ldquo;{search.trim()}&rdquo;</> : "that"} right now — try another search or category.
+      {search.trim() && matching.length > 0 && (
+        <p className="mt-6 font-body text-sm text-ink-soft">
+          {matching.length} result{matching.length === 1 ? "" : "s"} for <span className="font-semibold text-ink">&ldquo;{search.trim()}&rdquo;</span>
+          {active !== ALL ? ` in ${active}` : ""}
         </p>
+      )}
+      {matching.length === 0 ? (
+        <div className="mt-10 rounded-2xl border-2 border-dashed border-ink/40 p-6">
+          <p className="font-poster text-2xl uppercase text-ink">
+            {search.trim() ? <>No &ldquo;{search.trim()}&rdquo; in stock right now</> : "Nothing here right now"}
+          </p>
+          <p className="mt-2 font-body text-sm text-ink-soft">
+            {active !== ALL ? (
+              <>
+                Try searching all aisles —{" "}
+                <button type="button" onClick={() => changeAisle(ALL)} className="font-semibold text-green-deep underline">
+                  show everything
+                </button>
+                . Or call{" "}
+              </>
+            ) : (
+              <>Try a different word (e.g. a brand), or call </>
+            )}
+            <a href={`tel:${BUSINESS.telephone}`} className="font-semibold text-green-deep underline">
+              {BUSINESS.telephoneDisplay}
+            </a>{" "}
+            — the store may have it on the shelf.
+          </p>
+        </div>
       ) : (
         <div className="mt-8 grid grid-cols-2 gap-3 sm:gap-5 lg:grid-cols-4">
           {shown.map((product, i) => (
@@ -176,6 +227,32 @@ export default function OrderCatalog({
             Showing {shown.length} of {matching.length}
           </p>
         </div>
+      )}
+      {search.trim() && soldOut.q === search.trim() && soldOut.items.length > 0 && (
+        <section className="mt-12">
+          <h3 className="font-poster text-2xl uppercase text-ink">Out of stock right now</h3>
+          <p className="mt-1 font-body text-sm text-ink-soft">
+            We carry these, but they&apos;re sold out at the moment. Check back soon, or call {BUSINESS.telephoneDisplay}.
+          </p>
+          <ul className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+            {soldOut.items.map((p) => (
+              <li key={p.id} className="flex items-center gap-3 rounded-xl border-2 border-line bg-panel p-3 opacity-80">
+                <span className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-white">
+                  {p.image_url ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={p.image_url} alt="" className="h-full w-full object-contain grayscale" />
+                  ) : (
+                    <span className="font-poster text-base uppercase text-ink/30">{p.name.slice(0, 2)}</span>
+                  )}
+                </span>
+                <span className="min-w-0">
+                  <span className="line-clamp-2 block font-body text-sm font-semibold text-ink-soft">{p.name}</span>
+                  <span className="font-mono text-[0.6rem] font-bold uppercase text-[#a8461a]">Sold out</span>
+                </span>
+              </li>
+            ))}
+          </ul>
+        </section>
       )}
     </>
   );
