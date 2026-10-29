@@ -20,6 +20,7 @@ import Reveal from "@/components/Reveal";
 import PopularRow from "@/components/home/PopularRow";
 import MobileOrderBar from "@/components/home/MobileOrderBar";
 import DeliveryAreas from "@/components/DeliveryAreas";
+import MetroZoo from "@/components/home/MetroZoo";
 
 // Stock, the order queue and open/closed status are read fresh on every request.
 export const dynamic = "force-dynamic";
@@ -98,7 +99,8 @@ export default async function Home() {
     "Delivered by Uber",
     "2647 Connecticut Ave NW",
     "Wine & beer for pickup (21+)",
-    "Woodley Park · by the Metro",
+    "Order on the Metro, grab it on the way to the Zoo",
+    "Woodley Park · 1 block from the Metro",
   ];
 
   return (
@@ -128,8 +130,8 @@ export default async function Home() {
               <span className="text-gold">now on your phone.</span>
             </h1>
             <p className="mt-5 max-w-xl font-body text-lg text-white/85">
-              Snacks, drinks, groceries, wine &amp; beer and everyday essentials — ready for pickup in minutes or
-              delivered to your door in Woodley Park.
+              Snacks, drinks, groceries, wine &amp; beer and everyday essentials, a block from the Woodley Park–Zoo
+              Metro. Order ahead on the train and grab it on your way to the Zoo — or get it delivered.
             </p>
 
             {/* Search goes straight to the Order page, filtered. Works without JavaScript. */}
@@ -261,6 +263,8 @@ export default async function Home() {
       )}
 
       <ReorderCard />
+
+      <MetroZoo wait={wait} />
 
       {/* ── Shop by aisle ───────────────────────────────────── */}
       {aisles.length > 0 && (
