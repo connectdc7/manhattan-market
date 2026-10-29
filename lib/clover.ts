@@ -295,11 +295,19 @@ export type CloverItem = {
 
 export async function mapCloverItemToProductFields(item: CloverItem, ctx: CloverCategoryContext) {
   const categoryName = item.categories?.elements?.[0]?.name;
+  // Many Clover items have no stock count, or a count that's gone below
+  // zero because staff ring them up without ever counting them in. Those
+  // are things the store does sell, so the website treats them as
+  // available (stock_unknown) rather than "0 in stock" — see lib/products.ts.
+  const qty = item.itemStock?.quantity;
+  const tracked = typeof qty === "number";
   return {
     name: item.name?.trim() || "Untitled item",
     category: await resolveCloverCategory(categoryName, ctx),
     price: typeof item.price === "number" ? Math.max(0, item.price) / 100 : 0,
-    stock: typeof item.itemStock?.quantity === "number" ? Math.max(0, item.itemStock.quantity) : 0,
+    stock: tracked ? Math.max(0, qty) : 0,
+    stock_unknown: !tracked || qty < 0,
+    clover_quantity: tracked ? qty : null,
   };
 }
 
@@ -357,6 +365,8 @@ export async function upsertProductFromCloverItem(
         category: fields.category,
         price: fields.price,
         stock: fields.stock,
+        stock_unknown: fields.stock_unknown,
+        clover_quantity: fields.clover_quantity,
       })
       .eq("id", existing.id);
     // Logged (not just swallowed) since a write failing here — RLS, a
@@ -379,6 +389,8 @@ export async function upsertProductFromCloverItem(
     category: fields.category,
     price: fields.price,
     stock: fields.stock,
+    stock_unknown: fields.stock_unknown,
+    clover_quantity: fields.clover_quantity,
     blurb: "",
     clover_item_id: item.id,
   });
