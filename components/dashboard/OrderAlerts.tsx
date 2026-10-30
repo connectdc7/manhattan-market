@@ -36,7 +36,7 @@ export default function OrderAlerts() {
       if (error) setMessage(error);
       else {
         setOn(true);
-        setMessage("Alerts are on for this phone. Try “Send test”.");
+        setMessage("Alerts are on for this device. Try “Send test”.");
       }
     } catch {
       setMessage("Couldn't turn alerts on — try again.");
@@ -48,7 +48,7 @@ export default function OrderAlerts() {
     setBusy(true);
     await turnOffAlerts();
     setOn(false);
-    setMessage("Alerts are off for this phone.");
+    setMessage("Alerts are off for this device.");
     setBusy(false);
   };
 
@@ -68,8 +68,8 @@ export default function OrderAlerts() {
             {support === "needs-home-screen"
               ? "To get alerts on this iPhone, add the dashboard to your Home Screen first."
               : on
-                ? "On for this phone — you'll get a notification for every online order."
-                : "Get a notification on this phone whenever an online order comes in."}
+                ? "On for this device — you'll get a notification for every online order."
+                : "Get a notification on this device whenever an online order comes in."}
           </p>
         </div>
         {support === "needs-home-screen" ? (

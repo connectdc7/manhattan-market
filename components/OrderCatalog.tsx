@@ -6,7 +6,7 @@ import ProductCard from "@/components/ProductCard";
 import CategoryPills from "@/components/CategoryPills";
 import Reveal from "@/components/Reveal";
 import { AISLES } from "@/lib/aisles";
-import { rankProducts } from "@/lib/search";
+import { splitMatches } from "@/lib/search";
 import { BUSINESS } from "@/lib/site";
 
 // The interactive part of the Order page — category filtering, and the
@@ -115,15 +115,21 @@ export default function OrderCatalog({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const matching = useMemo(() => {
+  // While searching: exact matches first ("water" → Fiji Water, Smart Water),
+  // then related items (Watermelon, other things in the Water department).
+  // See lib/search.ts.
+  const { best, related } = useMemo(() => {
     let list = products;
     if (active !== ALL) list = list.filter((p) => aisleOf.get(p.category) === active);
     if (sub !== ALL) list = list.filter((p) => p.category === sub);
-    // Best matches first (whole words, then partial) — see lib/search.ts.
-    if (search.trim()) list = rankProducts(list, search);
-    return list;
+    if (!search.trim()) return { best: list, related: [] as Product[] };
+    return splitMatches(list, search);
   }, [products, active, sub, search, aisleOf]);
-  const shown = matching.slice(0, limit);
+  const matching = useMemo(() => [...best, ...related], [best, related]);
+  const searching = search.trim().length > 0;
+  const shown = best.slice(0, limit);
+  const [relLimit, setRelLimit] = useState(12);
+  const shownRelated = related.slice(0, relLimit);
 
   const changeAisle = (a: string) => {
     setActive(a);
@@ -144,6 +150,7 @@ export default function OrderCatalog({
           onChange={(e) => {
             setSearch(e.target.value);
             setLimit(PAGE_SIZE);
+            setRelLimit(12);
           }}
           placeholder="Search the store — chips, milk, coffee…"
           aria-label="Search products"
@@ -175,11 +182,17 @@ export default function OrderCatalog({
         </div>
       )}
 
-      {search.trim() && matching.length > 0 && (
-        <p className="mt-6 font-body text-sm text-ink-soft">
-          {matching.length} result{matching.length === 1 ? "" : "s"} for <span className="font-semibold text-ink">&ldquo;{search.trim()}&rdquo;</span>
-          {active !== ALL ? ` in ${active}` : ""}
-        </p>
+      {searching && matching.length > 0 && (
+        <h2 className="font-poster mt-8 text-3xl uppercase text-ink">
+          {best.length > 0 ? (
+            <>
+              {best.length} match{best.length === 1 ? "" : "es"} for &ldquo;{search.trim()}&rdquo;
+            </>
+          ) : (
+            <>No exact match for &ldquo;{search.trim()}&rdquo;</>
+          )}
+          {active !== ALL && <span className="font-body text-base normal-case text-ink-soft"> in {active}</span>}
+        </h2>
       )}
       {matching.length === 0 ? (
         <div className="mt-10 rounded-2xl border-2 border-dashed border-ink/40 p-6">
@@ -205,16 +218,22 @@ export default function OrderCatalog({
           </p>
         </div>
       ) : (
-        <div className="mt-8 grid grid-cols-2 gap-3 sm:gap-5 lg:grid-cols-4">
-          {shown.map((product, i) => (
-            <Reveal key={product.id} delayMs={Math.min(i % PAGE_SIZE, 8) * 60}>
-              <ProductCard product={product} highlighted={product.id === highlightId} />
-            </Reveal>
-          ))}
-        </div>
+        shown.length > 0 && (
+          <div className={`grid grid-cols-2 gap-3 sm:gap-5 lg:grid-cols-4 ${searching ? "mt-4" : "mt-8"}`}>
+            {shown.map((product, i) =>
+              searching ? (
+                <ProductCard key={product.id} product={product} highlighted={product.id === highlightId} />
+              ) : (
+                <Reveal key={product.id} delayMs={Math.min(i % PAGE_SIZE, 8) * 60}>
+                  <ProductCard product={product} highlighted={product.id === highlightId} />
+                </Reveal>
+              )
+            )}
+          </div>
+        )
       )}
 
-      {matching.length > shown.length && (
+      {best.length > shown.length && (
         <div className="mt-10 flex flex-col items-center gap-2">
           <button
             type="button"
@@ -224,9 +243,35 @@ export default function OrderCatalog({
             Show more
           </button>
           <p className="font-mono text-xs text-ink-soft">
-            Showing {shown.length} of {matching.length}
+            Showing {shown.length} of {best.length}
           </p>
         </div>
+      )}
+
+      {searching && related.length > 0 && (
+        <section className={best.length > 0 ? "mt-14 border-t-2 border-dashed border-ink/30 pt-10" : "mt-4"}>
+          <h3 className="font-poster text-2xl uppercase text-ink">
+            {best.length > 0 ? "Related items" : "Closest matches"}{" "}
+            <span className="font-body text-base normal-case text-ink-soft">({related.length})</span>
+          </h3>
+          <p className="mt-1 font-body text-sm text-ink-soft">Similar names, or from the same department.</p>
+          <div className="mt-4 grid grid-cols-2 gap-3 sm:gap-5 lg:grid-cols-4">
+            {shownRelated.map((product) => (
+              <ProductCard key={product.id} product={product} />
+            ))}
+          </div>
+          {related.length > shownRelated.length && (
+            <div className="mt-6 flex justify-center">
+              <button
+                type="button"
+                onClick={() => setRelLimit((n) => n + 24)}
+                className="rounded-full border-2 border-ink bg-paper px-6 py-2.5 font-mono text-xs font-bold uppercase tracking-wide text-ink transition hover:bg-gold-tint"
+              >
+                Show more related ({related.length - shownRelated.length})
+              </button>
+            </div>
+          )}
+        </section>
       )}
       {search.trim() && soldOut.q === search.trim() && soldOut.items.length > 0 && (
         <section className="mt-12">
