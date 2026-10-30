@@ -33,6 +33,8 @@ export type UberDelivery = {
   tracking_url?: string;
   fee?: number;
   courier?: { name?: string; vehicle_type?: string; phone_number?: string } | null;
+  pickup_eta?: string;
+  dropoff_eta?: string;
 };
 
 export function isUberConfigured(): boolean {

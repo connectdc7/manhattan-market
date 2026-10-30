@@ -24,6 +24,8 @@ type UberEvent = {
     external_id?: string;
     tracking_url?: string;
     courier?: { name?: string; vehicle_type?: string; phone_number?: string } | null;
+    pickup_eta?: string;
+    dropoff_eta?: string;
   };
 };
 
@@ -62,6 +64,16 @@ export async function POST(request: Request) {
     ({ data } = await supabaseAdmin.from("orders").update(update).eq("id", event.data.external_id).select("id"));
   }
   if (!data || data.length === 0) console.warn("[uber webhook] no order matched", { deliveryId, status });
+
+  // Latest time estimates for the dashboard (separate, so an older database
+  // without these columns doesn't break the status update above).
+  const etas: Record<string, string> = {};
+  if (event.data?.pickup_eta) etas.uber_pickup_eta = event.data.pickup_eta;
+  if (event.data?.dropoff_eta) etas.uber_dropoff_eta = event.data.dropoff_eta;
+  if (Object.keys(etas).length && data?.length) {
+    const { error: etaError } = await supabaseAdmin.from("orders").update(etas).in("id", data.map((r) => r.id as string));
+    if (etaError) console.warn("[uber webhook] couldn't save ETAs —", etaError.message);
+  }
 
   // Delivered = completed → mark it Paid and closed on Clover too.
   if (status === "delivered") {

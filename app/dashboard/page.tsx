@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { getProducts, Product } from "@/lib/products";
 import { getCategories, Category } from "@/lib/categories";
 import { getOrders, updateOrderStatus, notifyOrderReady, Order, OrderStatus } from "@/lib/orders";
@@ -21,6 +21,7 @@ import StoreSetupPanel from "@/components/dashboard/StoreSetupPanel";
 import { BottomNav, Section, sectionsFor, SECTIONS, SideNav } from "@/components/dashboard/DashboardNav";
 import { SkylineWordmark } from "@/components/Logo";
 import { getStoreStatus } from "@/lib/store-hours";
+import { NewOrderBanner, OrderCounts, SoundButton, useOrderChime } from "@/components/dashboard/OrderPulse";
 import { turnOffAlerts } from "@/lib/push-client";
 import { returnToOwner, signOutStaff, staffFetch, StaffMember, viewingAsStaff } from "@/lib/staff-auth";
 import type { CloverStats } from "@/lib/clover-stats";
@@ -46,9 +47,10 @@ function Dashboard({ staff }: { staff: StaffMember }) {
   // Which page of the dashboard is open — kept in the address (#orders) so a
   // refresh or the phone's back button stays put.
   const [section, setSectionState] = useState<Section>(() => {
-    if (typeof window === "undefined") return "today";
+    // Opens on the live orders board — online orders are the main job.
+    if (typeof window === "undefined") return "orders";
     const fromHash = window.location.hash.slice(1) as Section;
-    return sectionsFor(isOwner).some((s) => s.key === fromHash) ? fromHash : "today";
+    return sectionsFor(isOwner).some((s) => s.key === fromHash) ? fromHash : "orders";
   });
   const setSection = (next: Section) => {
     setSectionState(next);
@@ -75,6 +77,53 @@ function Dashboard({ staff }: { staff: StaffMember }) {
   const [cloverStatsError, setCloverStatsError] = useState<string | null>(null);
   // Set when a search is started from Today (or "Open in Products").
   const [inventorySearch, setInventorySearch] = useState("");
+
+  // ── New online orders: chime + banner ──
+  // Orders already there when the dashboard opened don't ring; anything that
+  // arrives after does (see components/dashboard/OrderPulse.tsx).
+  const chime = useOrderChime();
+  const soundOnRef = useRef(chime.soundOn);
+  const playRef = useRef(chime.play);
+  useEffect(() => {
+    soundOnRef.current = chime.soundOn;
+    playRef.current = chime.play;
+  }, [chime.soundOn, chime.play]);
+  const seenRef = useRef<Set<string> | null>(null);
+  const ordersRef = useRef<Order[]>([]);
+  const [incoming, setIncoming] = useState<string[]>([]);
+  const receiveOrders = (list: Order[]) => {
+    setOrders(list);
+    ordersRef.current = list;
+    if (seenRef.current === null) {
+      seenRef.current = new Set(list.map((o) => o.id));
+      return;
+    }
+    const seen = seenRef.current;
+    const fresh = list.filter((o) => !seen.has(o.id) && o.status === "new");
+    for (const o of list) seen.add(o.id);
+    if (fresh.length) {
+      setIncoming((prev) => [...fresh.map((o) => o.id), ...prev]);
+      if (soundOnRef.current) playRef.current();
+    }
+  };
+
+  // Backup for the live connection: re-check orders every 30 seconds, and
+  // ring again every minute while an order sits unstarted for 2+ minutes.
+  useEffect(() => {
+    if (!isSupabaseConfigured) return;
+    const poll = setInterval(() => {
+      getOrders().then(receiveOrders).catch(() => {});
+    }, 30_000);
+    const nag = setInterval(() => {
+      const waiting = ordersRef.current.some((o) => o.status === "new" && Date.now() - new Date(o.created_at).getTime() > 2 * 60_000);
+      if (waiting && soundOnRef.current) playRef.current();
+    }, 60_000);
+    return () => {
+      clearInterval(poll);
+      clearInterval(nag);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -111,7 +160,7 @@ function Dashboard({ staff }: { staff: StaffMember }) {
     ]).then(([p, c, o, he, hm]) => {
       setProducts(p);
       setCategories(c);
-      setOrders(o);
+      receiveOrders(o);
       setHeroEffectState(he);
       setHeroMedia(hm);
       setLoading(false);
@@ -157,7 +206,19 @@ function Dashboard({ staff }: { staff: StaffMember }) {
   };
 
   const handleStatusChange = async (id: string, status: OrderStatus) => {
-    setOrders((prev) => prev.map((o) => (o.id === id ? { ...o, status } : o)));
+    const stamp = new Date().toISOString();
+    setOrders((prev) =>
+      prev.map((o) =>
+        o.id === id
+          ? {
+              ...o,
+              status,
+              ...(status === "preparing" ? { preparing_at: stamp } : status === "ready" ? { ready_at: stamp } : status === "completed" ? { completed_at: stamp } : {}),
+            }
+          : o
+      )
+    );
+    setIncoming((prev) => prev.filter((x) => x !== id));
     await updateOrderStatus(id, status);
     const order = orders.find((o) => o.id === id);
     // Pickup orders get the "come pick it up" text. Delivery orders get a
@@ -217,6 +278,10 @@ function Dashboard({ staff }: { staff: StaffMember }) {
       }));
   const activeOrders = orders.filter((o) => o.status !== "completed");
   const newOrders = activeOrders.filter((o) => o.status === "new").length;
+  // Browser tab shows "(2) New order" so it's noticed from another tab too.
+  useEffect(() => {
+    document.title = newOrders > 0 ? `(${newOrders}) New order${newOrders === 1 ? "" : "s"} · MM Staff` : "Live orders · MM Staff";
+  }, [newOrders]);
   const statsNote = cloverStats
     ? `Sales & orders from Clover — register + online · updated ${new Date(cloverStats.generatedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}`
     : cloverStatsError
@@ -232,6 +297,14 @@ function Dashboard({ staff }: { staff: StaffMember }) {
     if (next === "products" && productSearch !== undefined) setInventorySearch(productSearch);
     setSection(next);
   };
+  const bannerOrders = incoming.map((id) => orders.find((o) => o.id === id)).filter((o): o is Order => Boolean(o && o.status === "new"));
+
+  // Tapping a count in the top bar jumps to that column of the board.
+  const openColumn = (col: "new" | "preparing" | "ready") => {
+    if (section !== "orders") setSection("orders");
+    setTimeout(() => document.getElementById(`col-${col}`)?.scrollIntoView({ behavior: "smooth", block: "start" }), 60);
+  };
+
   const signOut = () =>
     viewingAs ? returnToOwner().finally(() => window.location.reload()) : turnOffAlerts().finally(() => signOutStaff());
 
@@ -240,23 +313,25 @@ function Dashboard({ staff }: { staff: StaffMember }) {
       {/* Top bar */}
       <header className="sticky top-0 z-30 border-b-2 border-ink bg-bodega-tiles text-white">
         <div className="flex h-16 items-center gap-3 px-4 sm:px-6">
-          <button type="button" onClick={() => setSection("today")} className="flex items-center gap-3" aria-label="Dashboard home">
+          <button type="button" onClick={() => setSection("orders")} className="flex shrink-0 items-center gap-3" aria-label="Live orders">
             <SkylineWordmark className="h-10 w-auto text-white" />
             <span className="rounded-full border-2 border-ink bg-gold px-2.5 py-0.5 font-mono text-[0.6rem] font-bold uppercase tracking-widest text-gold-ink">
               Staff
             </span>
           </button>
+          {!loading && <OrderCounts orders={orders} onOpen={openColumn} className="ml-2 hidden md:flex" />}
           <div className="ml-auto flex items-center gap-2 sm:gap-3">
+            <SoundButton on={chime.soundOn} onToggle={chime.toggle} />
             {isSupabaseConfigured && !loading && (
               <span
                 title={live ? "Updates appear the moment they happen" : "Connected"}
-                className="hidden items-center gap-1.5 rounded-full border border-white/30 px-3 py-1 font-mono text-[0.6rem] font-bold uppercase tracking-widest text-white/85 sm:flex"
+                className="hidden items-center gap-1.5 rounded-full border border-white/30 px-3 py-1 font-mono text-[0.6rem] font-bold uppercase tracking-widest text-white/85 xl:flex"
               >
                 <span className={`h-2 w-2 rounded-full ${live ? "animate-pulse bg-gold" : "bg-white/50"}`} />
                 {live ? "Live" : "Connected"}
               </span>
             )}
-            <span className="hidden text-right leading-tight md:block">
+            <span className="hidden text-right leading-tight xl:block">
               <span className="block font-body text-sm font-semibold">{staff.name || staff.email}</span>
               <span className="block font-mono text-[0.6rem] uppercase tracking-widest text-white/65">{isOwner ? "Owner" : "Staff"}</span>
             </span>
@@ -268,7 +343,23 @@ function Dashboard({ staff }: { staff: StaffMember }) {
             </button>
           </div>
         </div>
+        {/* Phone: live order counts on their own row */}
+        {!loading && (
+          <div className="overflow-x-auto border-t border-white/15 px-4 py-2 md:hidden">
+            <OrderCounts orders={orders} onOpen={openColumn} />
+          </div>
+        )}
       </header>
+
+      <NewOrderBanner
+        orders={bannerOrders}
+        onStart={(o) => handleStatusChange(o.id, "preparing")}
+        onView={() => {
+          setIncoming([]);
+          setSection("orders");
+        }}
+        onDismiss={() => setIncoming([])}
+      />
 
       {viewingAs && (
         <div className="flex flex-wrap items-center justify-between gap-3 border-b-2 border-ink bg-gold px-4 py-2.5 sm:px-6">

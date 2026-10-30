@@ -88,6 +88,15 @@ export async function dispatchOrderToUber(orderId: string): Promise<DispatchResu
       uber_error: null,
     })
     .eq("id", orderId);
+  // Uber's time estimates — saved separately so a database without the
+  // newer columns (supabase/order-stages.sql) never blocks the main update.
+  if (d.pickup_eta || d.dropoff_eta) {
+    await admin
+      .from("orders")
+      .update({ uber_pickup_eta: d.pickup_eta ?? null, uber_dropoff_eta: d.dropoff_eta ?? null })
+      .eq("id", orderId)
+      .then(() => {}, () => {});
+  }
 
   // Text the customer their live tracking link (best-effort).
   let texted = false;
