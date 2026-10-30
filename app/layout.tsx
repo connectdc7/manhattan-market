@@ -32,7 +32,6 @@ export const metadata: Metadata = {
     "convenience store Adams Morgan",
     "grocery delivery Cleveland Park",
     "convenience store delivery Washington DC 20008",
-    "beer and wine Woodley Park",
     "snacks delivery Adams Morgan",
     "convenience store Kalorama",
     "convenience store Van Ness",

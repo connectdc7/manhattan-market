@@ -22,11 +22,19 @@ const STATUS_LABEL: Record<OrderStatus, string> = {
   completed: "Completed",
 };
 
-const STATUS_BADGE: Record<OrderStatus, string> = {
+// Coloured strip across the top of each order card.
+const STATUS_BAR: Record<OrderStatus, string> = {
+  new: "bg-pink-deep text-white",
+  preparing: "bg-gold text-gold-ink",
+  ready: "bg-green text-white",
+  completed: "bg-panel text-ink-soft",
+};
+
+// The big next-step button, coloured for the stage it moves the order to.
+const NEXT_BUTTON: Partial<Record<OrderStatus, string>> = {
   new: "bg-gold text-gold-ink",
-  preparing: "bg-panel text-ink-soft border border-line",
-  ready: "bg-green-tint text-green-deep",
-  completed: "bg-line text-ink-soft",
+  preparing: "bg-green text-white",
+  ready: "bg-ink text-white",
 };
 
 const NEXT_STATUS: Partial<Record<OrderStatus, OrderStatus>> = {
@@ -36,8 +44,8 @@ const NEXT_STATUS: Partial<Record<OrderStatus, OrderStatus>> = {
 };
 
 const NEXT_LABEL: Partial<Record<OrderStatus, string>> = {
-  new: "Start Preparing",
-  preparing: "Mark Ready",
+  new: "Start preparing",
+  preparing: "Mark ready",
   ready: "Complete",
 };
 
@@ -174,177 +182,208 @@ export default function OrdersPanel({
 
   const activeCount = orders.filter((o) => o.status !== "completed").length;
 
+  const newCount = orders.filter((o) => o.status === "new").length;
+
   return (
     <div>
-      <div className="flex flex-wrap gap-2">
+      <div className="inline-flex rounded-full border-2 border-ink bg-paper p-1">
         {(
           [
-            ["active", `Active (${activeCount})`],
-            ["completed", "Completed"],
-            ["all", "All"],
+            ["active", "Active", activeCount],
+            ["completed", "Completed", null],
+            ["all", "All", null],
           ] as const
-        ).map(([key, label]) => (
+        ).map(([key, label, n]) => (
           <button
             key={key}
             onClick={() => setView(key)}
-            className={`rounded-full border px-3.5 py-1.5 font-mono text-xs font-semibold transition ${
-              view === key
-                ? "border-green bg-green text-white"
-                : "border-line text-ink-soft hover:border-green hover:text-green"
+            className={`flex items-center gap-1.5 rounded-full px-4 py-1.5 font-body text-sm font-semibold transition ${
+              view === key ? "bg-ink text-white" : "text-ink-soft hover:text-ink"
             }`}
           >
             {label}
+            {n !== null && <span className={`font-mono text-xs ${view === key ? "text-gold" : ""}`}>{n}</span>}
           </button>
         ))}
       </div>
+      {view === "active" && newCount > 0 && (
+        <p className="mt-3 font-body text-sm text-ink-soft">
+          <span className="font-semibold text-pink-deep">{newCount} new</span> — tap <span className="font-semibold text-ink">Start preparing</span> so the
+          customer knows it&apos;s being packed.
+        </p>
+      )}
 
       {shown.length === 0 ? (
-        <p className="mt-6 font-body text-sm text-ink-soft">
-          {view === "active" ? "No active orders." : view === "completed" ? "Nothing completed yet." : "No orders placed yet."}
-        </p>
+        <div className="mt-5 rounded-2xl border-2 border-dashed border-line px-4 py-12 text-center">
+          <p className="font-poster text-2xl uppercase text-ink">
+            {view === "active" ? "All caught up" : view === "completed" ? "Nothing completed yet" : "No orders yet"}
+          </p>
+          <p className="mt-1 font-body text-sm text-ink-soft">
+            {view === "active" ? "New online orders show up here the moment they're paid." : "Online orders will be listed here."}
+          </p>
+        </div>
       ) : (
-        <div className="mt-4 flex flex-col gap-3">
+        <div className="mt-4 grid grid-cols-[minmax(0,1fr)] items-start gap-3 lg:grid-cols-2">
           {shown.map((o) => {
             const next = NEXT_STATUS[o.status];
             const prev = PREV_STATUS[o.status];
+            const itemCount = o.items.reduce((n, i) => n + i.qty, 0);
             return (
               <div
                 key={o.id}
-                className={`rounded-lg border border-line p-4 ${o.status === "completed" ? "opacity-60" : ""}`}
+                className={`flex flex-col overflow-hidden rounded-2xl border-2 border-ink bg-paper ${o.status === "completed" ? "opacity-70" : ""} ${
+                  o.status === "new" ? "shadow-[4px_4px_0_var(--pink-deep)]" : ""
+                }`}
               >
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div className="flex items-center gap-2">
-                    <span
-                      className={`rounded-full px-2.5 py-0.5 font-mono text-[0.65rem] font-semibold uppercase tracking-wide ${STATUS_BADGE[o.status]}`}
-                    >
-                      {STATUS_LABEL[o.status]}
-                    </span>
-                    <span
-                      className={`rounded-full px-2.5 py-0.5 font-mono text-[0.65rem] font-semibold uppercase tracking-wide ${
-                        o.fulfillment === "delivery" ? "bg-green-tint text-green-deep" : "bg-panel text-ink-soft"
-                      }`}
-                    >
-                      {o.fulfillment}
-                    </span>
-                    <span className="font-mono text-xs text-ink-soft">{timeAgo(o.created_at)}</span>
+                <div className={`flex items-center justify-between gap-2 border-b-2 border-ink px-4 py-2.5 ${STATUS_BAR[o.status]}`}>
+                  <span className="flex items-center gap-2 font-mono text-[0.68rem] font-bold uppercase tracking-widest">
+                    {o.status === "new" && <span className="h-2 w-2 animate-pulse rounded-full bg-current" />}
+                    {STATUS_LABEL[o.status]}
+                  </span>
+                  <span className="font-mono text-[0.68rem] font-bold uppercase tracking-wide">
+                    {o.fulfillment === "delivery" ? "🛵 Delivery" : "🛍 Pickup"} · {timeAgo(o.created_at)}
+                  </span>
+                </div>
+
+                <div className="flex flex-1 flex-col px-4 py-3">
+                  <div className="flex items-baseline justify-between gap-3">
+                    <p className="font-poster text-2xl uppercase leading-none text-ink">#{o.id.slice(0, 6).toUpperCase()}</p>
+                    <p className="font-mono text-lg font-bold text-ink">${o.subtotal.toFixed(2)}</p>
+                  </div>
+                  <div className="mt-1.5 flex flex-wrap gap-1.5">
+                    {o.contains_alcohol && (
+                      <span className="rounded-full bg-ink px-2.5 py-0.5 font-mono text-[0.6rem] font-bold uppercase tracking-wide text-white">
+                        21+ · Check ID
+                      </span>
+                    )}
                     {o.clover_order_id && (
                       <span className="rounded-full border border-line px-2.5 py-0.5 font-mono text-[0.6rem] font-semibold uppercase tracking-wide text-ink-soft">
                         On Clover
                       </span>
                     )}
-                    {o.contains_alcohol && (
-                      <span className="rounded-full bg-ink px-2.5 py-0.5 font-mono text-[0.6rem] font-semibold uppercase tracking-wide text-white">
-                        21+ · Check ID
-                      </span>
-                    )}
                     {o.discount_code && (
-                      <span className="rounded-full bg-pink-tint px-2.5 py-0.5 font-mono text-[0.6rem] font-semibold uppercase tracking-wide text-pink-deep">
+                      <span className="rounded-full bg-pink-tint px-2.5 py-0.5 font-mono text-[0.6rem] font-bold uppercase tracking-wide text-pink-deep">
                         {o.discount_code} −${Number(o.discount_amount ?? 0).toFixed(2)}
                       </span>
                     )}
                     {o.refund_status && (
-                      <span className="rounded-full bg-[#a8461a]/10 px-2.5 py-0.5 font-mono text-[0.6rem] font-semibold uppercase tracking-wide text-[#a8461a]">
+                      <span className="rounded-full bg-[#a8461a]/10 px-2.5 py-0.5 font-mono text-[0.6rem] font-bold uppercase tracking-wide text-[#a8461a]">
                         {o.refund_status === "full" ? "Refunded" : "Partly refunded"} ${Number(o.refunded_amount ?? 0).toFixed(2)}
                       </span>
                     )}
                   </div>
-                  <span className="font-mono text-sm font-semibold text-ink">${o.subtotal.toFixed(2)}</span>
-                </div>
-                <p className="mt-2 font-body text-sm text-ink-soft">
-                  {o.items.map((it) => `${it.name} × ${it.qty}`).join(", ")}
-                </p>
-                {o.fulfillment === "delivery" && o.delivery_address && (
-                  <div className="mt-2 rounded border border-line bg-panel px-3 py-2 font-body text-xs text-ink">
-                    <p>
-                      <span className="font-semibold">{o.delivery_address.name}</span> · {o.delivery_address.street}
-                      {o.delivery_address.apt ? `, ${o.delivery_address.apt}` : ""}, {o.delivery_address.city}{" "}
-                      {o.delivery_address.zip}
-                      {o.delivery_fee ? <span className="text-ink-soft"> · paid ${o.delivery_fee.toFixed(2)} delivery</span> : null}
-                      {o.service_fee ? <span className="text-ink-soft"> + ${o.service_fee.toFixed(2)} service fee</span> : null}
-                    </p>
-                    {o.delivery_address.notes && <p className="mt-0.5 text-ink-soft">“{o.delivery_address.notes}”</p>}
-                    {o.uber_status && (
-                      <p className="mt-1 font-mono text-[0.65rem] font-semibold uppercase tracking-wide text-green-deep">
-                        Uber: {UBER_LABEL[o.uber_status] ?? o.uber_status}
-                        {o.uber_courier?.name ? ` · ${o.uber_courier.name}` : ""}
-                        {o.uber_courier?.vehicle_type ? ` (${o.uber_courier.vehicle_type})` : ""}
-                        {o.uber_tracking_url && (
-                          <>
-                            {" · "}
-                            <a href={o.uber_tracking_url} target="_blank" rel="noreferrer" className="underline">
-                              Track
-                            </a>
-                          </>
-                        )}
-                      </p>
-                    )}
-                    {!uberResult[o.id] && o.uber_error && !(o.uber_status && o.uber_status !== "canceled") && (
-                      <p className="mt-1 text-[#a8461a]">Uber: {o.uber_error}</p>
-                    )}
-                    {uberResult[o.id] && <p className="mt-1 text-ink-soft">{uberResult[o.id]}</p>}
-                  </div>
-                )}
-                {o.phone && (
-                  <p className="mt-1 font-mono text-[0.65rem] uppercase tracking-wide text-ink-soft">
-                    {o.phone} — {o.fulfillment === "delivery" ? "texted a tracking link when the courier is booked" : "texted when marked Ready"}
+
+                  {/* What to pack */}
+                  <ul className="mt-3 divide-y divide-line rounded-xl border border-line bg-panel">
+                    {o.items.map((it, idx) => (
+                      <li key={`${it.id}-${idx}`} className="flex items-start gap-3 px-3 py-2 font-body text-sm text-ink">
+                        <span className="w-8 shrink-0 font-mono font-bold">{it.qty}×</span>
+                        <span className="flex-1">{it.name}</span>
+                      </li>
+                    ))}
+                  </ul>
+                  <p className="mt-1 font-mono text-[0.6rem] uppercase tracking-wide text-ink-soft">
+                    {itemCount} item{itemCount === 1 ? "" : "s"} to pack
                   </p>
-                )}
-                {cloverConnected && !o.clover_order_id && o.clover_push_error && !sendResult[o.id] && (
-                  <p className="mt-1 font-body text-xs text-[#a8461a]">Clover: {o.clover_push_error}</p>
-                )}
-                {sendResult[o.id] && <p className="mt-1 font-body text-xs text-ink-soft">{sendResult[o.id]}</p>}
-                <div className="mt-3 flex flex-wrap items-center gap-3">
-                  {next && (
-                    <button
-                      onClick={() => advance(o, next)}
-                      className="rounded-full bg-green px-3.5 py-1.5 font-mono text-xs font-semibold text-white transition hover:bg-green-deep"
-                    >
-                      {NEXT_LABEL[o.status]}
-                    </button>
+
+                  {o.fulfillment === "delivery" && o.delivery_address && (
+                    <div className="mt-3 rounded-xl border border-line px-3 py-2 font-body text-xs text-ink">
+                      <p>
+                        <span className="font-semibold">{o.delivery_address.name}</span> · {o.delivery_address.street}
+                        {o.delivery_address.apt ? `, ${o.delivery_address.apt}` : ""}, {o.delivery_address.city} {o.delivery_address.zip}
+                        {o.delivery_fee ? <span className="text-ink-soft"> · paid ${o.delivery_fee.toFixed(2)} delivery</span> : null}
+                        {o.service_fee ? <span className="text-ink-soft"> + ${o.service_fee.toFixed(2)} service fee</span> : null}
+                      </p>
+                      {o.delivery_address.notes && <p className="mt-0.5 text-ink-soft">“{o.delivery_address.notes}”</p>}
+                      {o.uber_status && (
+                        <p className="mt-1 font-mono text-[0.65rem] font-semibold uppercase tracking-wide text-green-deep">
+                          Uber: {UBER_LABEL[o.uber_status] ?? o.uber_status}
+                          {o.uber_courier?.name ? ` · ${o.uber_courier.name}` : ""}
+                          {o.uber_courier?.vehicle_type ? ` (${o.uber_courier.vehicle_type})` : ""}
+                          {o.uber_tracking_url && (
+                            <>
+                              {" · "}
+                              <a href={o.uber_tracking_url} target="_blank" rel="noreferrer" className="underline">
+                                Track
+                              </a>
+                            </>
+                          )}
+                        </p>
+                      )}
+                      {!uberResult[o.id] && o.uber_error && !(o.uber_status && o.uber_status !== "canceled") && (
+                        <p className="mt-1 text-[#a8461a]">Uber: {o.uber_error}</p>
+                      )}
+                      {uberResult[o.id] && <p className="mt-1 text-ink-soft">{uberResult[o.id]}</p>}
+                    </div>
                   )}
-                  {o.fulfillment === "delivery" &&
-                    (o.status === "ready" || o.status === "preparing") &&
-                    (!o.uber_delivery_id || o.uber_status === "canceled" || o.uber_status === "returned") && (
+                  {o.phone && (
+                    <p className="mt-2 font-body text-xs text-ink-soft">
+                      <a href={`tel:${o.phone}`} className="font-mono font-semibold text-ink hover:text-green">
+                        {o.phone}
+                      </a>{" "}
+                      — {o.fulfillment === "delivery" ? "texted a tracking link when the courier is booked" : "texted when marked Ready"}
+                    </p>
+                  )}
+                  {cloverConnected && !o.clover_order_id && o.clover_push_error && !sendResult[o.id] && (
+                    <p className="mt-1 font-body text-xs text-[#a8461a]">Clover: {o.clover_push_error}</p>
+                  )}
+                  {sendResult[o.id] && <p className="mt-1 font-body text-xs text-ink-soft">{sendResult[o.id]}</p>}
+
+                  <div className="mt-auto flex flex-wrap items-center gap-2 pt-4">
+                    {next && (
                       <button
-                        onClick={() => requestCourier(o.id)}
-                        disabled={uberBusy === o.id}
-                        className="rounded-full border border-line px-3.5 py-1.5 font-mono text-xs font-semibold text-ink-soft transition hover:border-green hover:text-green disabled:opacity-60"
+                        onClick={() => advance(o, next)}
+                        className={`min-w-[10rem] flex-1 rounded-full border-2 border-ink py-3 font-mono text-sm font-bold uppercase tracking-wide transition hover:-translate-y-0.5 active:translate-y-0 ${NEXT_BUTTON[o.status]}`}
                       >
-                        {uberBusy === o.id ? "Requesting…" : "Request courier"}
+                        {o.status === "ready" ? (o.fulfillment === "delivery" ? "Out with courier · done" : "Picked up · done") : NEXT_LABEL[o.status]}
                       </button>
                     )}
-                  {o.uber_delivery_id && (o.uber_status === "pending" || o.uber_status === "pickup") && (
-                    <button
-                      onClick={() => cancelCourier(o.id)}
-                      disabled={uberBusy === o.id}
-                      className="font-mono text-[0.65rem] uppercase tracking-wide text-ink-soft hover:text-[#a8461a]"
-                    >
-                      Cancel courier
-                    </button>
-                  )}
-                  {cloverConnected && !o.clover_order_id && o.status !== "completed" && (
-                    <button
-                      onClick={() => sendToClover(o.id)}
-                      disabled={sending === o.id}
-                      className="rounded-full border border-line px-3.5 py-1.5 font-mono text-xs font-semibold text-ink-soft transition hover:border-green hover:text-green disabled:opacity-60"
-                    >
-                      {sending === o.id ? "Sending…" : "Send to Clover"}
-                    </button>
-                  )}
-                  {prev && (
-                    <button
-                      onClick={() => onStatusChange(o.id, prev)}
-                      className="font-mono text-[0.65rem] uppercase tracking-wide text-ink-soft hover:text-ink"
-                    >
-                      ← Back to {STATUS_LABEL[prev]}
-                    </button>
+                    {o.fulfillment === "delivery" &&
+                      (o.status === "ready" || o.status === "preparing") &&
+                      (!o.uber_delivery_id || o.uber_status === "canceled" || o.uber_status === "returned") && (
+                        <button
+                          onClick={() => requestCourier(o.id)}
+                          disabled={uberBusy === o.id}
+                          className="rounded-full border-2 border-ink px-4 py-2.5 font-mono text-xs font-bold uppercase tracking-wide text-ink transition hover:bg-gold disabled:opacity-60"
+                        >
+                          {uberBusy === o.id ? "Requesting…" : "Request courier"}
+                        </button>
+                      )}
+                    {cloverConnected && !o.clover_order_id && o.status !== "completed" && (
+                      <button
+                        onClick={() => sendToClover(o.id)}
+                        disabled={sending === o.id}
+                        className="rounded-full border-2 border-line px-4 py-2.5 font-mono text-xs font-bold uppercase tracking-wide text-ink-soft transition hover:border-ink hover:text-ink disabled:opacity-60"
+                      >
+                        {sending === o.id ? "Sending…" : "Send to Clover"}
+                      </button>
+                    )}
+                  </div>
+                  <div className="mt-2 flex flex-wrap items-center gap-4">
+                    {prev && (
+                      <button
+                        onClick={() => onStatusChange(o.id, prev)}
+                        className="font-mono text-[0.65rem] uppercase tracking-wide text-ink-soft hover:text-ink"
+                      >
+                        ← Back to {STATUS_LABEL[prev]}
+                      </button>
+                    )}
+                    {o.uber_delivery_id && (o.uber_status === "pending" || o.uber_status === "pickup") && (
+                      <button
+                        onClick={() => cancelCourier(o.id)}
+                        disabled={uberBusy === o.id}
+                        className="font-mono text-[0.65rem] uppercase tracking-wide text-ink-soft hover:text-[#a8461a]"
+                      >
+                        Cancel courier
+                      </button>
+                    )}
+                  </div>
+                  {isOwner && (o.stripe_session_id || o.clover_payment_id) && (
+                    <div className="mt-2">
+                      <RefundBox order={o} onDone={() => onRefunded?.()} />
+                    </div>
                   )}
                 </div>
-                {isOwner && (o.stripe_session_id || o.clover_payment_id) && (
-                  <div className="mt-2">
-                    <RefundBox order={o} onDone={() => onRefunded?.()} />
-                  </div>
-                )}
               </div>
             );
           })}

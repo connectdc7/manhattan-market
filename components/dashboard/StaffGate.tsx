@@ -6,6 +6,7 @@
 // Security (supabase/staff-login.sql) — this is the front door.
 import { ReactNode, useEffect, useState } from "react";
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
+import { SkylineWordmark } from "@/components/Logo";
 import {
   getMyStaffRecord,
   sendPasswordReset,
@@ -21,10 +22,10 @@ type GateState =
   | { kind: "staff"; staff: StaffMember };
 
 export const inputClass =
-  "rounded border border-line bg-paper px-3 py-2 font-body text-sm text-ink outline-none focus:border-green";
+  "rounded-xl border-2 border-line bg-paper px-3 py-2.5 font-body text-sm text-ink outline-none focus:border-ink";
 export const labelClass = "font-mono text-[0.65rem] uppercase tracking-wide text-ink-soft";
 const primaryButton =
-  "w-full rounded-full bg-green px-4 py-2.5 font-mono text-xs font-semibold text-white transition hover:bg-green-deep disabled:opacity-60";
+  "w-full rounded-full border-2 border-ink bg-green px-4 py-3 font-mono text-xs font-bold uppercase tracking-wide text-white transition hover:bg-green-deep disabled:opacity-60";
 
 export default function StaffGate({ children }: { children: (staff: StaffMember) => ReactNode }) {
   const [state, setState] = useState<GateState>({ kind: "loading" });
@@ -73,8 +74,8 @@ export default function StaffGate({ children }: { children: (staff: StaffMember)
 
   if (state.kind === "loading") {
     return (
-      <div className="mx-auto max-w-5xl px-5 py-12">
-        <p className="font-mono text-xs uppercase tracking-wide text-ink-soft">Loading…</p>
+      <div className="flex min-h-screen items-center justify-center bg-bodega-tiles">
+        <p className="font-mono text-xs font-bold uppercase tracking-widest text-white/80">Loading…</p>
       </div>
     );
   }
@@ -101,9 +102,14 @@ export default function StaffGate({ children }: { children: (staff: StaffMember)
 
 function Shell({ children }: { children: ReactNode }) {
   return (
-    <div className="mx-auto max-w-sm px-5 py-16">
-      <p className="eyebrow text-green">Staff Only</p>
-      <div className="mt-3 rounded-lg border border-line bg-panel p-6">{children}</div>
+    <div className="min-h-screen bg-bodega-tiles px-5 py-12 sm:py-20">
+      <div className="mx-auto max-w-sm">
+        <div className="flex items-center justify-center gap-3 text-white">
+          <SkylineWordmark className="h-14 w-auto text-white" />
+        </div>
+        <p className="mt-4 text-center font-mono text-[0.65rem] font-bold uppercase tracking-widest text-gold">Staff dashboard</p>
+        <div className="mt-4 rounded-2xl border-2 border-ink bg-paper p-6 shadow-sticker">{children}</div>
+      </div>
     </div>
   );
 }

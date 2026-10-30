@@ -10,7 +10,7 @@ import { NEIGHBORHOODS } from "@/lib/site";
 
 export const metadata: Metadata = {
   title: "Order Online — Pickup or Delivery in Woodley Park & Cleveland Park",
-  description: `Order snacks, drinks, groceries, wine & beer and everyday essentials from Manhattan Market online. Pickup in about 15 minutes at 2647 Connecticut Ave NW, or delivery by Uber to ${NEIGHBORHOODS.slice(0, 5).join(", ")} and nearby DC neighborhoods.`,
+  description: `Order snacks, drinks, groceries and everyday essentials from Manhattan Market online. Pickup in about 15 minutes at 2647 Connecticut Ave NW, or delivery by Uber to ${NEIGHBORHOODS.slice(0, 5).join(", ")} and nearby DC neighborhoods.`,
   alternates: {
     canonical: "/order",
   },
@@ -50,7 +50,7 @@ export default async function OrderPage({ searchParams }: PageProps<"/order">) {
         subtitle="Everything below is in stock on our shelves right now. Pick it up at the counter in about 15 minutes, or have it delivered by Uber."
       >
         <div className="flex flex-wrap gap-2">
-          {["Ready in ~15 min", "Delivered by Uber", "Wine & beer for pickup (21+)"].map((t) => (
+          {["Ready in ~15 min", "Delivered by Uber", categories.some((c) => c.ageRestricted) ? "Wine & beer for pickup (21+)" : "Open 9am–9pm daily"].map((t) => (
             <span
               key={t}
               className="rounded-full border border-white/30 bg-white/10 px-3.5 py-1.5 font-mono text-[0.68rem] font-bold uppercase tracking-wide text-white"

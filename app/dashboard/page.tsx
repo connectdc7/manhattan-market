@@ -7,8 +7,6 @@ import { getOrders, updateOrderStatus, notifyOrderReady, Order, OrderStatus } fr
 import { getHeroEffect, getHeroMedia, HeroEffect, HeroMedia } from "@/lib/hero";
 import { isSupabaseConfigured } from "@/lib/supabase";
 import { subscribeToDashboardChanges } from "@/lib/realtime";
-import StatTile from "@/components/dashboard/StatTile";
-import TileDetails, { TileKey } from "@/components/dashboard/TileDetails";
 import type { CloverSale } from "@/lib/clover-stats";
 import InventoryPanel from "@/components/dashboard/InventoryPanel";
 import OrdersPanel from "@/components/dashboard/OrdersPanel";
@@ -18,12 +16,15 @@ import GalleryPanel from "@/components/dashboard/GalleryPanel";
 import StaffPanel from "@/components/dashboard/StaffPanel";
 import SettingsPanel from "@/components/dashboard/SettingsPanel";
 import StaffGate from "@/components/dashboard/StaffGate";
-import OrderAlerts from "@/components/dashboard/OrderAlerts";
+import TodayPanel from "@/components/dashboard/TodayPanel";
+import StoreSetupPanel from "@/components/dashboard/StoreSetupPanel";
+import { BottomNav, Section, sectionsFor, SECTIONS, SideNav } from "@/components/dashboard/DashboardNav";
+import { SkylineWordmark } from "@/components/Logo";
+import { getStoreStatus } from "@/lib/store-hours";
 import { turnOffAlerts } from "@/lib/push-client";
 import { returnToOwner, signOutStaff, staffFetch, StaffMember, viewingAsStaff } from "@/lib/staff-auth";
 import type { CloverStats } from "@/lib/clover-stats";
 
-type Tab = "orders" | "inventory" | "analytics" | "homepage" | "gallery" | "staff" | "settings";
 
 function isToday(iso: string) {
   const d = new Date(iso);
@@ -41,7 +42,23 @@ export default function DashboardPage() {
 }
 
 function Dashboard({ staff }: { staff: StaffMember }) {
-  const [tab, setTab] = useState<Tab>("orders");
+  const isOwner = staff.role === "owner";
+  // Which page of the dashboard is open — kept in the address (#orders) so a
+  // refresh or the phone's back button stays put.
+  const [section, setSectionState] = useState<Section>(() => {
+    if (typeof window === "undefined") return "today";
+    const fromHash = window.location.hash.slice(1) as Section;
+    return sectionsFor(isOwner).some((s) => s.key === fromHash) ? fromHash : "today";
+  });
+  const setSection = (next: Section) => {
+    setSectionState(next);
+    try {
+      window.history.replaceState(null, "", `#${next}`);
+    } catch {
+      // ignore
+    }
+    window.scrollTo({ top: 0 });
+  };
   // Set when an owner opened this dashboard "as" a staff member (Staff tab).
   const [viewingAs] = useState(() => viewingAsStaff());
   const [products, setProducts] = useState<Product[]>([]);
@@ -56,9 +73,7 @@ function Dashboard({ staff }: { staff: StaffMember }) {
   // case the tiles fall back to the website's own orders.
   const [cloverStats, setCloverStats] = useState<CloverStats | null>(null);
   const [cloverStatsError, setCloverStatsError] = useState<string | null>(null);
-  // Which stat tile's drop-down is open, if any.
-  const [openTile, setOpenTile] = useState<TileKey | null>(null);
-  // Set when "Open in Inventory" is clicked from the Low Stock drop-down.
+  // Set when a search is started from Today (or "Open in Products").
   const [inventorySearch, setInventorySearch] = useState("");
 
   useEffect(() => {
@@ -164,8 +179,9 @@ function Dashboard({ staff }: { staff: StaffMember }) {
   // Units sold per product over the last 7 days, in units/day — lets the
   // Inventory tab flag a fast-moving item before it hits a fixed low-stock
   // threshold, instead of only after.
+  const [openedAt] = useState(() => Date.now());
   const salesVelocity = useMemo(() => {
-    const cutoff = Date.now() - 7 * 24 * 60 * 60 * 1000;
+    const cutoff = openedAt - 7 * 24 * 60 * 60 * 1000;
     const unitsByProduct: Record<string, number> = {};
     for (const o of orders) {
       if (new Date(o.created_at).getTime() < cutoff) continue;
@@ -178,14 +194,13 @@ function Dashboard({ staff }: { staff: StaffMember }) {
       velocity[id] = units / 7;
     }
     return velocity;
-  }, [orders]);
+  }, [orders, openedAt]);
 
   const ordersToday = orders.filter((o) => isToday(o.created_at));
   const websiteSalesToday = ordersToday.reduce((sum, o) => sum + o.subtotal, 0);
   const salesToday = cloverStats ? cloverStats.salesToday : websiteSalesToday;
   const ordersTodayCount = cloverStats ? cloverStats.ordersToday : ordersToday.length;
   const lowStockProducts = products.filter((p) => p.stock > 0 && p.stock <= 3);
-  const lowStockCount = lowStockProducts.length;
 
   // What the Sales/Orders Today drop-down lists: Clover's sales when
   // connected, otherwise today's website orders in the same shape.
@@ -200,173 +215,172 @@ function Dashboard({ staff }: { staff: StaffMember }) {
         note: null,
         items: o.items.map((i) => ({ name: i.name, qty: i.qty, price: Number(i.price), refunded: false })),
       }));
-  const toggleTile = (key: TileKey) => setOpenTile((cur) => (cur === key ? null : key));
-  const activeOrderCount = orders.filter((o) => o.status !== "completed").length;
+  const activeOrders = orders.filter((o) => o.status !== "completed");
+  const newOrders = activeOrders.filter((o) => o.status === "new").length;
+  const statsNote = cloverStats
+    ? `Sales & orders from Clover — register + online · updated ${new Date(cloverStats.generatedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}`
+    : cloverStatsError
+      ? `Couldn't load Clover sales (${cloverStatsError}) — showing website orders only`
+      : "Sales & orders from website orders";
+
+  const meta = SECTIONS.find((s) => s.key === section) ?? SECTIONS[0];
+  const firstName = (staff.name || staff.email || "").split(/[\s@]/)[0];
+  const hour = new Date().getHours();
+  const greeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
+  const store = getStoreStatus();
+  const goTo = (next: Section, productSearch?: string) => {
+    if (next === "products" && productSearch !== undefined) setInventorySearch(productSearch);
+    setSection(next);
+  };
+  const signOut = () =>
+    viewingAs ? returnToOwner().finally(() => window.location.reload()) : turnOffAlerts().finally(() => signOutStaff());
 
   return (
-    <div className="mx-auto max-w-5xl px-5 py-12">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <p className="eyebrow text-green">Staff Only</p>
-          <h1 className="mt-2 font-display text-3xl font-bold text-ink sm:text-4xl">Employee Dashboard</h1>
-        </div>
-        <div className="flex items-center gap-2">
-          {isSupabaseConfigured && !loading && (
-            <span className="flex items-center gap-1.5 rounded-full border border-line px-3 py-1 font-mono text-[0.65rem] font-semibold uppercase tracking-wide text-ink-soft">
-              <span className={`h-1.5 w-1.5 rounded-full ${live ? "bg-green" : "bg-line"}`} />
-              {live ? "Live" : "Connected"}
+    <div className="min-h-screen bg-panel">
+      {/* Top bar */}
+      <header className="sticky top-0 z-30 border-b-2 border-ink bg-bodega-tiles text-white">
+        <div className="flex h-16 items-center gap-3 px-4 sm:px-6">
+          <button type="button" onClick={() => setSection("today")} className="flex items-center gap-3" aria-label="Dashboard home">
+            <SkylineWordmark className="h-10 w-auto text-white" />
+            <span className="rounded-full border-2 border-ink bg-gold px-2.5 py-0.5 font-mono text-[0.6rem] font-bold uppercase tracking-widest text-gold-ink">
+              Staff
             </span>
-          )}
-          <button
-            onClick={() =>
-              viewingAs
-                ? returnToOwner().finally(() => window.location.reload())
-                : turnOffAlerts().finally(() => signOutStaff())
-            }
-            className="rounded-full border border-line px-3.5 py-1.5 font-mono text-xs font-semibold text-ink-soft transition hover:border-green hover:text-green"
-          >
-            {viewingAs ? "Back to my account" : "Sign out"}
           </button>
+          <div className="ml-auto flex items-center gap-2 sm:gap-3">
+            {isSupabaseConfigured && !loading && (
+              <span
+                title={live ? "Updates appear the moment they happen" : "Connected"}
+                className="hidden items-center gap-1.5 rounded-full border border-white/30 px-3 py-1 font-mono text-[0.6rem] font-bold uppercase tracking-widest text-white/85 sm:flex"
+              >
+                <span className={`h-2 w-2 rounded-full ${live ? "animate-pulse bg-gold" : "bg-white/50"}`} />
+                {live ? "Live" : "Connected"}
+              </span>
+            )}
+            <span className="hidden text-right leading-tight md:block">
+              <span className="block font-body text-sm font-semibold">{staff.name || staff.email}</span>
+              <span className="block font-mono text-[0.6rem] uppercase tracking-widest text-white/65">{isOwner ? "Owner" : "Staff"}</span>
+            </span>
+            <button
+              onClick={signOut}
+              className="rounded-full border-2 border-white/70 px-3.5 py-1.5 font-mono text-[0.65rem] font-bold uppercase tracking-wide text-white transition hover:border-white hover:bg-white/10"
+            >
+              {viewingAs ? "Back to me" : "Sign out"}
+            </button>
+          </div>
         </div>
-      </div>
-      <p className="mt-2 font-body text-sm text-ink-soft">
-        Signed in as <span className="font-semibold text-ink">{staff.name || staff.email}</span>
-        {staff.role === "owner" ? " · Owner" : ""}
-      </p>
+      </header>
+
       {viewingAs && (
-        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border-2 border-ink bg-gold px-4 py-3">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b-2 border-ink bg-gold px-4 py-2.5 sm:px-6">
           <p className="font-body text-sm font-semibold text-gold-ink">
             You&apos;re viewing the dashboard as {viewingAs.viewing}. Anything you change is saved as them.
           </p>
           <button
             type="button"
             onClick={() => returnToOwner().finally(() => window.location.reload())}
-            className="rounded-full bg-ink px-4 py-2 font-mono text-xs font-bold uppercase tracking-wide text-white hover:bg-green-deep"
+            className="rounded-full bg-ink px-4 py-1.5 font-mono text-xs font-bold uppercase tracking-wide text-white hover:bg-green-deep"
           >
             Back to my account
           </button>
         </div>
       )}
-      {isSupabaseConfigured && !viewingAs && <OrderAlerts />}
 
-      {!isSupabaseConfigured ? (
-        <div className="mt-10 rounded-lg border border-line bg-panel p-8 text-center">
-          <p className="font-display text-lg font-bold text-ink">Connect Supabase to use this page</p>
-          <p className="mt-2 font-body text-sm text-ink-soft">
-            The dashboard reads and writes real data — inventory, orders and settings — so it needs Supabase configured to show anything. Follow the
-            setup steps in the README, then reload this page.
-          </p>
-        </div>
-      ) : loading ? (
-        <p className="mt-10 font-mono text-xs uppercase tracking-wide text-ink-soft">Loading dashboard…</p>
-      ) : (
-        <>
-          <div className="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-3">
-            <StatTile
-              label="Sales Today"
-              value={`$${salesToday.toFixed(2)}`}
-              onClick={() => toggleTile("sales")}
-              active={openTile === "sales"}
-            />
-            <StatTile
-              label="Orders Today"
-              value={String(ordersTodayCount)}
-              onClick={() => toggleTile("orders")}
-              active={openTile === "orders"}
-            />
-            <StatTile
-              label="Low Stock"
-              value={String(lowStockCount)}
-              tone={lowStockCount > 0 ? "warning" : "default"}
-              onClick={() => toggleTile("lowstock")}
-              active={openTile === "lowstock"}
-            />
-          </div>
+      <div className="flex">
+        {/* Side menu (tablet & computer) */}
+        <aside className="sticky top-16 hidden h-[calc(100vh-4rem)] w-60 shrink-0 border-r-2 border-ink bg-paper md:block">
+          <SideNav current={section} onSelect={setSection} isOwner={isOwner} activeOrders={activeOrders.length} newOrders={newOrders} />
+        </aside>
 
-          {openTile && (
-            <TileDetails
-              which={openTile}
-              sales={todaysSales}
-              salesSource={
-                cloverStats
-                  ? "From Clover — register and online sales. Tap a sale to see what was in it."
-                  : "From website orders only — Clover sales couldn't be loaded."
-              }
-              lowStock={lowStockProducts}
-              onOpenInInventory={(name) => {
-                setInventorySearch(name);
-                setTab("inventory");
-                setOpenTile(null);
-              }}
-              onClose={() => setOpenTile(null)}
-            />
-          )}
-          <p className="mt-2 font-mono text-[0.6rem] uppercase tracking-wide text-ink-soft">
-            {cloverStats
-              ? `Sales & orders from Clover — register + online · updated ${new Date(cloverStats.generatedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}`
-              : cloverStatsError
-                ? `Couldn't load Clover sales (${cloverStatsError}) — showing website orders only`
-                : "Sales & orders from website orders"}
-          </p>
+        <main className="min-w-0 flex-1 px-4 pb-32 pt-6 sm:px-6 md:pb-12 lg:px-10">
+          <div className="mx-auto max-w-6xl">
+            {/* Page heading */}
+            <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
+              <div>
+                {section === "today" ? (
+                  <>
+                    <p className="font-mono text-[0.65rem] font-bold uppercase tracking-widest text-green">
+                      {new Date().toLocaleDateString([], { weekday: "long", month: "long", day: "numeric" })} ·{" "}
+                      {store.isOpen ? `Open until ${store.closesAt}` : "Store closed"}
+                    </p>
+                    <h1 className="font-poster mt-1 text-4xl uppercase leading-none text-ink sm:text-5xl">
+                      {greeting}
+                      {firstName ? `, ${firstName}` : ""}
+                    </h1>
+                  </>
+                ) : (
+                  <>
+                    <p className="font-mono text-[0.65rem] font-bold uppercase tracking-widest text-green">{meta.hint}</p>
+                    <h1 className="font-poster mt-1 text-4xl uppercase leading-none text-ink sm:text-5xl">{meta.label}</h1>
+                  </>
+                )}
+              </div>
+            </div>
 
-          <div className="mt-10 flex flex-wrap gap-2 border-b border-line pb-4">
-            {(
-              [
-                ["orders", `Orders${activeOrderCount ? ` (${activeOrderCount})` : ""}`],
-                ["inventory", "Inventory"],
-                ["analytics", "Analytics"],
-                ["homepage", "Homepage"],
-                ["gallery", "Gallery"],
-                ...(staff.role === "owner"
-                  ? ([
-                      ["staff", "Staff"],
-                      ["settings", "Settings"],
-                    ] as const)
-                  : []),
-              ] as const
-            ).map(([key, label]) => (
-              <button
-                key={key}
-                onClick={() => setTab(key)}
-                className={`rounded-full px-4 py-1.5 font-mono text-xs font-semibold transition ${
-                  tab === key ? "bg-green text-white" : "text-ink-soft hover:text-green"
-                }`}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-
-          <div className="mt-6">
-            {tab === "orders" && (
-              <OrdersPanel
-                orders={orders}
-                onStatusChange={handleStatusChange}
-                isOwner={staff.role === "owner"}
-                onRefunded={loadAll}
-              />
+            {!isSupabaseConfigured ? (
+              <div className="rounded-2xl border-2 border-ink bg-paper p-8 text-center">
+                <p className="font-poster text-2xl uppercase text-ink">Connect Supabase to use this page</p>
+                <p className="mt-2 font-body text-sm text-ink-soft">
+                  The dashboard reads and writes real data — inventory, orders and settings — so it needs Supabase configured to show anything.
+                  Follow the setup steps in the README, then reload this page.
+                </p>
+              </div>
+            ) : loading ? (
+              <div className="grid grid-cols-2 gap-3 lg:grid-cols-4" aria-label="Loading dashboard">
+                {[0, 1, 2, 3].map((i) => (
+                  <div key={i} className="h-28 animate-pulse rounded-2xl border-2 border-line bg-paper" />
+                ))}
+              </div>
+            ) : (
+              <>
+                {section === "today" && (
+                  <TodayPanel
+                    showAlerts={!viewingAs}
+                    salesToday={salesToday}
+                    ordersTodayCount={ordersTodayCount}
+                    activeOrders={activeOrders}
+                    lowStock={lowStockProducts}
+                    todaysSales={todaysSales}
+                    salesSource={
+                      cloverStats
+                        ? "From Clover — register and online sales. Tap a sale to see what was in it."
+                        : "From website orders only — Clover sales couldn't be loaded."
+                    }
+                    statsNote={statsNote}
+                    onGo={goTo}
+                  />
+                )}
+                {section === "orders" && (
+                  <OrdersPanel orders={orders} onStatusChange={handleStatusChange} isOwner={isOwner} onRefunded={loadAll} />
+                )}
+                {section === "products" && (
+                  <InventoryPanel
+                    key={inventorySearch}
+                    initialSearch={inventorySearch}
+                    products={products}
+                    categories={categories}
+                    onStockSaved={handleStockSaved}
+                    onProductSaved={handleProductSaved}
+                    onProductRemoved={handleProductRemoved}
+                    onRefresh={loadAll}
+                    salesVelocity={salesVelocity}
+                    isOwner={isOwner}
+                  />
+                )}
+                {isOwner && section === "sales" && (
+                  <AnalyticsPanel orders={orders} cloverStats={cloverStats} cloverError={cloverStatsError} />
+                )}
+                {isOwner && section === "setup" && <StoreSetupPanel products={products} categories={categories} onRefresh={loadAll} />}
+                {isOwner && section === "homepage" && <HeroPanel effect={heroEffect} media={heroMedia} onRefresh={loadAll} />}
+                {isOwner && section === "gallery" && <GalleryPanel />}
+                {isOwner && section === "staff" && <StaffPanel me={staff} />}
+                {isOwner && section === "settings" && <SettingsPanel />}
+              </>
             )}
-            {tab === "inventory" && (
-              <InventoryPanel
-                key={inventorySearch}
-                initialSearch={inventorySearch}
-                products={products}
-                categories={categories}
-                onStockSaved={handleStockSaved}
-                onProductSaved={handleProductSaved}
-                onProductRemoved={handleProductRemoved}
-                onRefresh={loadAll}
-                salesVelocity={salesVelocity}
-              />
-            )}
-            {tab === "analytics" && <AnalyticsPanel orders={orders} cloverStats={cloverStats} cloverError={cloverStatsError} />}
-            {tab === "homepage" && <HeroPanel effect={heroEffect} media={heroMedia} onRefresh={loadAll} />}
-            {tab === "gallery" && <GalleryPanel />}
-            {tab === "staff" && staff.role === "owner" && <StaffPanel me={staff} />}
-            {tab === "settings" && staff.role === "owner" && <SettingsPanel />}
           </div>
-        </>
-      )}
+        </main>
+      </div>
+
+      <BottomNav current={section} onSelect={setSection} isOwner={isOwner} activeOrders={activeOrders.length} newOrders={newOrders} />
     </div>
   );
 }

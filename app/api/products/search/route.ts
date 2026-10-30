@@ -23,6 +23,7 @@ export async function GET(request: Request) {
     .in("category", visible)
     .lte("stock", 0)
     .eq("stock_unknown", false)
+    .eq("hide_online", false)
     .ilike("name", `%${key}%`)
     .limit(200);
   if (error) return NextResponse.json({ items: [] });

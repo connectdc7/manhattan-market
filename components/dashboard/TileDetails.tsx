@@ -142,7 +142,7 @@ function LowStockList({ products, onOpenInInventory }: { products: Product[]; on
                 onClick={() => onOpenInInventory(p.name)}
                 className="ml-auto rounded-full border border-green px-3 py-1 font-mono text-xs font-semibold text-green hover:bg-green hover:text-white"
               >
-                Open in Inventory
+                Open in Products
               </button>
             </div>
           }
@@ -186,9 +186,9 @@ export default function TileDetails({
       : `Running low (3 or fewer) · ${lowStock.length}`;
 
   return (
-    <div className="mt-3 overflow-hidden rounded-lg border border-green/40 bg-paper shadow-sm">
-      <div className="flex items-center justify-between border-b border-line bg-panel px-3 py-2">
-        <p className="font-mono text-[0.65rem] uppercase tracking-wide text-ink-soft">{title}</p>
+    <div className="mt-3 overflow-hidden rounded-2xl border-2 border-ink bg-paper">
+      <div className="flex items-center justify-between border-b-2 border-ink bg-panel px-4 py-2.5">
+        <p className="font-mono text-[0.65rem] font-bold uppercase tracking-widest text-ink">{title}</p>
         <button type="button" onClick={onClose} className="font-mono text-xs text-ink-soft hover:text-ink" aria-label="Close">
           Close ✕
         </button>
