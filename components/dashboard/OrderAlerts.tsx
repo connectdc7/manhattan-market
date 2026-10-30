@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { alertSupport, alertsOnHere, AlertSupport, sendTestAlert, turnOffAlerts, turnOnAlerts } from "@/lib/push-client";
 
-// "New order alerts on this phone" — under the dashboard heading. Each staff
+// "New order alerts on this device" — on the dashboard's Today page. Each staff
 // member turns it on once per phone; it stays on until they turn it off or
 // sign out on that phone. See lib/push.ts.
 export default function OrderAlerts() {
@@ -59,12 +59,12 @@ export default function OrderAlerts() {
   };
 
   return (
-    <div className="mt-4 rounded-lg border border-line bg-panel px-4 py-3">
+    <div className="rounded-2xl border-2 border-ink bg-paper px-4 py-4">
       <div className="flex flex-wrap items-center gap-3">
-        <span aria-hidden className="text-lg">🔔</span>
+        <span aria-hidden className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-green-tint text-lg">🔔</span>
         <div className="min-w-0 flex-1">
-          <p className="font-mono text-[0.65rem] uppercase tracking-wide text-ink-soft">New order alerts</p>
-          <p className="font-body text-sm text-ink">
+          <p className="font-poster text-xl uppercase leading-none text-ink">New order alerts</p>
+          <p className="mt-1 font-body text-sm text-ink-soft">
             {support === "needs-home-screen"
               ? "To get alerts on this iPhone, add the dashboard to your Home Screen first."
               : on

@@ -7,7 +7,7 @@ import { BUSINESS } from "@/lib/site";
 export const metadata: Metadata = {
   title: "Gallery — Inside Manhattan Market, Woodley Park DC",
   description:
-    "Photos from inside Manhattan Market at 2647 Connecticut Ave NW — our shelves, drinks, snacks, wine & beer and the counter, steps from the Woodley Park–Zoo Metro in Washington, DC.",
+    "Photos from inside Manhattan Market at 2647 Connecticut Ave NW — our shelves, drinks, snacks and the counter, steps from the Woodley Park–Zoo Metro in Washington, DC.",
   alternates: {
     canonical: "/gallery",
   },

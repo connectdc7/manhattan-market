@@ -116,7 +116,7 @@ export default function LocationPage() {
                 National Zoo.
               </p>
               <p>
-                Stop in for snacks, cold drinks, groceries, wine &amp; beer and everyday essentials — or order ahead and
+                Stop in for snacks, cold drinks, groceries and everyday essentials — or order ahead and
                 grab it at the counter in about 15 minutes.
               </p>
             </div>

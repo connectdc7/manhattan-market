@@ -40,7 +40,7 @@ function Icon({ kind }: { kind: (typeof STOPS)[number]["icon"] }) {
   );
 }
 
-export default function MetroZoo({ wait }: { wait: number }) {
+export default function MetroZoo({ wait, alcohol = false }: { wait: number; alcohol?: boolean }) {
   return (
     <section className="mx-auto max-w-6xl px-5 pt-14" aria-labelledby="metro-zoo">
       <div className="shadow-sticker overflow-hidden rounded-[2rem] border-2 border-ink bg-green-tint">
@@ -97,7 +97,7 @@ export default function MetroZoo({ wait }: { wait: number }) {
               Order as you leave the Zoo — it&apos;s ready by the time you walk down to the Metro.
             </p>
             <p className="mt-3 font-body text-sm font-semibold text-ink">
-              Ice-cold drinks · dinner essentials · milk &amp; eggs · wine &amp; beer (21+)
+              Ice-cold drinks · dinner essentials · milk &amp; eggs{alcohol ? " · wine & beer (21+)" : " · tomorrow's breakfast"}
             </p>
           </div>
         </div>

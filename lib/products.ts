@@ -34,6 +34,9 @@ export type Product = {
   age_restricted?: boolean; // wine/beer etc. — 21+ (from its category; see lib/categories.ts)
   // Clover keeps no count for it (or the count went below zero) — sold as available.
   stock_unknown?: boolean;
+  // Staff switched it off the website (still sold in the store) — see
+  // supabase/hide-online.sql. Clover sync never changes it.
+  hide_online?: boolean;
 };
 
 // created_at values are staggered by hand below (rather than all defaulting
@@ -57,7 +60,7 @@ export const fallbackProducts: Product[] = [
 ];
 
 const PRODUCT_COLUMNS =
-  "id, name, category, price, stock, blurb, swatch, image_url, restocked_at, is_special, is_healthy, created_at, stock_unknown";
+  "id, name, category, price, stock, blurb, swatch, image_url, restocked_at, is_special, is_healthy, created_at, stock_unknown, hide_online";
 
 // Items without a real Clover count are sold as available; the website
 // works with this many "in stock" for them (it's never shown as a number).
@@ -139,7 +142,7 @@ export async function getStorefrontProducts(opts: { inStockOnly?: boolean } = {}
   if (visibleCategories.length === 0) return [];
 
   const { rows, error } = await fetchAllPages((from, to) => {
-    let q = client.from("products").select(PRODUCT_COLUMNS).in("category", visibleCategories);
+    let q = client.from("products").select(PRODUCT_COLUMNS).in("category", visibleCategories).eq("hide_online", false);
     if (opts.inStockOnly) q = q.or("stock.gt.0,stock_unknown.eq.true");
     return q.order("name").order("id").range(from, to);
   });
@@ -302,6 +305,16 @@ export async function updateProduct(id: string, edits: ProductEdits): Promise<Pr
     return null;
   }
   return { ...data, price: Number(data.price) } as Product;
+}
+
+// Shows or hides one product on the website (dashboard → Products). The
+// store keeps selling it at the register either way.
+export async function setProductHiddenOnline(id: string, hidden: boolean): Promise<boolean> {
+  const client = supabase;
+  if (!client) return false;
+  const { error } = await client.from("products").update({ hide_online: hidden }).eq("id", id);
+  if (error) console.error("setProductHiddenOnline:", error.message);
+  return !error;
 }
 
 // Toggles a product's "Today's Special" flag from the dashboard. Doesn't

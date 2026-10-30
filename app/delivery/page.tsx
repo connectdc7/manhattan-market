@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { BUSINESS, DELIVERY_ZIPS, NEIGHBORHOODS, SITE_URL } from "@/lib/site";
 import { getStoreSettings } from "@/lib/settings";
+import { getStorefrontCategories } from "@/lib/categories";
 import PageHero from "@/components/PageHero";
 import DeliveryAreas from "@/components/DeliveryAreas";
 
@@ -19,7 +20,8 @@ export const metadata: Metadata = {
 export const dynamic = "force-dynamic";
 
 export default async function DeliveryPage() {
-  const settings = await getStoreSettings();
+  const [settings, categories] = await Promise.all([getStoreSettings(), getStorefrontCategories()]);
+  const alcoholOnSale = categories.some((c) => c.ageRestricted);
   const fee = settings.deliveryServiceFee;
   const alcohol = settings.alcoholDelivery;
 
@@ -44,12 +46,12 @@ export default async function DeliveryPage() {
       q: "What are your delivery hours?",
       a: "Delivery runs during store hours: 9am to 9pm, every day.",
     },
-    {
+    ...(alcoholOnSale ? [{
       q: "Can I get wine or beer delivered?",
       a: alcohol
         ? "Yes — wine and beer can be delivered to customers 21+. The courier will check a valid photo ID at the door."
         : "Wine and beer are available for pickup only right now (21+, bring a valid photo ID). Everything else can be delivered.",
-    },
+    }] : []),
     {
       q: "Can I pick up instead?",
       a: `Yes — choose pickup at checkout and your order is usually ready at the counter in about 15 minutes. We're at ${BUSINESS.streetAddress}, by the Woodley Park–Zoo Metro.`,

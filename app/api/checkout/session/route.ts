@@ -54,12 +54,19 @@ export async function POST(request: Request) {
   const fulfillment = body.fulfillment === "delivery" ? "delivery" : "pickup";
 
   const products = await getProductsByIds(requestedLines.map((l) => l.id));
+  const categories = await getCategories();
+  // Items staff took off the website (or whose department is hidden, like
+  // wine & beer for now) can't be bought online even from an old cart.
+  const onSite = new Set(categories.filter((c) => c.showOnStorefront && !c.needsReview).map((c) => c.name));
   const lineItems: { name: string; unitAmount: number; qty: number }[] = [];
 
   for (const line of requestedLines) {
     const product = products.find((p) => p.id === line.id);
-    if (!product) {
-      return NextResponse.json({ error: "One of the items in your cart is no longer available." }, { status: 409 });
+    if (!product || product.hide_online || !onSite.has(product.category)) {
+      return NextResponse.json(
+        { error: product ? `"${product.name}" isn't available online right now — remove it from your cart to continue.` : "One of the items in your cart is no longer available." },
+        { status: 409 }
+      );
     }
     if (line.qty > product.stock) {
       return NextResponse.json(
@@ -81,7 +88,7 @@ export async function POST(request: Request) {
 
   // Wine/beer (21+ categories): customer must confirm age, and delivery is
   // only allowed once the owner switches it on (dashboard → Settings).
-  const restricted = new Set((await getCategories()).filter((c) => c.ageRestricted).map((c) => c.name));
+  const restricted = new Set(categories.filter((c) => c.ageRestricted).map((c) => c.name));
   const containsAlcohol = requestedLines.some((l) => {
     const p = products.find((x) => x.id === l.id);
     return p ? restricted.has(p.category) : false;

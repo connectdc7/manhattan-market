@@ -51,9 +51,10 @@ export default function ResetPasswordPage() {
   };
 
   return (
-    <div className="mx-auto max-w-sm px-5 py-16">
-      <p className="eyebrow text-green">Staff Only</p>
-      <div className="mt-3 rounded-lg border border-line bg-panel p-6">
+    <div className="min-h-screen bg-bodega-tiles px-5 py-12 sm:py-20">
+      <div className="mx-auto max-w-sm">
+      <p className="text-center font-mono text-[0.65rem] font-bold uppercase tracking-widest text-gold">Manhattan Market · Staff</p>
+      <div className="mt-4 rounded-2xl border-2 border-ink bg-paper p-6 shadow-sticker">
         <h1 className="font-display text-2xl font-bold text-ink">Choose a new password</h1>
 
         {ready === "checking" && (
@@ -110,6 +111,7 @@ export default function ResetPasswordPage() {
           </form>
         )}
       </div>
+    </div>
     </div>
   );
 }

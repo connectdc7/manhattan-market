@@ -17,28 +17,9 @@ const NAV = [
 export default function Header() {
   const pathname = usePathname();
   const onDashboard = pathname?.startsWith("/dashboard") ?? false;
-  if (onDashboard) return <DashboardHeader />;
+  // The staff dashboard draws its own top bar (app/dashboard/page.tsx).
+  if (onDashboard) return null;
   return <StorefrontHeader />;
-}
-
-// Staff dashboard: just the logo (back to the dashboard) — no storefront
-// links or cart, so staff don't get sent off the dashboard by accident.
-function DashboardHeader() {
-  return (
-    <header className="sticky top-0 z-40">
-      <div className="stripe-bar h-1.5" />
-      <div className="border-b border-line bg-paper/95 backdrop-blur">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-5 py-4">
-          <Link href="/dashboard" className="skyline-hover-zone flex items-center text-ink" aria-label="Dashboard home">
-            <SkylineWordmark className="h-11 w-auto shrink-0 sm:h-12" />
-          </Link>
-          <span className="font-mono text-[0.65rem] font-semibold uppercase tracking-widest text-ink-soft">
-            Staff Dashboard
-          </span>
-        </div>
-      </div>
-    </header>
-  );
 }
 
 function StorefrontHeader() {

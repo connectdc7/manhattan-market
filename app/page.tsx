@@ -93,12 +93,16 @@ export default async function Home() {
   const ambient = heroEffect !== "custom" && heroEffect !== "plain";
   const wait = estimateWaitMinutes(activeOrders);
 
+  // Wine & beer copy only while a 21+ department is on the website (they're
+  // hidden for now — turn Beer/Wine back on in Dashboard → Store setup).
+  const alcoholOnSale = categories.some((c) => c.ageRestricted);
+
   const ticker = [
     status.isOpen ? `Open now · until ${status.closesAt}` : "Open daily 9am–9pm",
     `Pickup in ~${wait} min`,
     "Delivered by Uber",
     "2647 Connecticut Ave NW",
-    "Wine & beer for pickup (21+)",
+    ...(alcoholOnSale ? ["Wine & beer for pickup (21+)"] : ["Hot coffee & breakfast sandwiches"]),
     "Order on the Metro, grab it on the way to the Zoo",
     "Woodley Park · 1 block from the Metro",
   ];
@@ -130,7 +134,7 @@ export default async function Home() {
               <span className="text-gold">now on your phone.</span>
             </h1>
             <p className="mt-5 max-w-xl font-body text-lg text-white/85">
-              Snacks, drinks, groceries, wine &amp; beer and everyday essentials, a block from the Woodley Park–Zoo
+              Snacks, drinks, groceries{alcoholOnSale ? ", wine & beer" : ""} and everyday essentials, a block from the Woodley Park–Zoo
               Metro. Order ahead on the train and grab it on your way to the Zoo — or get it delivered.
             </p>
 
@@ -264,7 +268,7 @@ export default async function Home() {
 
       <ReorderCard />
 
-      <MetroZoo wait={wait} />
+      <MetroZoo wait={wait} alcohol={alcoholOnSale} />
 
       {/* ── Shop by aisle ───────────────────────────────────── */}
       {aisles.length > 0 && (
