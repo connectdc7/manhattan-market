@@ -12,8 +12,8 @@ export type Section = "today" | "orders" | "products" | "sales" | "setup" | "hom
 type IconName = Section | "more" | "store";
 
 export const SECTIONS: { key: Section; label: string; hint: string; ownerOnly: boolean }[] = [
-  { key: "today", label: "Today", hint: "Sales, orders waiting and alerts", ownerOnly: false },
-  { key: "orders", label: "Orders", hint: "Online orders — prepare, ready, done", ownerOnly: false },
+  { key: "orders", label: "Live orders", hint: "Every online order — new, packing, ready, on the way", ownerOnly: false },
+  { key: "today", label: "Today", hint: "Sales, numbers and alerts", ownerOnly: false },
   { key: "products", label: "Products", hint: "Find an item, fix its stock, hide it online", ownerOnly: false },
   { key: "sales", label: "Sales report", hint: "Trends and best sellers", ownerOnly: true },
   { key: "setup", label: "Store setup", hint: "Clover, categories and product photos", ownerOnly: true },
@@ -253,7 +253,7 @@ export function BottomNav({
         {main.map((s) =>
           tab(
             s.key,
-            s.label,
+            s.key === "orders" ? "Orders" : s.label,
             current === s.key && !moreOpen,
             () => {
               setMoreOpen(false);

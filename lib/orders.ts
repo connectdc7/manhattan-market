@@ -42,6 +42,13 @@ export type Order = {
   refund_status?: "partial" | "full" | null;
   refunded_at?: string | null;
   contains_alcohol?: boolean | null; // wine/beer — check 21+ ID (supabase/alcohol.sql)
+  // When the order reached each stage (set by the database — supabase/order-stages.sql).
+  preparing_at?: string | null;
+  ready_at?: string | null;
+  completed_at?: string | null;
+  // Uber's latest estimates: courier at the store / at the customer.
+  uber_pickup_eta?: string | null;
+  uber_dropoff_eta?: string | null;
 };
 
 export type DeliveryAddressFields = {
@@ -77,13 +84,17 @@ export async function getOrders(limit = 300): Promise<Order[]> {
   const BASE =
     "id, created_at, fulfillment, items, subtotal, status, phone, clover_order_id, clover_push_error, delivery_address, delivery_fee, service_fee, uber_delivery_id, uber_status, uber_tracking_url, uber_courier, uber_error, stripe_session_id";
   const REFUNDS = "refunded_amount, refunded_items, refund_status, refunded_at";
-  const first = await supabase
-    .from("orders")
-    .select(`${BASE}, ${REFUNDS}, contains_alcohol, payment_provider, clover_payment_id, discount_code, discount_amount`)
-    .order("created_at", { ascending: false })
-    .limit(limit);
-  let data = first.data as Record<string, unknown>[] | null;
-  let error = first.error;
+  const FULL = `${BASE}, ${REFUNDS}, contains_alcohol, payment_provider, clover_payment_id, discount_code, discount_amount`;
+  const STAGES = "preparing_at, ready_at, completed_at, uber_pickup_eta, uber_dropoff_eta";
+  const withStages = await supabase.from("orders").select(`${FULL}, ${STAGES}`).order("created_at", { ascending: false }).limit(limit);
+  let data = withStages.data as Record<string, unknown>[] | null;
+  let error = withStages.error;
+  if (error) {
+    // supabase/order-stages.sql not run yet.
+    const first = await supabase.from("orders").select(FULL).order("created_at", { ascending: false }).limit(limit);
+    data = first.data as Record<string, unknown>[] | null;
+    error = first.error;
+  }
   if (error) {
     // supabase/welcome-offer.sql not run yet.
     const retry = await supabase
