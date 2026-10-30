@@ -66,3 +66,19 @@ export function rankProducts<T extends { name: string; category: string }>(items
     .sort((a, b) => b.s - a.s || a.p.name.localeCompare(b.p.name))
     .map((x) => x.p);
 }
+
+// "Best matches" = every searched word appears as a whole word in the name
+// (so "water" → Fiji Water, Smart Water; not Watermelon). "Related" = the
+// rest that still match (partial words, or the department matches).
+export function splitMatches<T extends { name: string; category: string }>(items: T[], query: string): { best: T[]; related: T[] } {
+  const words = searchWords(query);
+  const ranked = rankProducts(items, query);
+  if (words.length === 0) return { best: ranked, related: [] };
+  const best: T[] = [];
+  const related: T[] = [];
+  for (const p of ranked) {
+    const nameWords = norm(p.name).split(" ").map(singular);
+    (words.every((w) => nameWords.includes(w)) ? best : related).push(p);
+  }
+  return { best, related };
+}
