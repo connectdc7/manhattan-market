@@ -309,18 +309,24 @@ export default function SettingsPanel() {
             </button>
           ))}
         </div>
-        {ready && (
-          <p className="mt-3 font-body text-xs text-ink-soft">
-            Stripe: {ready.stripe ? "connected" : "not set up"} · Clover online payments:{" "}
-            {ready.clover ? "connected" : "not set up yet (needs the Clover ecommerce keys in Vercel)"}
-            {provider === "clover" && !ready.clover && " — until then customers keep paying through Stripe."}
-            {" "}Customers are paying through:{" "}
-            <span className="font-semibold text-ink">
-              {ready.active === "clover" ? "Clover" : ready.active === "stripe" ? "Stripe" : "nothing (test mode)"}
+        {/* One plain status line: what customers are actually paying through. */}
+        {ready && provider && (
+          <p
+            className={`mt-3 flex items-start gap-2 rounded-xl border-2 px-3 py-2 font-body text-sm ${
+              ready.active === provider ? "border-green bg-green-tint text-green-deep" : "border-[#a8461a]/40 bg-pink-tint text-ink"
+            }`}
+          >
+            <span aria-hidden>{ready.active === provider ? "✓" : "!"}</span>
+            <span>
+              {ready.active === provider
+                ? `${provider === "clover" ? "Clover" : "Stripe"} is active — customers pay through ${provider === "clover" ? "Clover" : "Stripe"}.`
+                : provider === "clover"
+                  ? "Clover is selected, but the website can't see the Clover keys yet, so customers are still paying through Stripe. If you just added them in Vercel, redeploy, wait until it says Ready, then refresh this page."
+                  : "Stripe is selected but isn't connected — check the Stripe keys in Vercel."}
             </span>
           </p>
         )}
-        {payMsg && <p className={`mt-3 font-body text-sm ${payMsg.ok ? "text-green" : "text-[#a8461a]"}`}>{payMsg.text}</p>}
+        {payMsg && !payMsg.ok && <p className="mt-3 font-body text-sm text-[#a8461a]">{payMsg.text}</p>}
       </div>
     </div>
   );
