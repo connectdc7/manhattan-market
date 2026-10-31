@@ -10,7 +10,7 @@ import { Suspense, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useCart } from "@/lib/cart-context";
-import { saveLastOrder } from "@/components/ReorderCard";
+import { saveLastOrder, takePendingOrder } from "@/components/ReorderCard";
 
 type Status = "checking" | "paid" | "unpaid" | "error";
 
@@ -59,9 +59,8 @@ function CheckoutSuccessInner() {
   useEffect(() => {
     if (status !== "paid" || clearedCart.current) return;
     clearedCart.current = true;
-    if (lines.length > 0) {
-      saveLastOrder(lines.map((l) => ({ id: l.id, name: l.name, price: l.price, qty: l.qty })));
-    }
+    const paidFor = takePendingOrder() ?? lines.map((l) => ({ id: l.id, name: l.name, price: l.price, qty: l.qty }));
+    if (paidFor.length > 0) saveLastOrder(paidFor);
     clear();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [status]);

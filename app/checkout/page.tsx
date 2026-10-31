@@ -6,7 +6,7 @@ import { useCart } from "@/lib/cart-context";
 import { decrementStock } from "@/lib/products";
 import { createOrder } from "@/lib/orders";
 import { isSupabaseConfigured } from "@/lib/supabase";
-import { saveLastOrder } from "@/components/ReorderCard";
+import { rememberPendingOrder, saveLastOrder } from "@/components/ReorderCard";
 import { getStoreSettings } from "@/lib/settings";
 
 type Stage = "review" | "processing" | "done";
@@ -241,6 +241,7 @@ export default function CheckoutPage() {
       // stays in localStorage untouched until payment actually succeeds
       // (see app/checkout/success/page.tsx), so cancelling and coming back
       // doesn't lose it.
+      rememberPendingOrder(lines.map((l) => ({ id: l.id, name: l.name, price: l.price, qty: l.qty })));
       window.location.href = body.url;
     } catch {
       setError("Couldn't start checkout — check your connection and try again.");
