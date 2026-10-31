@@ -77,6 +77,7 @@ type Pending = {
     delivery: PaidCheckout["delivery"];
     alcohol: boolean;
     totalCents: number;
+    taxCents?: number;
     promo?: string;
     discountCents?: number;
   };
@@ -151,6 +152,7 @@ async function handleNotice(admin: NonNullable<typeof supabaseAdmin>, notice: No
       alcohol: Boolean(p.alcohol),
       discount: p.promo ? { code: p.promo, cents: Number(p.discountCents) || 0 } : null,
       amountTotalCents: typeof p.totalCents === "number" ? p.totalCents : null,
+      taxCents: Number(p.taxCents) || 0,
       payment: { provider: "clover", checkoutId, paymentId },
     },
     "clover checkout webhook"

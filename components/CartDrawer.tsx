@@ -173,7 +173,7 @@ export default function CartDrawer() {
               <span className="font-body text-sm text-ink-soft">Subtotal</span>
               <span className="font-mono text-2xl font-bold text-ink">${subtotal.toFixed(2)}</span>
             </div>
-            <p className="font-body text-xs text-ink-soft">Delivery fee (if any) is shown at checkout.</p>
+            <p className="font-body text-xs text-ink-soft">Sales tax and any delivery fee are added at checkout.</p>
             <button
               onClick={() => {
                 closeDrawer();

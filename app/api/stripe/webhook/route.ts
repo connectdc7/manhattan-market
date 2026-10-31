@@ -47,6 +47,7 @@ async function fulfillCheckoutSession(session: Stripe.Checkout.Session) {
       alcohol: meta.alcohol === "1",
       discount: meta.promo ? { code: meta.promo, cents: Number(meta.discount) || 0 } : null,
       amountTotalCents: typeof session.amount_total === "number" ? session.amount_total : null,
+      taxCents: Number(meta.tax) || 0,
       payment: { provider: "stripe", stripeSessionId: session.id },
     },
     "stripe webhook"

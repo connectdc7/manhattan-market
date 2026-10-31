@@ -29,6 +29,7 @@ export type PaidCheckout = {
   alcohol: boolean;
   discount?: { code: string; cents: number } | null; // welcome offer
   amountTotalCents: number | null; // what the customer actually paid, if known
+  taxCents?: number; // DC sales tax included in that amount
   payment:
     | { provider: "stripe"; stripeSessionId: string }
     | { provider: "clover"; checkoutId: string; paymentId: string };
@@ -56,13 +57,14 @@ export async function fulfillPaidCheckout(c: PaidCheckout, logTag: string): Prom
   // Items only — fees are stored separately so sales numbers aren't inflated.
   const subtotal =
     typeof c.amountTotalCents === "number"
-      ? Math.max(0, c.amountTotalCents / 100 - deliveryFee - serviceFee)
+      ? Math.max(0, c.amountTotalCents / 100 - deliveryFee - serviceFee - (c.taxCents ?? 0) / 100)
       : items.reduce((sum, item) => sum + item.price * item.qty, 0);
 
   const createdId = await createOrderAdmin({
     fulfillment: c.fulfillment,
     items,
     subtotal,
+    ...(c.taxCents ? { tax_amount: c.taxCents / 100 } : {}),
     phone: c.phone || null,
     ...(c.payment.provider === "stripe"
       ? { stripe_session_id: c.payment.stripeSessionId, payment_provider: "stripe" as const }

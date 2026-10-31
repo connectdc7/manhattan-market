@@ -15,9 +15,11 @@ import { supabaseAdmin } from "./supabase-admin";
 import {
   fetchAllCloverItems,
   getFreshCloverConnection,
+  fetchCloverDefaultTaxRates,
   loadCloverCategoryContext,
   mapCloverItemToProductFields,
 } from "./clover";
+import type { TaxRate } from "./tax";
 
 const BATCH = 500;
 
@@ -63,6 +65,13 @@ export async function syncAllCloverItems(): Promise<CloverSyncResult> {
   }
   if (items.length === 0) return { ok: true, ...empty };
 
+  // The store's default tax rates — used online for items set to "default tax".
+  const defaults = await fetchCloverDefaultTaxRates(connection.merchant_id, connection.access_token);
+  if (defaults) {
+    const { error: taxError } = await admin.from("store_settings").update({ default_tax_rates: defaults }).eq("id", "singleton");
+    if (taxError) console.warn("[clover sync] couldn't save default tax rates —", taxError.message);
+  }
+
   // Every product already linked to a Clover item (paged — Supabase returns
   // at most 1,000 rows per request).
   const existing = new Map<string, { id: string; image_url: string | null }>();
@@ -88,6 +97,7 @@ export async function syncAllCloverItems(): Promise<CloverSyncResult> {
     clover_quantity: number | null;
     clover_item_id: string;
     barcode?: string | null;
+    tax_rates: TaxRate[] | null;
   };
   const rows = new Map<string, Row>();
   const needsPhoto: CloverSyncResult["needsPhoto"] = [];

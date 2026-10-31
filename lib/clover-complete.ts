@@ -90,8 +90,21 @@ export async function completeCloverOrder(orderId: string): Promise<CloverComple
     .maybeSingle<{ id: string; clover_order_id: string | null; stripe_session_id: string | null; clover_payment_id: string | null }>();
   if (!order) return { ok: false, error: "Order not found." };
   if (!order.clover_order_id) return { ok: true, skipped: "Not on Clover." };
-  // Paid with Clover's own online checkout — Clover already shows it Paid.
-  if (order.clover_payment_id) return { ok: true, skipped: "Paid through Clover already." };
+  // Paid with Clover's own online checkout — Clover already has the payment,
+  // so just close the order there (otherwise it sits "open" on the device).
+  if (order.clover_payment_id) {
+    const conn = await getFreshCloverConnection();
+    if (!conn) return { ok: false, error: "Clover isn't connected." };
+    const lock = await cloverFetch(`/v3/merchants/${conn.merchant_id}/orders/${order.clover_order_id}`, conn.access_token, {
+      method: "POST",
+      body: JSON.stringify({ state: "locked" }),
+    });
+    if (!lock.ok) {
+      console.error("[clover complete] lock failed (Clover-paid order)", { orderId, status: lock.status, body: lock.body });
+      return { ok: false, error: `Clover didn't close the order (HTTP ${lock.status}).` };
+    }
+    return { ok: true };
+  }
   // Only orders actually paid online get marked paid — anything else still
   // needs paying at the register.
   if (!order.stripe_session_id) return { ok: true, skipped: "Not paid online." };
@@ -107,6 +120,8 @@ export async function completeCloverOrder(orderId: string): Promise<CloverComple
   }
   const co = current.body as CloverOrder;
   if ((co.payments?.elements?.length ?? 0) > 0 || (co.paymentState ?? "").toUpperCase() === "PAID") {
+    // Already paid — just make sure it's closed.
+    await cloverFetch(path, token, { method: "POST", body: JSON.stringify({ state: "locked" }) });
     return { ok: true, skipped: "Already paid on Clover." };
   }
 

@@ -8,6 +8,7 @@
 // (see README). Point of reference for the exact request/response shapes:
 // Clover's own developer docs at docs.clover.com/dev.
 import { supabaseAdmin } from "./supabase-admin";
+import { cleanRates, TaxRate } from "./tax";
 
 export type CloverEnv = "sandbox" | "production";
 
@@ -291,6 +292,9 @@ export type CloverItem = {
   code?: string; // the barcode / UPC staff scan at the register, when set
   categories?: { elements?: { name?: string }[] };
   itemStock?: { quantity?: number };
+  // Tax: Clover's "use default tax rates" switch, or the item's own rates.
+  defaultTaxRates?: boolean;
+  taxRates?: { elements?: { name?: string; rate?: number }[] };
 };
 
 export async function mapCloverItemToProductFields(item: CloverItem, ctx: CloverCategoryContext) {
@@ -308,7 +312,26 @@ export async function mapCloverItemToProductFields(item: CloverItem, ctx: Clover
     stock: tracked ? Math.max(0, qty) : 0,
     stock_unknown: !tracked || qty < 0,
     clover_quantity: tracked ? qty : null,
+    // null = this item uses the store's default tax (lib/tax.ts); [] = not taxed.
+    tax_rates: item.defaultTaxRates === false ? cleanRates(item.taxRates?.elements ?? []) : null,
   };
+}
+
+// The store's default tax rates in Clover (what "use default tax" items get).
+export async function fetchCloverDefaultTaxRates(merchantId: string, accessToken: string): Promise<TaxRate[] | null> {
+  try {
+    const res = await fetch(`${cloverUrls().api}/v3/merchants/${merchantId}/tax_rates?limit=100`, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
+    if (!res.ok) {
+      console.error("[clover] tax rates failed", { status: res.status });
+      return null;
+    }
+    const body = (await res.json()) as { elements?: { name?: string; rate?: number; isDefault?: boolean }[] };
+    return cleanRates((body.elements ?? []).filter((r) => r.isDefault));
+  } catch {
+    return null;
+  }
 }
 
 // Turns a Clover item name into the same kind of readable id our own
@@ -367,6 +390,7 @@ export async function upsertProductFromCloverItem(
         stock: fields.stock,
         stock_unknown: fields.stock_unknown,
         clover_quantity: fields.clover_quantity,
+        tax_rates: fields.tax_rates,
       })
       .eq("id", existing.id);
     // Logged (not just swallowed) since a write failing here — RLS, a
@@ -391,6 +415,7 @@ export async function upsertProductFromCloverItem(
     stock: fields.stock,
     stock_unknown: fields.stock_unknown,
     clover_quantity: fields.clover_quantity,
+    tax_rates: fields.tax_rates,
     blurb: "",
     clover_item_id: item.id,
   });
@@ -422,7 +447,7 @@ export async function fetchCloverItem(
   itemId: string
 ): Promise<CloverItem | null> {
   const res = await fetch(
-    `${cloverUrls().api}/v3/merchants/${merchantId}/items/${itemId}?expand=categories,itemStock`,
+    `${cloverUrls().api}/v3/merchants/${merchantId}/items/${itemId}?expand=categories,itemStock,taxRates`,
     { headers: { Authorization: `Bearer ${accessToken}` } }
   );
   if (!res.ok) {
@@ -475,7 +500,7 @@ export async function fetchAllCloverItems(
   let offset = 0;
 
   for (;;) {
-    const url = `${cloverUrls().api}/v3/merchants/${merchantId}/items?expand=categories,itemStock&limit=${limit}&offset=${offset}`;
+    const url = `${cloverUrls().api}/v3/merchants/${merchantId}/items?expand=categories,itemStock,taxRates&limit=${limit}&offset=${offset}`;
     // Clover rate-limits each token (HTTP 429), and a background auto-sync
     // or the Clover device itself may be using it at the same moment — so
     // wait and retry instead of giving up.

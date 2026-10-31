@@ -16,7 +16,9 @@ import { stripe, isStripeConfigured } from "@/lib/stripe";
 import { activePaymentProvider } from "@/lib/payments";
 import { createHostedCheckout, HostedCheckoutLine } from "@/lib/clover-checkout";
 import { supabaseAdmin } from "@/lib/supabase-admin";
-import { checkWelcomeCode, discountLines } from "@/lib/welcome-offer";
+import { checkWelcomeCode } from "@/lib/welcome-offer";
+import { getDefaultTaxRates, taxLines, TaxableLine } from "@/lib/tax-server";
+import type { TaxRate } from "@/lib/tax";
 import { getProductsByIds } from "@/lib/products";
 import { getStoreSettings } from "@/lib/settings";
 import { getCategories } from "@/lib/categories";
@@ -58,7 +60,7 @@ export async function POST(request: Request) {
   // Items staff took off the website (or whose department is hidden, like
   // wine & beer for now) can't be bought online even from an old cart.
   const onSite = new Set(categories.filter((c) => c.showOnStorefront && !c.needsReview).map((c) => c.name));
-  const lineItems: { name: string; unitAmount: number; qty: number }[] = [];
+  const lineItems: { name: string; unitAmount: number; qty: number; productRates: TaxRate[] | null | undefined }[] = [];
 
   for (const line of requestedLines) {
     const product = products.find((p) => p.id === line.id);
@@ -74,7 +76,7 @@ export async function POST(request: Request) {
         { status: 409 }
       );
     }
-    lineItems.push({ name: product.name, unitAmount: Math.round(product.price * 100), qty: line.qty });
+    lineItems.push({ name: product.name, unitAmount: Math.round(product.price * 100), qty: line.qty, productRates: product.tax_rates });
   }
 
   // First-order welcome code (lib/welcome-offer.ts) — checked again here.
@@ -145,10 +147,19 @@ export async function POST(request: Request) {
 
   const origin = request.headers.get("origin") ?? new URL(request.url).origin;
 
+  // DC sales tax — each item taxed at the rates it has in Clover (lib/tax.ts),
+  // after the welcome discount, exactly like the register would.
+  const tax = taxLines(
+    lineItems.map((i) => ({ name: i.name, priceCents: i.unitAmount, qty: i.qty, productRates: i.productRates })),
+    await getDefaultTaxRates(),
+    promo?.discountCents ?? 0
+  );
+
   if (provider === "clover") {
     return startCloverCheckout({
       origin,
-      lineItems,
+      taxedLines: tax.lines,
+      taxCents: tax.taxCents,
       deliveryFee,
       serviceFee,
       cart: requestedLines.map((l) => ({ id: l.id, qty: l.qty })),
@@ -197,6 +208,9 @@ export async function POST(request: Request) {
               },
             ]
           : []),
+        ...(tax.taxCents > 0
+          ? [{ quantity: 1, price_data: { currency: "usd", unit_amount: tax.taxCents, product_data: { name: "DC sales tax" } } }]
+          : []),
       ],
       ...(promo ? { discounts: [{ coupon: await welcomeCoupon(promo.discountCents) }] } : {}),
       success_url: `${origin}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
@@ -210,6 +224,7 @@ export async function POST(request: Request) {
         cart: JSON.stringify(requestedLines.map((l) => ({ id: l.id, qty: l.qty }))),
         ...(containsAlcohol ? { alcohol: "1" } : {}),
         ...(promo ? { promo: promo.code, discount: String(promo.discountCents) } : {}),
+        ...(tax.taxCents > 0 ? { tax: String(tax.taxCents) } : {}),
         ...(deliveryMeta ? { delivery: deliveryMeta } : {}),
       },
     });
@@ -240,7 +255,8 @@ async function welcomeCoupon(discountCents: number): Promise<string> {
 // checkout id), then send the customer to Clover's payment page.
 async function startCloverCheckout(c: {
   origin: string;
-  lineItems: { name: string; unitAmount: number; qty: number }[];
+  taxedLines: TaxableLine[];
+  taxCents: number;
   deliveryFee: number;
   serviceFee: number;
   cart: { id: string; qty: number }[];
@@ -251,14 +267,15 @@ async function startCloverCheckout(c: {
   promo: { code: string; discountCents: number } | null;
 }) {
   if (!supabaseAdmin) return NextResponse.json({ error: "Checkout isn't available right now." }, { status: 503 });
-  // Clover's checkout has no coupons — the welcome discount comes off item prices.
-  const itemLines = c.lineItems.map((i) => ({ name: i.name, priceCents: i.unitAmount, qty: i.qty }));
+  // Clover's checkout has no coupons — the welcome discount is already taken
+  // off item prices (lib/tax-server.ts). Each item carries its tax rates and
+  // Clover adds the tax on its payment page.
   const lines: HostedCheckoutLine[] = [
-    ...(c.promo ? discountLines(itemLines, c.promo.discountCents) : itemLines),
+    ...c.taxedLines,
     ...(c.deliveryFee > 0 ? [{ name: "Delivery (Uber)", priceCents: Math.round(c.deliveryFee * 100), qty: 1 }] : []),
     ...(c.serviceFee > 0 ? [{ name: "Service fee", priceCents: Math.round(c.serviceFee * 100), qty: 1 }] : []),
   ];
-  const totalCents = lines.reduce((sum, l) => sum + l.priceCents * l.qty, 0);
+  const totalCents = lines.reduce((sum, l) => sum + l.priceCents * l.qty, 0) + c.taxCents;
   const ref = randomUUID();
 
   const created = await createHostedCheckout({
@@ -279,6 +296,7 @@ async function startCloverCheckout(c: {
       delivery: c.delivery,
       alcohol: c.alcohol,
       totalCents,
+      taxCents: c.taxCents,
       ...(c.promo ? { promo: c.promo.code, discountCents: c.promo.discountCents } : {}),
     },
   });

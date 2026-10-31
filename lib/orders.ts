@@ -49,6 +49,7 @@ export type Order = {
   // Uber's latest estimates: courier at the store / at the customer.
   uber_pickup_eta?: string | null;
   uber_dropoff_eta?: string | null;
+  tax_amount?: number | null; // DC sales tax paid (supabase/sales-tax.sql)
 };
 
 export type DeliveryAddressFields = {
@@ -85,7 +86,7 @@ export async function getOrders(limit = 300): Promise<Order[]> {
     "id, created_at, fulfillment, items, subtotal, status, phone, clover_order_id, clover_push_error, delivery_address, delivery_fee, service_fee, uber_delivery_id, uber_status, uber_tracking_url, uber_courier, uber_error, stripe_session_id";
   const REFUNDS = "refunded_amount, refunded_items, refund_status, refunded_at";
   const FULL = `${BASE}, ${REFUNDS}, contains_alcohol, payment_provider, clover_payment_id, discount_code, discount_amount`;
-  const STAGES = "preparing_at, ready_at, completed_at, uber_pickup_eta, uber_dropoff_eta";
+  const STAGES = "preparing_at, ready_at, completed_at, uber_pickup_eta, uber_dropoff_eta, tax_amount";
   const withStages = await supabase.from("orders").select(`${FULL}, ${STAGES}`).order("created_at", { ascending: false }).limit(limit);
   let data = withStages.data as Record<string, unknown>[] | null;
   let error = withStages.error;
@@ -138,6 +139,7 @@ export async function getOrders(limit = 300): Promise<Order[]> {
     subtotal: Number(row.subtotal),
     delivery_fee: row.delivery_fee === null || row.delivery_fee === undefined ? null : Number(row.delivery_fee),
     service_fee: row.service_fee === null || row.service_fee === undefined ? null : Number(row.service_fee),
+    tax_amount: row.tax_amount == null ? null : Number(row.tax_amount),
     refunded_amount: row.refunded_amount != null ? Number(row.refunded_amount) : 0,
     status: (row.status ?? "new") as OrderStatus,
   })) as Order[];

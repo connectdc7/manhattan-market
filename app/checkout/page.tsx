@@ -63,7 +63,29 @@ export default function CheckoutPage() {
   const [promoBusy, setPromoBusy] = useState(false);
   const promoApplied = promo !== null && subtotal >= promo.min;
   const discount = promoApplied ? promo.discount : 0;
-  const total = subtotal - discount + deliveryFee + appliedServiceFee;
+  // DC sales tax, worked out on the server from each item's Clover tax rates.
+  const [taxCents, setTaxCents] = useState<number | null>(null);
+  const cartKey = lines.map((l) => `${l.id}:${l.qty}`).join(",");
+  useEffect(() => {
+    let cancelled = false;
+    const t = setTimeout(() => {
+      fetch("/api/checkout/tax", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ items: lines.map((l) => ({ id: l.id, qty: l.qty })), discountCents: Math.round(discount * 100) }),
+      })
+        .then((r) => r.json())
+        .then((b) => !cancelled && setTaxCents(typeof b.taxCents === "number" ? b.taxCents : null))
+        .catch(() => {});
+    }, 250);
+    return () => {
+      cancelled = true;
+      clearTimeout(t);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cartKey, discount]);
+  const tax = (taxCents ?? 0) / 100;
+  const total = subtotal - discount + tax + deliveryFee + appliedServiceFee;
 
   const applyPromo = async () => {
     if (!promoInput.trim()) return;
@@ -298,6 +320,11 @@ export default function CheckoutPage() {
             <span className="font-mono">−${discount.toFixed(2)}</span>
           </div>
         )}
+        <div className="receipt-line mt-2 font-body text-sm text-ink">
+          <span>DC sales tax</span>
+          <span className="receipt-fill" />
+          <span className="font-mono">{taxCents === null ? "…" : `$${tax.toFixed(2)}`}</span>
+        </div>
         {fulfillment === "delivery" && (
           <div className="receipt-line mt-2 font-body text-sm text-ink">
             <span>Delivery (Uber)</span>

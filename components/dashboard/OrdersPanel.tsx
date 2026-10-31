@@ -448,6 +448,7 @@ export default function OrdersPanel({
               {o.fulfillment === "delivery" ? "Delivery" : "Pickup"}
             </span>
             Ordered {clock(o.created_at)} · {itemCount} item{itemCount === 1 ? "" : "s"}
+            {o.tax_amount ? ` · +$${Number(o.tax_amount).toFixed(2)} tax` : ""}
           </p>
           <div className="mt-1.5 flex flex-wrap gap-1.5">
             {o.contains_alcohol && <span className="rounded-full bg-ink px-2 py-0.5 font-mono text-[0.58rem] font-bold uppercase tracking-wide text-white">21+ · Check ID</span>}
