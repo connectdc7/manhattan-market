@@ -29,6 +29,7 @@ export async function createOrderAdmin(order: {
   delivery_address?: Record<string, string> | null;
   delivery_fee?: number | null;
   service_fee?: number | null;
+  tax_amount?: number | null;
 }): Promise<string | null> {
   const client = supabaseAdmin;
   if (!client) return null;

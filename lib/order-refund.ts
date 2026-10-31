@@ -40,6 +40,7 @@ type RefundOrder = {
   clover_order_id: string | null;
   delivery_fee: number | null;
   service_fee: number | null;
+  tax_amount?: number | null;
   uber_delivery_id: string | null;
   uber_status: string | null;
   refunded_amount: number | null;
@@ -70,7 +71,7 @@ export async function refundOrder(req: RefundRequest): Promise<RefundResult> {
   const { data: order, error: readError } = await admin
     .from("orders")
     .select(
-      "id, items, fulfillment, subtotal, stripe_session_id, clover_payment_id, clover_order_id, delivery_fee, service_fee, uber_delivery_id, uber_status, refunded_amount, refunded_items, refund_status"
+      "id, items, fulfillment, subtotal, stripe_session_id, clover_payment_id, clover_order_id, delivery_fee, service_fee, uber_delivery_id, uber_status, refunded_amount, refunded_items, refund_status, tax_amount"
     )
     .eq("id", req.orderId)
     .maybeSingle<RefundOrder>();
@@ -104,7 +105,10 @@ export async function refundOrder(req: RefundRequest): Promise<RefundResult> {
   let amountCents: number | undefined;
   if (!full) {
     const fees = req.includeFees ? (order.delivery_fee ?? 0) + (order.service_fee ?? 0) : 0;
-    amountCents = refundLines.reduce((s, l) => s + cents(l.price) * l.qty, 0) + cents(fees);
+    const itemCents = refundLines.reduce((s, l) => s + cents(l.price) * l.qty, 0);
+    // The sales tax on those items comes back too, in proportion.
+    const taxShare = order.tax_amount && Number(order.subtotal) > 0 ? Math.round((itemCents * Number(order.tax_amount)) / Number(order.subtotal)) : 0;
+    amountCents = itemCents + taxShare + cents(fees);
   }
   const idempotencyKey = `refund-${order.id}-${full ? "full" : JSON.stringify(refundLines.map((l) => [l.id, l.qty]))}-${Number(order.refunded_amount ?? 0)}`;
 
@@ -114,14 +118,14 @@ export async function refundOrder(req: RefundRequest): Promise<RefundResult> {
     let cloverAmount = amountCents;
     if (full && Number(order.refunded_amount ?? 0) > 0) {
       // Whatever hasn't been refunded yet.
-      const paidTotal = Number(order.subtotal) + (order.delivery_fee ?? 0) + (order.service_fee ?? 0);
+      const paidTotal = Number(order.subtotal) + (order.delivery_fee ?? 0) + (order.service_fee ?? 0) + Number(order.tax_amount ?? 0);
       cloverAmount = Math.max(0, cents(paidTotal) - cents(Number(order.refunded_amount)));
     }
     const r = await refundCloverPayment(order.clover_payment_id!, cloverAmount, idempotencyKey);
     if (!r.ok) return { ok: false, error: r.error };
     refundedCents = r.amountCents;
     if (!refundedCents && full) {
-      refundedCents = cents(Number(order.subtotal) + (order.delivery_fee ?? 0) + (order.service_fee ?? 0));
+      refundedCents = cents(Number(order.subtotal) + (order.delivery_fee ?? 0) + (order.service_fee ?? 0) + Number(order.tax_amount ?? 0));
     }
   } else {
     // 1b. Stripe.

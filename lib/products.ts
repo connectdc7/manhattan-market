@@ -9,6 +9,7 @@
 // table is seeded once from supabase/seed.sql with the same numbers below,
 // standing in for a live count mirrored from the Clover terminal.
 import { supabase } from "./supabase";
+import type { TaxRate } from "./tax";
 import { getCategories } from "./categories";
 
 // Used to be a fixed 4-value union ("Snacks" | "Drinks" | "Hot Food" |
@@ -37,6 +38,8 @@ export type Product = {
   // Staff switched it off the website (still sold in the store) — see
   // supabase/hide-online.sql. Clover sync never changes it.
   hide_online?: boolean;
+  // Clover tax rates for this item; null = store default (lib/tax.ts).
+  tax_rates?: TaxRate[] | null;
 };
 
 // created_at values are staggered by hand below (rather than all defaulting
@@ -60,7 +63,7 @@ export const fallbackProducts: Product[] = [
 ];
 
 const PRODUCT_COLUMNS =
-  "id, name, category, price, stock, blurb, swatch, image_url, restocked_at, is_special, is_healthy, created_at, stock_unknown, hide_online";
+  "id, name, category, price, stock, blurb, swatch, image_url, restocked_at, is_special, is_healthy, created_at, stock_unknown, hide_online, tax_rates";
 
 // Items without a real Clover count are sold as available; the website
 // works with this many "in stock" for them (it's never shown as a number).

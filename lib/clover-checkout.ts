@@ -30,7 +30,7 @@ function ecommHost() {
   return process.env.CLOVER_ENV === "production" ? "https://scl.clover.com" : "https://scl-sandbox.dev.clover.com";
 }
 
-export type HostedCheckoutLine = { name: string; priceCents: number; qty: number; note?: string };
+export type HostedCheckoutLine = { name: string; priceCents: number; qty: number; note?: string; taxRates?: { name: string; rate: number }[] };
 
 export type HostedCheckoutResult =
   | { ok: true; href: string; checkoutSessionId: string }
@@ -62,6 +62,8 @@ export async function createHostedCheckout(input: {
             price: l.priceCents,
             unitQty: l.qty,
             note: l.note ?? "",
+            // Must match a tax rate the store already has in Clover (synced from it).
+            ...(l.taxRates && l.taxRates.length ? { taxRates: l.taxRates.map((r) => ({ name: r.name, rate: r.rate })) } : {}),
           })),
         },
         redirectUrls: { success: input.successUrl, failure: input.failureUrl },
