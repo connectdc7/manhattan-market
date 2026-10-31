@@ -98,7 +98,18 @@ export async function pushOrderToClover(orderId: string): Promise<CloverPushResu
   if (paidByClover) {
     const payment = await cloverFetch(`/v3/merchants/${mId}/payments/${order.clover_payment_id}?expand=order`, token);
     existingCloverOrderId = (payment.body as { order?: { id?: string } } | null)?.order?.id ?? null;
-    if (!existingCloverOrderId) console.error("[clover] no order found for Clover payment", { orderId, status: payment.status });
+    if (!existingCloverOrderId) {
+      // Never make a second, unpaid copy of a sale Clover already has — staff
+      // can't complete it without charging again. Usually this means the
+      // Clover API token is missing the "Payments: Read" permission.
+      console.error("[clover] no order found for Clover payment", { orderId, status: payment.status, body: payment.body });
+      const error =
+        payment.status === 401 || payment.status === 403
+          ? "Clover wouldn't share this payment — give the website's Clover API token the Payments (Read) permission, then tap Send to Clover."
+          : `Couldn't find Clover's order for this payment (HTTP ${payment.status}). It's paid — look it up in Clover → Transactions.`;
+      await recordResult(orderId, { clover_push_error: error });
+      return { ok: false, error };
+    }
   }
 
   // 1. Create the order shell (or update Clover's own one).
