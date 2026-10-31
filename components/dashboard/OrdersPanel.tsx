@@ -678,7 +678,30 @@ export default function OrdersPanel({
             <p className="px-4 py-10 text-center font-body text-sm text-ink-soft">No online orders yet.</p>
           ) : (
             <>
-              {history.slice(0, historyLimit).map(row)}
+              {/* Grouped by the day each order was placed, newest first. */}
+              {history.slice(0, historyLimit).map((o, i, list) => {
+                const day = new Date(o.created_at).toDateString();
+                const showHeader = i === 0 || new Date(list[i - 1].created_at).toDateString() !== day;
+                const count = list.filter((x) => new Date(x.created_at).toDateString() === day).length;
+                const label = isToday(o.created_at)
+                  ? "Today"
+                  : new Date(o.created_at).toDateString() === new Date(now - 86_400_000).toDateString()
+                    ? "Yesterday"
+                    : new Date(o.created_at).toLocaleDateString([], { weekday: "long", month: "short", day: "numeric" });
+                return (
+                  <div key={o.id}>
+                    {showHeader && (
+                      <p className="flex items-center justify-between border-b-2 border-ink bg-panel px-4 py-2 font-mono text-[0.62rem] font-bold uppercase tracking-widest text-ink">
+                        <span>{label}</span>
+                        <span className="text-ink-soft">
+                          {count} order{count === 1 ? "" : "s"}
+                        </span>
+                      </p>
+                    )}
+                    {row(o)}
+                  </div>
+                );
+              })}
               {history.length > historyLimit && (
                 <button onClick={() => setHistoryLimit((n) => n + 50)} className="w-full py-3 font-mono text-xs font-bold uppercase tracking-wide text-green hover:underline">
                   Show more
